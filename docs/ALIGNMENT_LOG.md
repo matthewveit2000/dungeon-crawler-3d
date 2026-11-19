@@ -30,15 +30,26 @@ This document records each Q&A alignment round between the Project Owner (User) 
 
 ---
 
-## Round 2 — Skyrim Feel & Core Gameplay Loop (`In Progress`)
+## Round 2 — Skyrim Feel & Core Gameplay Loop (Completed: 2026-11-18)
 
-**Goal:** Define what "feels like Skyrim" means in practice for camera perspective, combat mechanics, floor collapse reset rules, and exploration feel.
+**Agreed Outcomes (logged in `D-012` through `D-017`):**
+- **Camera:** First-person primary with optional toggle to over-the-shoulder third-person.
+- **Core Combat:** Left/right-hand equipping (sword+shield, dual-wield, sword+spell, two-handed), weighted melee + power attacks + blocking + stamina, magicka spellcasting (fireballs, lightning, healing, buffs), and archery/ranged weapons with manual crosshair. (Stealth/sneak-attacks deferred.)
+- **Floor Collapse Reset:** Floor-entry snapshot — keep level/gear from floor entry; reset floor fresh with a new 5-day timer.
+- **Floor Structure:** Massive interconnected labyrinth of dungeon rooms, halls, and corridors (giant Skyrim Nordic ruin feel).
+- **Exploration & Pacing Touches:** Top compass bar for nearby landmarks, interactive looting (chests, bodies, containers, levers, traps), and full time-pause on inventory/map/skill menus.
+- **Saving:** Save-and-quit anytime (resumes exact position/timer/state), while floor collapse still resets to the floor-entry snapshot.
+
+---
+
+## Round 3 — World, Progression & *Dungeon Crawler Carl* Flavor (`In Progress`)
+
+**Goal:** Align on tone/humor, floor themes, safe zones/cities, boss arenas, loot & affix depth, progression/leveling style, and combat death behavior.
 
 *(Awaiting user answers.)*
 
 ---
 
 ## Upcoming Rounds
-- **Round 3:** World, Progression & *Dungeon Crawler Carl* Flavor
 - **Round 4:** Tech Stack, Engine & Blender Art Pipeline
 - **Round 5:** Automated Testing, CI & Milestone Roadmap

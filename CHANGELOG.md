@@ -20,3 +20,5 @@ For detailed domain-specific logs (design, art, architecture, testing), see [`do
 - **2026-11-18 — Round 1 Alignment Complete (Roles & Division of Labor):**
   - Finalized [`docs/ROLES_AND_GOVERNANCE.md`](docs/ROLES_AND_GOVERNANCE.md) and updated [`AGENTS.md`](AGENTS.md) with clear User vs. AI authority boundaries, PR-per-milestone workflow, batched playtest/art review cadence, and push-back authority (`D-010`, `D-011`).
   - Updated [`docs/ALIGNMENT_LOG.md`](docs/ALIGNMENT_LOG.md) and [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md).
+- **2026-11-18 — Round 2 Alignment Complete (Skyrim Feel & Core Gameplay Loop):**
+  - Locked camera perspective (1st-person primary + 3rd-person toggle), Skyrim-style left/right-hand melee/magic/archery combat, floor-entry snapshot reset on collapse, massive Nordic-ruin labyrinth floor structure, top compass bar + interactive looting + menu time-pause, and save-and-quit anytime (`D-012`–`D-017`).
