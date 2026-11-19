@@ -261,4 +261,132 @@ func _run() -> void:
 			fimg.save_png(out_dir.path_join("frames/frame_%03d.png" % f))
 		print("[visual-qa] Captured 40 sequential motion frames.")
 
+	if _want("clips"):
+		await _record_clips(ent)
+
 	get_tree().quit(0)
+
+
+## Extra showcase clips (QA_ONLY=clips): each is saved to clips/<name>/frame_NNN.png and encoded by the caller.
+## Run with --fixed-fps 20 so animation and simulation advance exactly 1/20 s per captured frame.
+func _clip_frame(name: String, f: int) -> void:
+	await _wait(1)
+	var dir := out_dir.path_join("clips/" + name)
+	DirAccess.make_dir_recursive_absolute(dir)
+	get_viewport().get_texture().get_image().save_png(dir.path_join("frame_%03d.png" % f))
+
+
+## QA_CLIPS=bow,spell limits which showcase clips are recorded.
+func _clip_want(name: String) -> bool:
+	var only_clips := OS.get_environment("QA_CLIPS")
+	return only_clips.is_empty() or only_clips.split(",").has(name)
+
+
+func _sim(inp: Dictionary = {}) -> void:
+	game.step_simulation(1.0 / 20.0, inp)
+
+
+func _record_clips(ent: Vector3) -> void:
+	game.close_all_menus()
+	game.hud.update_boss_bar(false)
+	var dt := 1.0 / 20.0
+
+	# 1. Walking a torch-lit corridor
+	var best := Vector2i(-1, -1)
+	for y in range(game.current_layout.height):
+		for x in range(game.current_layout.width):
+			if game.current_layout.get_tile(x, y) == DungeonGenerator.TILE_CORRIDOR and game.current_layout.get_tile(x, y - 1) == DungeonGenerator.TILE_CORRIDOR \
+					and game.current_layout.get_tile(x, y - 2) == DungeonGenerator.TILE_CORRIDOR and game.current_layout.get_tile(x, y - 3) == DungeonGenerator.TILE_CORRIDOR:
+				best = Vector2i(x, y)
+				break
+		if best.x >= 0:
+			break
+	if best.x >= 0 and _clip_want("corridor_walk"):
+		var cp := game.current_layout.tile_to_world(best)
+		game.player.quick_equip_preset(1)
+		_look(cp + Vector3(0.0, 1.62, 2.0), cp + Vector3(0.0, 1.6, -12.0))
+		game.hud.clear_transient_messages()
+		for f in range(44):
+			game.player.step_simulation(dt, false, {"move_vec": Vector2(0.0, -1.0)})
+			await _clip_frame("corridor_walk", f)
+	print("[visual-qa] Captured clip: corridor_walk")
+
+	# 2. Bow: draw, hold, loose (twice)
+	if _clip_want("bow"):
+		game.player.quick_equip_preset(4)
+		_look(ent + Vector3(0.0, 1.62, 3.4), ent + Vector3(0.0, 1.5, -6.0))
+		game.hud.clear_transient_messages()
+		for f in range(48):
+			if f == 2 or f == 28:
+				game.player.handle_hand_press("right_hand")
+			elif f == 20 or f == 44:
+				game.player.handle_hand_release("right_hand")
+			_sim()
+			await _clip_frame("bow", f)
+		print("[visual-qa] Captured clip: bow")
+
+	# 3. Sword & firebolt: cast twice from the off hand, then a sword cut
+	if _clip_want("spell"):
+		game.player.quick_equip_preset(3)
+		_look(ent + Vector3(0.0, 1.62, 3.4), ent + Vector3(0.0, 1.5, -6.0))
+		game.hud.clear_transient_messages()
+		for f in range(40):
+			if f == 3 or f == 18:
+				game.player.handle_hand_press("left_hand")
+			elif f == 30:
+				game.player.handle_hand_press("right_hand")
+			elif f == 31:
+				game.player.handle_hand_release("right_hand")
+			_sim()
+			await _clip_frame("spell", f)
+		print("[visual-qa] Captured clip: spell")
+
+	# 4. Two-handed battleaxe: light chop, then a held power cleave
+	if _clip_want("battleaxe"):
+		game.player.quick_equip_preset(2)
+		_look(ent + Vector3(0.0, 1.62, 3.4), ent + Vector3(0.0, 1.5, -6.0))
+		game.hud.clear_transient_messages()
+		for f in range(44):
+			if f == 3 or f == 20:
+				game.player.handle_hand_press("right_hand")
+			elif f == 4 or f == 30:
+				game.player.handle_hand_release("right_hand")
+			_sim()
+			await _clip_frame("battleaxe", f)
+		print("[visual-qa] Captured clip: battleaxe")
+
+	# 5. Third person: walk forward, turn, swing
+	if _clip_want("third_person"):
+		game.player.quick_equip_preset(1)
+		_look(ent + Vector3(0.6, 1.62, 2.6), ent + Vector3(0.0, 1.4, -6.0))
+		game.player.set_camera_mode("third_person")
+		game.hud.clear_transient_messages()
+		for f in range(48):
+			var inp: Dictionary = {"move_vec": Vector2(0.0, -1.0) if f < 26 else Vector2.ZERO}
+			if f >= 18 and f < 30:
+				game.player.rotation.y += 0.035
+			if f == 32:
+				game.player.handle_hand_press("right_hand")
+			elif f == 33:
+				game.player.handle_hand_release("right_hand")
+			_sim(inp)
+			await _clip_frame("third_person", f)
+		game.player.set_camera_mode("first_person")
+		print("[visual-qa] Captured clip: third_person")
+
+	# 6. The Iron Warden: roar, then a ground slam (animation only, AI paused)
+	if game.boss_actor != null and _clip_want("boss"):
+		var b := game.boss_actor
+		var bc := b.global_position
+		game.player.quick_equip_preset(1)
+		_look(bc + Vector3(0.8, 1.62, 4.6), bc + Vector3(0.0, 2.3, 0.0))
+		b.visual.play_state("idle_combat", 0.0)
+		game.hud.clear_transient_messages()
+		for f in range(64):
+			if f == 2:
+				b.visual.play_action("roar", 0.1)
+			elif f == 40:
+				b.visual.play_action("slam", 0.1)
+			game.player.step_simulation(dt, false, {})
+			await _clip_frame("boss", f)
+	print("[visual-qa] Captured clip: boss")

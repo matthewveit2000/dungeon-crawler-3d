@@ -599,7 +599,8 @@ func refresh_hand_visuals() -> void:
 				_fp_right_weapon_holder.add_child(w_model)
 				var tip_len := 0.95 if is_two_hand else 0.9
 				_blade_base = Node3D.new()
-				_blade_base.position = Vector3(0, 0.95 if is_two_hand else 0.55, 0)
+				# Streak only along the outer part of the blade / the axe head, so it reads as a glint, not a wedge
+				_blade_base.position = Vector3(0, 1.0 if is_two_hand else 0.68, 0)
 				_fp_right_weapon_holder.add_child(_blade_base)
 				_blade_tip = Node3D.new()
 				_blade_tip.position = Vector3(0, tip_len + (0.12 if is_two_hand else 0.0), 0)
@@ -782,8 +783,9 @@ func _update_procedural_animations(delta: float, move_amount: float, is_sprintin
 		r_pos = TWO_HAND_POS
 		r_rot = _hand_basis(TWO_HAND_GRIP, TWO_HAND_FOREARM).get_euler() * (180.0 / PI)
 	elif is_bow:
-		r_pos = Vector3(0.24, -0.34, -0.42)
-		r_rot = Vector3(-60.0, 10.0, 70.0)
+		# Empty drawing hand rests low on the right, forearm running down out of frame
+		r_pos = Vector3(0.3, -0.44, -0.46)
+		r_rot = _hand_basis(Vector3(-0.35, 0.45, -0.82), Vector3(0.25, -0.75, 0.6)).get_euler() * (180.0 / PI)
 	elif r_spell:
 		r_pos = Vector3(0.28, -0.3, -0.5)
 		r_rot = Vector3(-10.0, 10.0, 0.0)
@@ -1032,7 +1034,7 @@ func _update_blade_trail() -> void:
 	var n := _trail_pts.size()
 	for i in range(n):
 		var a := 1.0 - float(i) / float(n - 1)
-		var c := Color(1.0, 0.82, 0.55, 0.13 * a * a)
+		var c := Color(1.0, 0.84, 0.6, 0.07 * a * a)
 		var pair: Array = _trail_pts[i]
 		im.surface_set_color(Color(c.r, c.g, c.b, c.a * 0.2))
 		im.surface_add_vertex(pair[0])
