@@ -1,0 +1,19 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).  
+For detailed domain-specific logs (design, art, architecture, testing), see [`docs/changelogs/README.md`](docs/changelogs/README.md).
+
+---
+
+## [Unreleased]
+
+### Added
+- **2026-11-18 — Repository & Multi-AI Foundation Initialized:**
+  - Created public repository `matthewveit2000/dungeon-crawler-3d`.
+  - Added universal AI-tool instruction files: [`AGENTS.md`](AGENTS.md), [`CLAUDE.md`](CLAUDE.md), [`.cursorrules`](.cursorrules), and [`.github/copilot-instructions.md`](.github/copilot-instructions.md).
+  - Created [`docs/VISION_AND_CONSTRAINTS.md`](docs/VISION_AND_CONSTRAINTS.md) logging the Skyrim gameplay north star, floor collapse loop (5 in-game days @ ~30 min/day, reset to floor start), no staircase previews, open-source/custom-art constraints, and automated-testing mandate.
+  - Created [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md) recording initial locked-in decisions `D-001` through `D-009`.
+  - Created [`docs/ALIGNMENT_LOG.md`](docs/ALIGNMENT_LOG.md) and [`docs/ROLES_AND_GOVERNANCE.md`](docs/ROLES_AND_GOVERNANCE.md) to track pre-production alignment rounds.
+  - Created [`docs/changelogs/README.md`](docs/changelogs/README.md) establishing changelog standards across all project domains.

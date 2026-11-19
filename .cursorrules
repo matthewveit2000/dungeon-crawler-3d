@@ -1,0 +1,10 @@
+# Cursor Rules
+
+Follow `AGENTS.md` as the single source of truth for this repository.
+
+Before making changes:
+1. Read `AGENTS.md`.
+2. Check `docs/ROLES_AND_GOVERNANCE.md` for autonomy boundaries and approval rules.
+3. Check `docs/VISION_AND_CONSTRAINTS.md` and `docs/DECISION_LOG.md` for locked-in constraints.
+4. Log every new decision in `docs/DECISION_LOG.md` and every meaningful change in `CHANGELOG.md` (and domain changelogs under `docs/changelogs/`).
+5. Write automated tests for everything that can be tested automatically.

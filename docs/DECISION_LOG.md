@@ -1,0 +1,19 @@
+# Decision Log
+
+Every locked-in design, governance, architectural, art, and tooling decision is recorded here so any human or AI tool knows **what** was decided and **why**.
+
+---
+
+## Decisions
+
+| ID | Date | Category | Decision | Rationale / Notes | Status |
+|---|---|---|---|---|---|
+| **D-001** | 2026-11-18 | Vision | **3D Reboot (Fresh Repo):** Create a new 3D game in `dungeon-crawler-3d` rather than extending the 2D prototypes (`Dungeon-Crawler-Game-2`, `dungeon-crawler-engine`). | Carry forward concepts and lessons learned without inheriting 2D engine constraints. | Locked |
+| **D-002** | 2026-11-18 | Gameplay | **Skyrim North Star:** Gameplay feel is guided by **Skyrim** above all other references. | Primary compass for camera, exploration, combat weight, and world immersion. | Locked |
+| **D-003** | 2026-11-18 | Tech | **Leverage Existing Open-Source Engines/Libraries:** Do not build a 3D engine from scratch; maximize use of free, open-source engines and libraries while keeping full flexibility. | Avoids months of low-level engine bugs and lets us focus on gameplay and art. | Locked |
+| **D-004** | 2026-11-18 | Licensing | **100% Free & Open Source:** All engines, libraries, tools, and project output must be completely free and open source. | Zero licensing fees, royalties, or proprietary lock-in. | Locked |
+| **D-005** | 2026-11-18 | Art | **100% In-House Original Art (Blender + Open-Source Tools):** All game art is created by us; no third-party asset packs. | Full ownership, cohesive art direction, no redistribution restrictions. | Locked |
+| **D-006** | 2026-11-18 | Gameplay | **Floor Collapse Timer = 5 In-Game Days (~30 min/day initially):** Each floor collapses after 5 in-game days (each day ~30 real-time minutes for now, configurable). | Creates sustained exploration pressure without rushing the player like a 5-minute arcade timer. | Locked |
+| **D-007** | 2026-11-18 | Gameplay | **Floor Collapse = Reset to Floor Start (No Permadeath):** When a floor collapses, the player resets to the start of that floor instead of losing the whole run. | Keeps collapse meaningful without punishing multi-hour runs with full wipes. Exact keep/lose rules to be refined in Round 2. | Locked |
+| **D-008** | 2026-11-18 | Gameplay | **No Staircase Previews:** Descending to a new floor does not preview the upcoming floor's theme or contents. | Preserves mystery and discovery when entering a new floor. | Locked |
+| **D-009** | 2026-11-18 | Quality | **Automated-Testing First & Multi-AI Repo Standard:** Automate everything testable to minimize manual user testing; maintain universal AI docs (`AGENTS.md`, `CLAUDE.md`, etc.) and changelogs for everything. | Reduces user testing overhead and guarantees seamless handoff across any AI tool. | Locked |
