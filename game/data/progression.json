@@ -1,0 +1,71 @@
+{
+  "xp_curve": {
+    "base_xp": 100.0,
+    "exponent": 1.45
+  },
+  "level_up_rewards": {
+    "attribute_points": 1,
+    "perk_points": 1,
+    "health_per_point": 15.0,
+    "magicka_per_point": 15.0,
+    "stamina_per_point": 15.0
+  },
+  "proficiencies": {
+    "skills": [
+      "one_handed",
+      "two_handed",
+      "block",
+      "archery",
+      "destruction",
+      "restoration"
+    ],
+    "starting_level": 1,
+    "max_level": 100,
+    "base_xp_per_skill_level": 40.0,
+    "skill_xp_growth": 1.18,
+    "damage_bonus_per_level": 0.015,
+    "block_bonus_per_level": 0.004,
+    "character_xp_on_skill_up": 25.0,
+    "xp_gain_per_use": {
+      "one_handed": 14.0,
+      "two_handed": 18.0,
+      "block": 16.0,
+      "archery": 16.0,
+      "destruction": 15.0,
+      "restoration": 18.0
+    }
+  },
+  "perks": [
+    {
+      "id": "armsman",
+      "name": "Armsman",
+      "branch": "combat",
+      "description": "+15% Melee & Archery Damage.",
+      "damage_multiplier_bonus": 0.15
+    },
+    {
+      "id": "shield_wall",
+      "name": "Shield Wall",
+      "branch": "defense",
+      "description": "+15 Armor and +10% Block Reduction.",
+      "armor_bonus": 15.0,
+      "block_bonus": 0.1
+    },
+    {
+      "id": "arcane_surge",
+      "name": "Arcane Surge",
+      "branch": "magic",
+      "description": "+25 Max Magicka and +20% Spell Power.",
+      "magicka_bonus": 25.0,
+      "spell_multiplier_bonus": 0.2
+    },
+    {
+      "id": "crawler_grit",
+      "name": "Crawler's Grit",
+      "branch": "survival",
+      "description": "+30 Max Health and +20 Max Stamina.",
+      "health_bonus": 30.0,
+      "stamina_bonus": 20.0
+    }
+  ]
+}

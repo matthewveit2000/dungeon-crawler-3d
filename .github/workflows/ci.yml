@@ -1,0 +1,29 @@
+name: Automated Verification CI
+
+on:
+  push:
+    branches: ["main", "feat/**"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  verify:
+    name: Data, Hygiene, Assets & Godot 4 Headless Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache Godot 4.7.2 toolchain
+        uses: actions/cache@v4
+        with:
+          path: .tools/godot
+          key: godot-4.7.2-stable-linux-x86_64
+
+      - name: Install pinned Godot 4.7.2 & GUT
+        run: |
+          chmod +x scripts/setup-tools.sh scripts/run-tests.sh
+          ./scripts/setup-tools.sh --godot-only
+
+      - name: Run full automated test & validation suite
+        run: ./scripts/run-tests.sh
