@@ -803,60 +803,42 @@ func _update_procedural_animations(delta: float, move_amount: float, is_sprintin
 			var pulse := sin(u * PI)
 			sp = Vector3(-0.06, 0.04, -0.22) * pulse
 			sr = Vector3(-20.0, 10.0, 0.0) * pulse
-		elif _right_swing_power or is_two_hand:
-			# Overhead cleave: big anticipation, fast chop, heavy follow-through
-			var p0 := Vector3(0.06, 0.26, 0.14)
-			var r0 := Vector3(52.0, -10.0, -30.0)
-			var p1 := Vector3(-0.30, -0.22, -0.18)
-			var r1 := Vector3(-70.0, 30.0, 40.0)
-			if u < 0.3:
-				var k := ease(u / 0.3, -1.8)
-				sp = p0 * k
-				sr = r0 * k
-			elif u < 0.52:
-				var k := ease((u - 0.3) / 0.22, 0.35)
-				sp = p0.lerp(p1, k)
-				sr = r0.lerp(r1, k)
-			else:
-				var k := ease((u - 0.52) / 0.48, -2.0)
-				sp = p1.lerp(Vector3.ZERO, k)
-				sr = r1.lerp(Vector3.ZERO, k)
-		elif _right_combo_step % 2 == 0:
-			# Forehand diagonal cut: right-high to left-low across the view
-			var p0 := Vector3(0.14, 0.12, 0.06)
-			var r0 := Vector3(18.0, -30.0, -38.0)
-			var p1 := Vector3(-0.36, -0.16, -0.2)
-			var r1 := Vector3(-48.0, 62.0, 72.0)
-			if u < 0.24:
-				var k := ease(u / 0.24, -1.6)
-				sp = p0 * k
-				sr = r0 * k
-			elif u < 0.5:
-				var k := ease((u - 0.24) / 0.26, 0.35)
-				sp = p0.lerp(p1, k)
-				sr = r0.lerp(r1, k)
-			else:
-				var k := ease((u - 0.5) / 0.5, -1.8)
-				sp = p1.lerp(Vector3.ZERO, k)
-				sr = r1.lerp(Vector3.ZERO, k)
 		else:
-			# Backhand riposte: left to right, rising
-			var p0 := Vector3(-0.32, -0.04, 0.02)
-			var r0 := Vector3(-10.0, 54.0, 64.0)
-			var p1 := Vector3(0.22, 0.1, -0.22)
-			var r1 := Vector3(-30.0, -48.0, -44.0)
-			if u < 0.26:
-				var k := ease(u / 0.26, -1.6)
-				sp = p0 * k
-				sr = r0 * k
-			elif u < 0.52:
-				var k := ease((u - 0.26) / 0.26, 0.35)
-				sp = p0.lerp(p1, k)
-				sr = r0.lerp(r1, k)
+			# Weapon swings are keyed as fist poses (position + grip + forearm direction) so the elbow always
+			# trails the hand and the blade leads the cut; the swing starts and ends on the current rest pose
+			var rest_key := [r_pos, Basis.from_euler(r_rot * (PI / 180.0)).get_rotation_quaternion()]
+			var keys: Array = []
+			var times: Array = []
+			var curves: Array = []
+			if _right_swing_power or is_two_hand:
+				# Overhead cleave: big anticipation, fast chop, heavy follow-through
+				keys = [rest_key,
+					_swing_key(Vector3(0.22, 0.0, -0.3), Vector3(-0.1, 0.55, 0.83), Vector3(0.25, -0.95, -0.2)),
+					_swing_key(Vector3(0.0, -0.32, -0.62), Vector3(-0.1, -0.35, -0.93), Vector3(0.35, -0.45, 0.82)),
+					rest_key]
+				times = [0.0, 0.3, 0.52, 1.0]
+				curves = [-1.8, 0.35, -2.0]
+			elif _right_combo_step % 2 == 0:
+				# Forehand diagonal cut: right-high to left-low across the view
+				keys = [rest_key,
+					_swing_key(Vector3(0.34, -0.08, -0.45), Vector3(-0.25, 0.9, 0.35), Vector3(0.55, -0.6, 0.58)),
+					_swing_key(Vector3(0.08, -0.22, -0.58), Vector3(-0.92, 0.05, -0.38), Vector3(0.6, -0.35, 0.72)),
+					_swing_key(Vector3(-0.24, -0.38, -0.5), Vector3(-0.55, -0.6, 0.25), Vector3(0.82, -0.05, 0.57)),
+					rest_key]
+				times = [0.0, 0.24, 0.4, 0.5, 1.0]
+				curves = [-1.6, 0.4, 0.6, -1.8]
 			else:
-				var k := ease((u - 0.52) / 0.48, -1.8)
-				sp = p1.lerp(Vector3.ZERO, k)
-				sr = r1.lerp(Vector3.ZERO, k)
+				# Backhand riposte: left to right, rising
+				keys = [rest_key,
+					_swing_key(Vector3(-0.18, -0.34, -0.46), Vector3(-0.75, 0.35, 0.55), Vector3(0.65, -0.55, 0.52)),
+					_swing_key(Vector3(0.1, -0.2, -0.6), Vector3(0.9, 0.25, -0.35), Vector3(0.1, -0.6, 0.79)),
+					_swing_key(Vector3(0.36, -0.1, -0.42), Vector3(0.55, 0.6, 0.58), Vector3(-0.15, -0.8, 0.58)),
+					rest_key]
+				times = [0.0, 0.26, 0.4, 0.52, 1.0]
+				curves = [-1.6, 0.4, 0.6, -1.8]
+			var pose := _swing_pose(u, keys, times, curves)
+			sp = (pose[0] as Vector3) - r_pos
+			sr = Basis(pose[1] as Quaternion).get_euler() * (180.0 / PI) - r_rot
 		r_pos += sp
 		r_rot += sr
 
@@ -999,6 +981,23 @@ static func _two_hand_holder_basis() -> Basis:
 	var n := (g * v.dot(g) - v).normalized()
 	var weapon_b := Basis(g.cross(n).normalized(), g, n)
 	return _hand_basis(TWO_HAND_GRIP, TWO_HAND_FOREARM).inverse() * weapon_b
+
+
+## One first-person swing key: fist position + where its grip axis and forearm point (rig space).
+static func _swing_key(pos: Vector3, grip_dir: Vector3, forearm_dir: Vector3) -> Array:
+	return [pos, _hand_basis(grip_dir, forearm_dir).get_rotation_quaternion()]
+
+
+## Samples keyed fist poses at u (0..1): positions lerp, orientations slerp, each segment with its own ease.
+static func _swing_pose(u: float, keys: Array, times: Array, curves: Array) -> Array:
+	for i in range(times.size() - 1):
+		if u <= float(times[i + 1]) or i == times.size() - 2:
+			var span := maxf(0.0001, float(times[i + 1]) - float(times[i]))
+			var k := ease(clampf((u - float(times[i])) / span, 0.0, 1.0), float(curves[i]))
+			var a: Array = keys[i]
+			var b: Array = keys[i + 1]
+			return [(a[0] as Vector3).lerp(b[0] as Vector3, k), (a[1] as Quaternion).slerp(b[1] as Quaternion, k)]
+	return keys[keys.size() - 1]
 
 
 func _aim_segment(seg: Node3D, tip: Vector3, target: Vector3) -> void:

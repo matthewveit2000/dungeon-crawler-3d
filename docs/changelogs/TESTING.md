@@ -49,4 +49,5 @@ See [`docs/TESTING_STRATEGY.md`](../TESTING_STRATEGY.md) and [`docs/DECISION_LOG
 - The field-guide card is captured once (first-person shot) and then hidden, so later scene shots are unobstructed; the combat clip stages the draugr at its real attack range instead of inside the camera.
 - `scripts/validate-assets.py` now also requires the `bar_back` UI texture.
 - New tests in `test_ui_and_visuals.gd`: menus fit a 1280×720 screen (inventory columns & both tabs, pause column, settings panel), HUD labels both hands for two-handed weapons and bows, the death card hides the HUD until dismissed, and the Low preset skips dust motes instead of creating a 0-particle emitter (a real engine error the Low-quality capture exposed).
-- Totals: 12 test scripts, 57 tests, 5,660+ assertions — all green.
+- Also: floor entry clears stale broadcasts (`GameHud.clear_transient_messages`).
+- Totals: 12 test scripts, 58 tests, 5,666 assertions — all green.

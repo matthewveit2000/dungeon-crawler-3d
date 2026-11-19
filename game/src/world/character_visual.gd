@@ -16,8 +16,9 @@ var state: String = ""
 var oneshot: String = ""
 var speed_scale: float = 1.0
 var _flash_t: float = 0.0
-## Additive hit-flash strength: a readable warm pulse that never washes the model out to a silhouette
-const FLASH_ALPHA := 0.22
+## Additive hit-flash strength (linear light: 0.08 already reads as a clear warm pulse on dark models;
+## 0.2+ turns them into pale silhouettes)
+const FLASH_ALPHA := 0.08
 var _flash_mats: Array = []
 var _fallback_t: float = 0.0
 var _dead: bool = false

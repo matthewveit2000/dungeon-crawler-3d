@@ -231,3 +231,11 @@ func test_low_preset_skips_dust_motes_instead_of_zero_particles() -> void:
 	assert_gt(dust.amount, 0)
 	dust.free()
 	VfxFactory.quality = prev
+
+
+func test_floor_entry_clears_stale_broadcasts() -> void:
+	game.hud.show_ai_announcement("STALE", "From the previous attempt", "info")
+	game.hud.show_ai_announcement("QUEUED", "Waiting in line", "info")
+	game.hud.clear_transient_messages()
+	assert_false(game.hud._ai_card.visible, "Visible broadcast card is dismissed")
+	assert_eq(game.hud._ai_queue.size(), 0, "Queued broadcasts are dropped")

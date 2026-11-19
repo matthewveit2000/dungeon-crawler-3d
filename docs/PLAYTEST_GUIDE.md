@@ -84,5 +84,5 @@ These shortcuts exist so you never have to grind to inspect any feature:
 
 When you review this milestone, let me know:
 1. **Skyrim Feel:** Does movement speed, camera height/FOV, left/right-hand combat, and menu pausing feel right?
-2. **Art Direction (3 Preview Sheets):** Look at `art/previews/batch1_dungeon_kit.png`, `batch2_weapons_gear.png`, and `batch3_characters_enemies.png` — what do you love, and what would you tweak before we expand art in `v0.2`?
+2. **Art Direction (5 Preview Sheets):** Look at `art/previews/batch1_kit_room.png`, `batch1_props.png`, `batch2_weapons_gear.png`, `batch3_characters.png` and `texture_library.png` (plus the live screenshots from `./scripts/run-visual-qa.sh`) — what do you love, and what would you tweak before we expand art in `v0.2`?
 3. **Pacing & Tone:** How do the 5-day floor clock, Safe Room sanctuary, Boss Arena tension, and Dungeon AI snarky banners feel?

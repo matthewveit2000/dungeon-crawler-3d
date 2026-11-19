@@ -186,6 +186,8 @@ func _run() -> void:
 		game.dungeon_builder.seal_boss_arena()
 		_look(bc + Vector3(0.0, 1.62, 7.4), bc + Vector3(0.0, 2.2, 0.0))
 		b.wake_boss()
+		game.hud.clear_transient_messages()
+		game.step_simulation(0.05)
 		game._update_hud_navigation()
 		await _shot("11_boss_arena.png", 22)
 
@@ -231,10 +233,10 @@ func _run() -> void:
 		_look(ent + Vector3(0.0, 1.62, 3.2), ent + Vector3(0.0, 1.3, -2.0))
 		if d2 != null:
 			# Stand the draugr at its real attack range from where the walk-in ends
-			d2.global_position = ent + Vector3(0.0, 0.05, -0.8)
+			d2.global_position = ent + Vector3(0.0, 0.05, -1.8)
 			d2.rotation.y = 0.0
 		for f in range(40):
-			var inp: Dictionary = {"move_vec": Vector2(0.0, -0.25 if f < 8 else 0.0)}
+			var inp: Dictionary = {"move_vec": Vector2(0.0, -0.25 if f < 3 else 0.0)}
 			if f == 4 or f == 16:
 				game.player.handle_hand_press("right_hand")
 			elif f == 5 or f == 17:

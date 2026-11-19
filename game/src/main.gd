@@ -177,6 +177,8 @@ func enter_floor(target_floor: int, capture_snapshot: bool = true) -> void:
 	floor_timer.reset()
 	map_seen.clear()
 	_last_player_tile = Vector2i(-999, -999)
+	if hud != null:
+		hud.clear_transient_messages()  # stale broadcasts from the previous floor / attempt don't linger
 
 	if capture_snapshot:
 		snapshot_mgr.capture_floor_entry_snapshot(_build_snapshot_payload())

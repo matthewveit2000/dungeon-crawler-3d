@@ -703,6 +703,19 @@ func update_boss_bar(visible_flag: bool, boss_name: String = "", hp: float = 0.0
 		_boss_bar.fill_col = Color(0.95, 0.3, 0.08) if enraged else Color(0.78, 0.14, 0.1)
 
 
+## Drops queued/visible broadcasts, toasts and the area title (e.g. after a floor change or teleport).
+func clear_transient_messages() -> void:
+	if _ai_card == null:
+		return
+	_ai_queue.clear()
+	_ai_timer = 0.0
+	_ai_card.visible = false
+	_area_t = 0.0
+	_area_box.modulate.a = 0.0
+	for t in _toast_box.get_children():
+		t.queue_free()
+
+
 func set_zone_banner(text: String, col: Color) -> void:
 	if text.is_empty():
 		_zone_pill.visible = false
