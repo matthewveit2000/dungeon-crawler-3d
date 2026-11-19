@@ -22,3 +22,5 @@ For detailed domain-specific logs (design, art, architecture, testing), see [`do
   - Updated [`docs/ALIGNMENT_LOG.md`](docs/ALIGNMENT_LOG.md) and [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md).
 - **2026-11-18 — Round 2 Alignment Complete (Skyrim Feel & Core Gameplay Loop):**
   - Locked camera perspective (1st-person primary + 3rd-person toggle), Skyrim-style left/right-hand melee/magic/archery combat, floor-entry snapshot reset on collapse, massive Nordic-ruin labyrinth floor structure, top compass bar + interactive looting + menu time-pause, and save-and-quit anytime (`D-012`–`D-017`).
+- **2026-11-18 — Round 3 Alignment Complete (World, Progression & DCC Flavor):**
+  - Locked unified combat-death floor-entry reset, hybrid XP + Skyrim use-to-improve progression, Skyrim slots + Sponsored/Mythic affixes, discoverable Safe Rooms/Towns, hidden staircase + optional sealed Boss Arenas/Vaults, and full "Dark Baseline, Goofy Payload" DCC tone (`D-018`–`D-023`).

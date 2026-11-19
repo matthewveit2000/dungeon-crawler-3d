@@ -42,14 +42,25 @@ This document records each Q&A alignment round between the Project Owner (User) 
 
 ---
 
-## Round 3 — World, Progression & *Dungeon Crawler Carl* Flavor (`In Progress`)
+## Round 3 — World, Progression & *Dungeon Crawler Carl* Flavor (Completed: 2026-11-18)
 
-**Goal:** Align on tone/humor, floor themes, safe zones/cities, boss arenas, loot & affix depth, progression/leveling style, and combat death behavior.
+**Agreed Outcomes (logged in `D-018` through `D-023`):**
+- **Combat Death:** Same as floor collapse — reset to the floor-entry snapshot with a fresh 5-day timer.
+- **Progression:** Hybrid — XP from combat/quests/exploration grants level-ups + Perk/Skill Tree points, AND using weapons/magic improves proficiency Skyrim-style.
+- **Loot & Gear:** Skyrim equipment slots (weapons, armor, rings, amulets) powered by rarity-scaled affixes and wild Sponsored/Mythic game-changing effects.
+- **Safe Zones:** Discoverable Safe Rooms & underground Towns hidden in the labyrinth (no enemy entry) with Vendors, Quest Boards, and Stash/Rest spots.
+- **Bosses & Staircase:** Exploring reveals the hidden exit staircase; optional sealed Boss Arenas guard high-tier Treasure Vaults (risk vs. time).
+- **Tone & Flavor:** Full *"Dark Baseline, Goofy Payload"* — grim Skyrim-like dungeon atmosphere contrasted with a snarky Dungeon AI, absurd achievement popups, and ridiculous sponsored loot.
+
+---
+
+## Round 4 — Platform, Engine, Visual Style & First Playable Milestone (`In Progress`)
+
+**Goal:** Align on target platform/engine direction, 3D Blender art style, audio approach, and scope of the first playable vertical slice.
 
 *(Awaiting user answers.)*
 
 ---
 
 ## Upcoming Rounds
-- **Round 4:** Tech Stack, Engine & Blender Art Pipeline
-- **Round 5:** Automated Testing, CI & Milestone Roadmap
+- **Round 5:** Final Review of Master Blueprint, Automated Testing Plan & Phased Roadmap
