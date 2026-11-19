@@ -28,6 +28,15 @@ UI_REQUIRED = ["panel_frame", "panel_soft", "card", "button_normal", "button_hov
                "icon_skull", "icon_shield", "icon_stairs", "icon_player", "icon_coin", "check_on", "check_off", "slider_grabber"]
 
 
+def glb_animation_names(path: pathlib.Path) -> list:
+    data = path.read_bytes()
+    if len(data) < 20:
+        return []
+    json_len = struct.unpack("<I", data[12:16])[0]
+    doc = json.loads(data[20:20 + json_len])
+    return [str(a.get("name", "")) for a in doc.get("animations", [])]
+
+
 def glb_ok(path: pathlib.Path) -> str:
     raw = path.read_bytes()
     if len(raw) < 20 or raw[:4] != b"glTF":
@@ -73,6 +82,15 @@ def main() -> int:
             missing = REQUIRED_CLIPS - clips
             if missing:
                 errors.append(f"{e['path']} missing animation clips: {sorted(missing)}")
+            # The clips actually inside the .glb must be exactly this character's own NLA tracks: a batch export
+            # once leaked earlier characters' actions into later files and renamed each character's own clips
+            # to "idle.001"-style names, so every enemy silently played the player's animations.
+            in_file = glb_animation_names(p)
+            if set(in_file) != clips or len(in_file) != len(clips):
+                errors.append(f"{e['path']} clips in file {sorted(in_file)} != its own tracks {sorted(clips)}")
+            suffixed = [c for c in in_file if "." in c]
+            if suffixed:
+                errors.append(f"{e['path']} has suffixed (foreign) animation clips: {suffixed}")
 
     for cat, need in REQUIRED_CATEGORIES.items():
         if counts.get(cat, 0) < need:

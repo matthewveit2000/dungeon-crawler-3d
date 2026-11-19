@@ -42,7 +42,7 @@ vertex ambient occlusion** baked in Blender (`dclib/shapes.bake_vertex_ao`) × r
 
 ## 3. Modelling Library (`art/blender/dclib/`)
 
-- `core.py` — scene/mesh helpers, world-metre box & cylindrical UVs (with per-part `uv_lock` so wood grain follows each board), vertex-colour weathering, glTF export (+ tangents, vertex colours, animations) and manifest recording.
+- `core.py` — scene/mesh helpers, world-metre box & cylindrical UVs (with per-part `uv_lock` so wood grain follows each board), vertex-colour weathering, glTF export (+ tangents, vertex colours, animations — exported per NLA track, so each character file carries exactly its own clips under clean names; `validate-assets.py` enforces this) and manifest recording. All build seeds are stable (never Python's salted `hash()`), so rebuilds produce the same geometry, UVs and colours (a few meshes may differ only in triangle order).
 - `shapes.py` — irregular hand-cut stones (bevel + chipped corners + Perlin lumpiness), lathe, swept tubes with taper, tori, arches (voussoirs), planks, cloth panels with folds & frayed/swallowtail hems, straps, rivets, chains, ray-cast AO baking.
 - `rig.py` — humanoid skeleton with forward-rolled bones (+X rotation = swing forward), skin-modifier bodies, distance-based smooth skinning, rigid/blended weights for gear, keyframe animation DSL (one NLA track per clip).
 - `render.py` — Cycles preview sheets (distance-normalised 3-point torch lighting) and orthographic, tightly framed transparent item icons. Each icon gets a finishing pass (`finish_icon`): dark items are exposure-normalised (95th-percentile luminance → 0.8, gain ≤ 2.2) and a soft warm backlight halo is added so silhouettes read on dark inventory slots.

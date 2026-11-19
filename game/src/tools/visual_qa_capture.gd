@@ -119,6 +119,7 @@ func _run() -> void:
 		_step(4)
 
 	if _want("tp"):
+		game.hud.clear_transient_messages()  # each scene group starts from a clean HUD, whatever ran before
 		game.player.quick_equip_preset(1)
 		_look(ent + Vector3(0.6, 1.62, 1.4), ent + Vector3(0.0, 1.4, -6.0))
 		game.player.set_camera_mode("third_person")
@@ -128,6 +129,7 @@ func _run() -> void:
 		_step(2)
 
 	if _want("enemies"):
+		game.hud.clear_transient_messages()
 		# Stage a draugr mid-attack right in front of the player
 		var d := _enemy("draugr")
 		if d != null:
@@ -157,6 +159,7 @@ func _run() -> void:
 				e.global_position = Vector3(0, -50, 0)
 
 	if _want("corridor"):
+		game.hud.clear_transient_messages()
 		# find a corridor tile with a torch nearby
 		var best := Vector2i(-1, -1)
 		for y in range(game.current_layout.height):
@@ -175,6 +178,7 @@ func _run() -> void:
 			await _shot("09_corridor.png", 10)
 
 	if _want("safe"):
+		game.hud.clear_transient_messages()
 		var sc := _room_center(game.current_layout.safe_room_id)
 		_look(sc + Vector3(1.4, 1.62, 4.6), sc + Vector3(-1.2, 1.3, -2.6))
 		game.step_simulation(0.05)
@@ -228,6 +232,8 @@ func _run() -> void:
 
 	if _want("motion"):
 		game.close_all_menus()
+		game.hud.clear_transient_messages()
+		game.hud.update_boss_bar(false)  # the boss woken for shot 11 is in another room
 		game.player.quick_equip_preset(1)
 		var d2 := _enemy("draugr")
 		_look(ent + Vector3(0.0, 1.62, 3.2), ent + Vector3(0.0, 1.3, -2.0))

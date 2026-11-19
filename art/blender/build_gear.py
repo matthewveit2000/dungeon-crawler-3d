@@ -726,7 +726,8 @@ def main():
         for r in rows:
             render.layout_row(r, gap=0.12, y=y)
             y += 0.9
-        render.render_sheet([o for o in vis], "batch2_weapons_gear", cam_dist=0.75, elev=0.75, lens=40, samples=48,
+        # cam_dist 0.95: the widest row (sword .. arrow) needs ~1.1x the layout span in view at 40 mm
+        render.render_sheet([o for o in vis], "batch2_weapons_gear", cam_dist=0.95, elev=0.75, lens=40, samples=48,
                             target_z_frac=0.0, yaw=0.0)
 
 

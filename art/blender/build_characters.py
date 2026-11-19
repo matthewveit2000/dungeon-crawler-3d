@@ -11,6 +11,7 @@ import math
 import pathlib
 import random
 import sys
+import zlib
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
@@ -151,7 +152,7 @@ def skin_parts(parts, js, arm_ob, name):
     for k in ("dc_bone", "dc_blend", "_fn_id"):
         if k in ob.keys():
             del ob[k]
-    core.finalize(ob, smooth_angle=55, uv="box", seed=hash(name) % 997, weathering=0.6)
+    core.finalize(ob, smooth_angle=55, uv="box", seed=zlib.crc32(name.encode()) % 997, weathering=0.6)  # stable across runs (hash() is salted per process)
     shapes.bake_vertex_ao(ob, rays=10, dist=0.12, strength=0.55)
     rig.bind(ob, arm_ob)
     return ob
@@ -890,6 +891,13 @@ CHARACTERS = {
 }
 
 
+def own_action(arm_ob, clip):
+    """The action behind this armature's own NLA track `clip` (Blender action names are global and get
+    .001-style suffixes once several characters are built in one session)."""
+    track = arm_ob.animation_data.nla_tracks.get(clip) if arm_ob.animation_data else None
+    return track.strips[0].action if track is not None and track.strips else None
+
+
 def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     only = set()
@@ -918,7 +926,7 @@ def main():
         objs = []
         for kind, (arm_ob, mesh_ob) in built.items():
             arm_ob.location.x = xs
-            arm_ob.animation_data.action = bpy.data.actions.get("idle")
+            arm_ob.animation_data.action = own_action(arm_ob, "idle")
             xs += 2.6 if kind == "iron_warden" else 1.3
             objs.append(mesh_ob)
         bpy.context.scene.frame_set(0)
@@ -930,7 +938,7 @@ def main():
     if strip:
         kind, an = strip.split(":")
         arm_ob, mesh_ob = built[kind]
-        act = bpy.data.actions[an]
+        act = own_action(arm_ob, an)
         arm_ob.animation_data.action = act
         frames = [int(f) for f in act.frame_range]
         n = 6

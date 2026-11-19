@@ -50,4 +50,5 @@ See [`docs/TESTING_STRATEGY.md`](../TESTING_STRATEGY.md) and [`docs/DECISION_LOG
 - `scripts/validate-assets.py` now also requires the `bar_back` UI texture.
 - New tests in `test_ui_and_visuals.gd`: menus fit a 1280×720 screen (inventory columns & both tabs, pause column, settings panel), HUD labels both hands for two-handed weapons and bows, the death card hides the HUD until dismissed, and the Low preset skips dust motes instead of creating a 0-particle emitter (a real engine error the Low-quality capture exposed).
 - Also: floor entry clears stale broadcasts (`GameHud.clear_transient_messages`).
-- Totals: 12 test scripts, 58 tests, 5,666 assertions — all green.
+- `scripts/validate-assets.py` now opens every character `.glb` and requires its clips to be exactly the character's own tracks with no `.NNN`-suffixed names; `test_each_character_plays_its_own_clips` checks the same at runtime (and that the two-handed draugr and Iron Warden use their 40-frame attack, not the player's 28-frame one). Both would have caught the shared-clip export bug.
+- Totals: 12 test scripts, 59 tests, 5,724 assertions — all green.

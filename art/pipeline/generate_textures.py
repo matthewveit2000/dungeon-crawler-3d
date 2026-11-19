@@ -832,7 +832,7 @@ def save_rgba(path, arr):
 def build(name, size_override=None, write=True):
     spec = RECIPES[name]
     size = size_override or spec["size"]
-    seed = abs(hash(name)) % 100000 if False else sum(ord(c) * (i + 7) for i, c in enumerate(name)) * 131
+    seed = sum(ord(c) * (i + 7) for i, c in enumerate(name)) * 131  # stable per-name seed (never hash(): salted per process)
     t0 = time.time()
     d = spec["fn"](size, seed)
     alb = np.clip(d["albedo"], 0, 1)

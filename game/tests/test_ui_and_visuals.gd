@@ -113,6 +113,23 @@ func test_rigged_characters_expose_clips_and_sockets() -> void:
 	assert_true(boss.has_anim("roar") and boss.has_anim("slam"), "Boss has roar & slam")
 
 
+func test_each_character_plays_its_own_clips() -> void:
+	# Regression: a batch export once gave every enemy the player's clips (their own were renamed "idle.001").
+	var attack_len := {}
+	for kind in ["crawler", "draugr", "bone_archer", "goblin_streamer", "iron_warden", "vendor"]:
+		var cv := CharacterVisual.create(kind)
+		add_child_autofree(cv)
+		var names := cv.anim.get_animation_list()
+		assert_lt(names.size(), 13, "%s carries only its own clips (%d)" % [kind, names.size()])
+		for n in names:
+			assert_false(String(n).contains("."), "%s clip '%s' is not a foreign/suffixed clip" % [kind, n])
+		attack_len[kind] = cv.anim.get_animation("attack").length
+	# Two-handed fighters wind up longer than one-handed ones (40 vs 28 frames at 30 fps)
+	assert_almost_eq(float(attack_len["crawler"]), 28.0 / 30.0, 0.05, "Crawler: one-handed attack clip")
+	assert_almost_eq(float(attack_len["draugr"]), 40.0 / 30.0, 0.05, "Draugr: its own two-handed attack clip")
+	assert_almost_eq(float(attack_len["iron_warden"]), 40.0 / 30.0, 0.05, "Iron Warden: its own two-handed attack clip")
+
+
 func test_enemy_death_leaves_animated_lootable_body() -> void:
 	var target: EnemyActor = null
 	for c in game.enemies_root.get_children():

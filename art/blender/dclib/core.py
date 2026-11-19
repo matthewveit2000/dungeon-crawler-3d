@@ -426,7 +426,10 @@ def export_glb(ob_or_objs, rel_path: str, batch: str, extra: dict | None = None,
         export_normals=True,
         export_tangents=True,
         export_animations=animations,
-        export_animation_mode="ACTIONS",
+        # One glTF clip per NLA track of the exported armature, named after the track. ("ACTIONS" exports every
+        # bone-compatible action in the .blend, so a batch build leaked earlier characters' clips into later
+        # files and pushed each character's own clips to "idle.001"-style names.)
+        export_animation_mode="NLA_TRACKS",
         export_skins=True,
         export_def_bones=False,
         export_leaf_bone=False,
