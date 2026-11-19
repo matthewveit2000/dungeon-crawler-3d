@@ -18,16 +18,27 @@ This document records each Q&A alignment round between the Project Owner (User) 
 
 ---
 
-## Round 1 — Roles & Division of Labor (`In Progress`)
+## Round 1 — Roles & Division of Labor (Completed: 2026-11-18)
 
-**Goal:** Establish crystal-clear boundaries between the User's role and the AI's role—including what the AI can decide and execute autonomously vs. when it must stop and ask for input.
+**Agreed Outcomes (logged in [`docs/ROLES_AND_GOVERNANCE.md`](ROLES_AND_GOVERNANCE.md), `D-010`, `D-011`):**
+- **Role Split:** User = Product Owner & Creative Director; AI = Full Technical Lead, Engineer & Technical Artist.
+- **Full AI Autonomy:** Code structure/cleanliness/efficiency, libraries, data schemas, bug fixes, refactors, automated testing/CI, docs/changelogs, logged minor balance tuning, and first-pass Blender 3D assets.
+- **Mandatory User Approval Gates:** Core gameplay feel / Skyrim north star changes; art style direction & key 3D model previews; major scope changes; major irreversible tech/platform choices.
+- **Git Workflow:** Feature branches + PR per milestone/phase with plain-English summaries; wait for User approval before merging (implementation phase).
+- **Review Cadence:** User playtests only at meaningful playable milestones and reviews Blender art via batched preview renders.
+- **Communication:** Plain-English, jargon-free updates with proactive push-back authority if a request hurts quality, scope, or the Skyrim north star.
+
+---
+
+## Round 2 — Skyrim Feel & Core Gameplay Loop (`In Progress`)
+
+**Goal:** Define what "feels like Skyrim" means in practice for camera perspective, combat mechanics, floor collapse reset rules, and exploration feel.
 
 *(Awaiting user answers.)*
 
 ---
 
 ## Upcoming Rounds
-- **Round 2:** Skyrim Feel & Core Gameplay Loop
 - **Round 3:** World, Progression & *Dungeon Crawler Carl* Flavor
 - **Round 4:** Tech Stack, Engine & Blender Art Pipeline
 - **Round 5:** Automated Testing, CI & Milestone Roadmap

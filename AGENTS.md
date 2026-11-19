@@ -32,11 +32,12 @@ See [`docs/VISION_AND_CONSTRAINTS.md`](docs/VISION_AND_CONSTRAINTS.md) and [`doc
 
 ## 3. Roles & Division of Labor
 
-> **Status:** `PENDING ALIGNMENT (Round 1)`  
-> See [`docs/ROLES_AND_GOVERNANCE.md`](docs/ROLES_AND_GOVERNANCE.md). Once Round 1 is completed, this section and `docs/ROLES_AND_GOVERNANCE.md` will define exact boundaries for:
-> - What the AI can decide and execute autonomously without asking
-> - What requires explicit user approval before proceeding
-> - How updates, reviews, and handoffs are communicated
+> **Status:** `LOCKED (Aligned in Round 1)` — Full rules in [`docs/ROLES_AND_GOVERNANCE.md`](docs/ROLES_AND_GOVERNANCE.md).
+
+- **User = Product Owner & Creative Director:** Owns vision, feel, fun, art taste, scope approvals, and milestone PR sign-off.
+- **AI = Full Technical Lead, Engineer & Technical Artist:** Owns all architecture, code cleanliness/organization, libraries, automated testing, CI, documentation/changelogs, minor balance tuning (logged), and Blender 3D asset execution.
+- **Ask First ONLY For:** (1) Core gameplay feel / Skyrim north star changes, (2) Art style direction & batched 3D preview approvals, (3) Major scope changes, (4) Major irreversible tech/platform choices.
+- **Workflow & Communication:** Plain-English, jargon-free updates with proactive push-back authority. Once implementation starts, work on feature branches, open one PR per milestone/phase, keep CI green, and wait for User approval before merging. Only request manual playtesting at meaningful playable milestones and visual review via batched Blender preview renders.
 
 ---
 
