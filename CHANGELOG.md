@@ -27,3 +27,5 @@ For detailed domain-specific logs (design, art, architecture, testing), see [`do
 - **2026-11-18 — Round 4 Alignment Complete & Master Blueprint Authored:**
   - Locked Godot 4 desktop-first engine (optional web later), Clean Stylized Dark Fantasy Blender art style, procedural open-source SFX + Dungeon AI banners, and `v0.1` single-floor vertical slice scope (`D-024`–`D-027`).
   - Authored [`docs/GAME_DESIGN.md`](docs/GAME_DESIGN.md), [`docs/TESTING_STRATEGY.md`](docs/TESTING_STRATEGY.md), and [`docs/ROADMAP.md`](docs/ROADMAP.md) for final User sign-off prior to implementation.
+- **2026-11-18 — Pre-Production Alignment Signed Off (Round 5 Complete):**
+  - User approved exiting Pre-Production and advancing through `v0.1` Vertical Slice development on feature branches.

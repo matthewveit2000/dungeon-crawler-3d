@@ -25,8 +25,9 @@ See [`docs/VISION_AND_CONSTRAINTS.md`](docs/VISION_AND_CONSTRAINTS.md) and [`doc
 
 ## 2. Current Phase
 
-- **Phase:** `Pre-Production / Alignment`
-- **Hard Rule (Until Alignment Completes):** **Do not write game code, scaffold engine projects, or generate game assets yet.** We are completing structured Q&A alignment rounds with the user first.
+- **Phase:** `Active Development — Milestone 1 (v0.1 Vertical Slice)`
+- **Pre-Production Alignment:** Completed (`Rounds 0–5`, Decisions `D-001` through `D-027`).
+- **Workflow:** Build on feature branches, maintain green automated tests and CI, log every change in `CHANGELOG.md` and domain changelogs, and open PRs for User approval before merging to `main`.
 
 ---
 

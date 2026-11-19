@@ -2,8 +2,8 @@
 
 A free, open-source 3D roguelike action-RPG inspired by *Dungeon Crawler Carl*, guided by the gameplay feel of **Skyrim**.
 
-> **Current Status:** `Pre-Production — Alignment Phase`  
-> No game code or art assets have been built yet. We are aligning on roles, gameplay feel, world design, tech stack, and testing strategy before writing our first line of game code.
+> **Current Status:** `Active Development — Milestone 1 (v0.1 Vertical Slice)`  
+> Pre-production alignment (`D-001`–`D-027`) is locked. Active development proceeds on feature branches with automated testing and Pull Request sign-off.
 
 ---
 
