@@ -5,6 +5,7 @@ extends RefCounted
 ## with graceful geometric fallback if an asset is ever missing.
 
 static var _gltf_cache: Dictionary = {}
+static var _mesh_cache: Dictionary = {}
 
 
 static func instantiate_model(res_path: String, fallback_size: Vector3 = Vector3.ONE, fallback_color: Color = Color(0.45, 0.48, 0.54)) -> Node3D:
@@ -17,6 +18,7 @@ static func instantiate_model(res_path: String, fallback_size: Vector3 = Vector3
 		if packed is PackedScene:
 			var inst: Node = packed.instantiate()
 			if inst is Node3D:
+				MaterialLibrary.apply_to(inst)
 				return inst
 
 	# 2. Fallback path: Direct runtime GLTFDocument load (works cleanly even before editor import)
@@ -26,6 +28,7 @@ static func instantiate_model(res_path: String, fallback_size: Vector3 = Vector3
 			var cached: PackedScene = _gltf_cache[res_path]
 			var dup: Node = cached.instantiate()
 			if dup is Node3D:
+				MaterialLibrary.apply_to(dup)
 				return dup
 		var doc := GLTFDocument.new()
 		var state := GLTFState.new()
@@ -37,6 +40,7 @@ static func instantiate_model(res_path: String, fallback_size: Vector3 = Vector3
 				_set_owner_recursive(generated, generated)
 				if packed_scene.pack(generated) == OK:
 					_gltf_cache[res_path] = packed_scene
+				MaterialLibrary.apply_to(generated)
 				return generated
 
 	push_warning("ModelLoader: Could not load '%s'; using graceful placeholder mesh." % res_path)
@@ -45,6 +49,25 @@ static func instantiate_model(res_path: String, fallback_size: Vector3 = Vector3
 
 static func clear_cache() -> void:
 	_gltf_cache.clear()
+
+
+## Returns the first Mesh found in a model (kit pieces are exported as a single merged mesh),
+## with library materials bound — used for MultiMesh batching of repeated architecture.
+static func load_mesh(res_path: String) -> Mesh:
+	if _mesh_cache.has(res_path):
+		return _mesh_cache[res_path]
+	var inst := instantiate_model(res_path)
+	var found: Mesh = null
+	var stack: Array[Node] = [inst]
+	while not stack.is_empty() and found == null:
+		var n: Node = stack.pop_back()
+		if n is MeshInstance3D and (n as MeshInstance3D).mesh != null:
+			found = (n as MeshInstance3D).mesh
+		for c in n.get_children():
+			stack.append(c)
+	inst.free()
+	_mesh_cache[res_path] = found
+	return found
 
 
 static func _set_owner_recursive(node: Node, root: Node) -> void:

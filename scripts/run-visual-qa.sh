@@ -1,19 +1,22 @@
 #!/usr/bin/env bash
-# Captures live Player-POV screenshots and a 2-second motion MP4 video of the actual
-# running 3D Godot game inside Xvfb + OpenGL3 (no physical monitor/GPU required).
+# Captures live Player-POV screenshots and a combat motion MP4 of the actual running game (D-028).
+# Default renderer: Vulkan Forward+ (the desktop target). Without a GPU it runs on Mesa lavapipe inside
+# Xvfb (slow but faithful). RENDER=opengl3 captures the Compatibility fallback renderer instead.
+# QA_ONLY=fp,menus limits the capture to selected groups (title, fp, tp, enemies, corridor, safe, boss, menus, motion).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 GODOT_BIN="${GODOT_BIN:-${REPO_ROOT}/.tools/bin/godot}"
 OUT_DIR="${REPO_ROOT}/art/visual_qa"
+RENDER="${RENDER:-vulkan}"
 
 rm -rf "${OUT_DIR}"
 mkdir -p "${OUT_DIR}/frames"
 
-echo "[visual-qa] Running Godot 4.7 live visual capture (1280x720, OpenGL3 via Xvfb)..."
+echo "[visual-qa] Running live capture (1280x720, ${RENDER})..."
 xvfb-run -a -s "-screen 0 1280x720x24" \
   "${GODOT_BIN}" --path "${REPO_ROOT}/game" \
-  --rendering-driver opengl3 \
+  --rendering-driver "${RENDER}" \
   --resolution 1280x720 \
   --windowed \
   res://scenes/visual_qa_capture.tscn

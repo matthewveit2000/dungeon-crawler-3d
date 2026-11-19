@@ -32,7 +32,7 @@ This repository is structured to work seamlessly with **any AI coding tool** (An
 | [`docs/ROLES_AND_GOVERNANCE.md`](docs/ROLES_AND_GOVERNANCE.md) | Division of labor, decision authority, and communication rules |
 | [`docs/GAME_DESIGN.md`](docs/GAME_DESIGN.md) | Complete Game Design Document (Skyrim feel + DCC loop) |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Three-tier Godot 4 + JSON + Blender architecture & scene tree |
-| [`docs/ART_PIPELINE.md`](docs/ART_PIPELINE.md) | Blender 4.5.9 LTS stylized 3D pipeline & asset inventory (29 models) |
+| [`docs/ART_PIPELINE.md`](docs/ART_PIPELINE.md) | Procedural Blender + NumPy art pipeline, material library & asset inventory (63 models) |
 | [`docs/PLAYTEST_GUIDE.md`](docs/PLAYTEST_GUIDE.md) | Plain-English launch, Skyrim controls, playtest tour & Audit Console |
 | [`docs/TESTING_STRATEGY.md`](docs/TESTING_STRATEGY.md) | Automated testing architecture for Godot 4, Blender, and CI |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Phased milestone roadmap (`v0.1` Vertical Slice → `v1.0`) |
@@ -45,16 +45,18 @@ This repository is structured to work seamlessly with **any AI coding tool** (An
 
 ## Quick Start (Play & Automated Tests)
 
-- **Play the Game:** Open `game/project.godot` in **Godot 4.7.2-stable** and press **F5** (see [`docs/PLAYTEST_GUIDE.md`](docs/PLAYTEST_GUIDE.md) for controls & built-in `` ` `` Playtest Console shortcuts).
+- **Play the Game:** Open `game/project.godot` in **Godot 4.7.2-stable** and press **F5** — the title screen opens (Continue / New Expedition / Settings). See [`docs/PLAYTEST_GUIDE.md`](docs/PLAYTEST_GUIDE.md) for controls & built-in `` ` `` Playtest Console shortcuts. A Vulkan-capable GPU gives the full Forward+ look; graphics presets are in Settings.
 - **Run All Automated Checks Locally:**
   ```bash
   ./scripts/setup-tools.sh --godot-only
   ./scripts/run-tests.sh
   ```
-- **Regenerate All 29 Blender `.glb` Models & Studio Previews:**
+- **Regenerate All Art (textures, UI kit, 63 `.glb` models, icons & preview sheets):**
   ```bash
   ./scripts/setup-tools.sh
-  ./.tools/bin/blender --background --python art/blender/build_all.py
+  python3 art/pipeline/generate_textures.py --vfx && python3 art/pipeline/generate_textures.py --preview
+  python3 art/pipeline/generate_ui.py
+  ./.tools/bin/blender --background --python art/blender/build_all.py -- --full
   ```
 
 ---

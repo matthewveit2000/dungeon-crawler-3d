@@ -22,8 +22,9 @@
       "cooldown_sec": 0.52,
       "range_meters": 2.6,
       "base_value": 45,
-      "model": "res://assets/models/batch2/iron_sword.glb",
-      "description": "Cold forged iron. Simple, brutal, and completely unsponsored."
+      "model": "res://assets/models/gear/iron_sword.glb",
+      "description": "Cold forged iron. Simple, brutal, and completely unsponsored.",
+      "icon": "res://assets/icons/iron_sword.png"
     },
     {
       "id": "iron_war_axe",
@@ -37,8 +38,9 @@
       "cooldown_sec": 0.92,
       "range_meters": 3.0,
       "base_value": 85,
-      "model": "res://assets/models/batch2/steel_greatsword.glb",
-      "description": "Heavy two-handed Nordic blade that settles arguments quickly."
+      "model": "res://assets/models/gear/battleaxe.glb",
+      "description": "Heavy two-handed Nordic blade that settles arguments quickly.",
+      "icon": "res://assets/icons/battleaxe.png"
     },
     {
       "id": "nordic_kite_shield",
@@ -49,8 +51,9 @@
       "armor": 18.0,
       "block_bonus": 0.18,
       "base_value": 55,
-      "model": "res://assets/models/batch2/iron_shield.glb",
-      "description": "Iron-rimmed oak war shield scarred by older crawlers."
+      "model": "res://assets/models/gear/round_shield.glb",
+      "description": "Iron-rimmed oak war shield scarred by older crawlers.",
+      "icon": "res://assets/icons/round_shield.png"
     },
     {
       "id": "hunting_bow",
@@ -64,8 +67,9 @@
       "cooldown_sec": 0.45,
       "range_meters": 45.0,
       "base_value": 70,
-      "model": "res://assets/models/batch2/hunting_bow.glb",
-      "description": "Draw, aim down the crosshair, and pin goblins to the stonework."
+      "model": "res://assets/models/gear/hunting_bow.glb",
+      "description": "Draw, aim down the crosshair, and pin goblins to the stonework.",
+      "icon": "res://assets/icons/hunting_bow.png"
     },
     {
       "id": "spell_firebolt",
@@ -82,8 +86,9 @@
       "splash_radius": 2.4,
       "color": "#ff6a22",
       "base_value": 65,
-      "model": "res://assets/models/batch2/spell_orb.glb",
-      "description": "Hurls a blazing orb of arcane fire that explodes on impact."
+      "model": "res://assets/models/gear/tome_fire.glb",
+      "description": "Hurls a blazing orb of arcane fire that explodes on impact.",
+      "icon": "res://assets/icons/tome_fire.png"
     },
     {
       "id": "spell_chain_spark",
@@ -100,8 +105,9 @@
       "chain_radius": 5.5,
       "color": "#58c8ff",
       "base_value": 95,
-      "model": "res://assets/models/batch2/spell_orb.glb",
-      "description": "High-velocity arc lightning that jumps to a nearby enemy."
+      "model": "res://assets/models/gear/tome_spark.glb",
+      "description": "High-velocity arc lightning that jumps to a nearby enemy.",
+      "icon": "res://assets/icons/tome_spark.png"
     },
     {
       "id": "spell_mend_wounds",
@@ -116,8 +122,9 @@
       "cooldown_sec": 1.1,
       "color": "#6effa8",
       "base_value": 75,
-      "model": "res://assets/models/batch2/spell_orb.glb",
-      "description": "Knits torn flesh back together with emerald restoration light."
+      "model": "res://assets/models/gear/tome_mend.glb",
+      "description": "Knits torn flesh back together with emerald restoration light.",
+      "icon": "res://assets/icons/tome_mend.png"
     },
     {
       "id": "tattered_crawler_tunic",
@@ -126,7 +133,9 @@
       "slot": "chest",
       "armor": 12.0,
       "base_value": 30,
-      "description": "Standard-issue dungeon survival gear. Smells faintly of mildew."
+      "description": "Standard-issue dungeon survival gear. Smells faintly of mildew.",
+      "model": "res://assets/models/gear/leather_cuirass.glb",
+      "icon": "res://assets/icons/leather_cuirass.png"
     },
     {
       "id": "iron_horned_helm",
@@ -135,7 +144,9 @@
       "slot": "head",
       "armor": 10.0,
       "base_value": 50,
-      "description": "Classic iron helm. Does not protect against sarcastic AI commentary."
+      "description": "Classic iron helm. Does not protect against sarcastic AI commentary.",
+      "model": "res://assets/models/gear/iron_helm.glb",
+      "icon": "res://assets/icons/iron_helm.png"
     },
     {
       "id": "steel_gauntlets",
@@ -145,7 +156,9 @@
       "armor": 8.0,
       "bonus_damage": 3.0,
       "base_value": 45,
-      "description": "Weighted knuckles add bite to every swing."
+      "description": "Weighted knuckles add bite to every swing.",
+      "model": "res://assets/models/gear/steel_gauntlets.glb",
+      "icon": "res://assets/icons/steel_gauntlets.png"
     },
     {
       "id": "runed_greaves",
@@ -155,7 +168,9 @@
       "armor": 9.0,
       "bonus_stamina": 15.0,
       "base_value": 48,
-      "description": "Built for five days of frantic sprinting."
+      "description": "Built for five days of frantic sprinting.",
+      "model": "res://assets/models/gear/iron_boots.glb",
+      "icon": "res://assets/icons/iron_boots.png"
     },
     {
       "id": "silver_focus_ring",
@@ -165,7 +180,9 @@
       "bonus_magicka": 25.0,
       "bonus_crit_chance": 0.05,
       "base_value": 90,
-      "description": "Hums quietly when spells are prepared."
+      "description": "Hums quietly when spells are prepared.",
+      "model": "res://assets/models/gear/silver_ring.glb",
+      "icon": "res://assets/icons/silver_ring.png"
     },
     {
       "id": "bone_ward_amulet",
@@ -175,7 +192,9 @@
       "bonus_health": 30.0,
       "armor": 6.0,
       "base_value": 95,
-      "description": "A talisman traded by deep-floor survivors."
+      "description": "A talisman traded by deep-floor survivors.",
+      "model": "res://assets/models/gear/bone_amulet.glb",
+      "icon": "res://assets/icons/bone_amulet.png"
     },
     {
       "id": "health_potion",
@@ -184,8 +203,9 @@
       "slot": "consumable",
       "heal_health": 55.0,
       "base_value": 25,
-      "model": "res://assets/models/batch2/health_potion.glb",
-      "description": "Restores 55 Health immediately. Tastes like rusted pennies and cherry syrup."
+      "model": "res://assets/models/gear/health_potion.glb",
+      "description": "Restores 55 Health immediately. Tastes like rusted pennies and cherry syrup.",
+      "icon": "res://assets/icons/health_potion.png"
     },
     {
       "id": "magicka_potion",
@@ -194,8 +214,9 @@
       "slot": "consumable",
       "heal_magicka": 50.0,
       "base_value": 25,
-      "model": "res://assets/models/batch2/health_potion.glb",
-      "description": "Restores 50 Magicka immediately. Slightly carbonated."
+      "model": "res://assets/models/gear/magicka_potion.glb",
+      "description": "Restores 50 Magicka immediately. Slightly carbonated.",
+      "icon": "res://assets/icons/magicka_potion.png"
     },
     {
       "id": "sponsored_gauntlets_boom",
@@ -207,8 +228,9 @@
       "bonus_damage": 10.0,
       "sponsored_effect": "explosive_crits",
       "base_value": 420,
-      "model": "res://assets/models/batch2/mythic_gloves.glb",
-      "description": "Brought to you by Syndicate Munitions! Critical hits trigger an arcane blast wave. Warranty void if used on bosses."
+      "model": "res://assets/models/gear/sponsored_gauntlets.glb",
+      "description": "Brought to you by Syndicate Munitions! Critical hits trigger an arcane blast wave. Warranty void if used on bosses.",
+      "icon": "res://assets/icons/sponsored_gauntlets.png"
     },
     {
       "id": "sponsored_blade_ratings",
@@ -224,8 +246,9 @@
       "range_meters": 2.8,
       "sponsored_effect": "vampiric_viewers",
       "base_value": 520,
-      "model": "res://assets/models/batch2/iron_sword.glb",
-      "description": "Every kill thrills the galactic audience, siphoning 12 Health back to the crawler."
+      "model": "res://assets/models/gear/ratings_cleaver.glb",
+      "description": "Every kill thrills the galactic audience, siphoning 12 Health back to the crawler.",
+      "icon": "res://assets/icons/ratings_cleaver.png"
     }
   ]
 }

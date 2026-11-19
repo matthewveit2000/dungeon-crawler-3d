@@ -1,0 +1,146 @@
+{
+ "stone_block": {
+  "size": 1024,
+  "height": true
+ },
+ "stone_trim": {
+  "size": 1024,
+  "height": false
+ },
+ "stone_floor": {
+  "size": 1024,
+  "height": true
+ },
+ "flagstone": {
+  "size": 1024,
+  "height": true
+ },
+ "stone_ashlar": {
+  "size": 1024,
+  "height": true
+ },
+ "mortar": {
+  "size": 512,
+  "height": false
+ },
+ "dirt": {
+  "size": 1024,
+  "height": true
+ },
+ "wood_oak": {
+  "size": 1024,
+  "height": false
+ },
+ "wood_dark": {
+  "size": 1024,
+  "height": false
+ },
+ "wood_rough": {
+  "size": 1024,
+  "height": false
+ },
+ "wood_beam": {
+  "size": 1024,
+  "height": false
+ },
+ "iron_dark": {
+  "size": 1024,
+  "height": false
+ },
+ "steel_blade": {
+  "size": 1024,
+  "height": false
+ },
+ "steel_armor": {
+  "size": 1024,
+  "height": false
+ },
+ "chainmail": {
+  "size": 1024,
+  "height": false
+ },
+ "gold_antique": {
+  "size": 1024,
+  "height": false
+ },
+ "bronze": {
+  "size": 1024,
+  "height": false
+ },
+ "leather_brown": {
+  "size": 1024,
+  "height": false
+ },
+ "leather_dark": {
+  "size": 1024,
+  "height": false
+ },
+ "cloth_crimson": {
+  "size": 1024,
+  "height": false
+ },
+ "cloth_linen": {
+  "size": 1024,
+  "height": false
+ },
+ "cloth_dark": {
+  "size": 1024,
+  "height": false
+ },
+ "cloth_teal": {
+  "size": 1024,
+  "height": false
+ },
+ "cloth_burlap": {
+  "size": 1024,
+  "height": false
+ },
+ "fur": {
+  "size": 1024,
+  "height": false
+ },
+ "bone": {
+  "size": 1024,
+  "height": false
+ },
+ "skin_goblin": {
+  "size": 1024,
+  "height": false
+ },
+ "skin_draugr": {
+  "size": 1024,
+  "height": false
+ },
+ "skin_human": {
+  "size": 1024,
+  "height": false
+ },
+ "rope": {
+  "size": 512,
+  "height": false
+ },
+ "wax": {
+  "size": 512,
+  "height": false
+ },
+ "parchment": {
+  "size": 1024,
+  "height": false
+ },
+ "rune_stone": {
+  "size": 1024,
+  "height": false
+ },
+ "embers": {
+  "size": 512,
+  "height": false
+ },
+ "banner_crimson": {
+  "size": 1024,
+  "height": false
+ },
+ "rug_crimson": {
+  "size": 1024,
+  "height": false
+ }
+}
