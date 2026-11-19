@@ -1,0 +1,465 @@
+{
+  "assets": [
+    {
+      "batch": "batch1",
+      "name": "floor_tile",
+      "path": "game/assets/models/batch1/floor_tile.glb",
+      "dimensions_xyz_m": [
+        4.0,
+        4.0,
+        0.346
+      ],
+      "triangles": 756,
+      "bytes": 323872
+    },
+    {
+      "batch": "batch1",
+      "name": "ceiling_tile",
+      "path": "game/assets/models/batch1/ceiling_tile.glb",
+      "dimensions_xyz_m": [
+        4.0,
+        4.0,
+        0.54
+      ],
+      "triangles": 432,
+      "bytes": 310368
+    },
+    {
+      "batch": "batch1",
+      "name": "wall_segment",
+      "path": "game/assets/models/batch1/wall_segment.glb",
+      "dimensions_xyz_m": [
+        4.0,
+        0.66,
+        4.0
+      ],
+      "triangles": 1080,
+      "bytes": 564192
+    },
+    {
+      "batch": "batch1",
+      "name": "door_arch",
+      "path": "game/assets/models/batch1/door_arch.glb",
+      "dimensions_xyz_m": [
+        4.16,
+        0.9,
+        4.0
+      ],
+      "triangles": 972,
+      "bytes": 468504
+    },
+    {
+      "batch": "batch1",
+      "name": "pillar",
+      "path": "game/assets/models/batch1/pillar.glb",
+      "dimensions_xyz_m": [
+        1.2,
+        1.2,
+        4.0
+      ],
+      "triangles": 1092,
+      "bytes": 468024
+    },
+    {
+      "batch": "batch1",
+      "name": "torch_sconce",
+      "path": "game/assets/models/batch1/torch_sconce.glb",
+      "dimensions_xyz_m": [
+        0.3,
+        0.498,
+        0.848
+      ],
+      "triangles": 1048,
+      "bytes": 403944
+    },
+    {
+      "batch": "batch1",
+      "name": "chest",
+      "path": "game/assets/models/batch1/chest.glb",
+      "dimensions_xyz_m": [
+        1.18,
+        0.765,
+        0.891
+      ],
+      "triangles": 812,
+      "bytes": 585588
+    },
+    {
+      "batch": "batch1",
+      "name": "crate",
+      "path": "game/assets/models/batch1/crate.glb",
+      "dimensions_xyz_m": [
+        0.96,
+        0.96,
+        0.92
+      ],
+      "triangles": 972,
+      "bytes": 454132
+    },
+    {
+      "batch": "batch1",
+      "name": "urn",
+      "path": "game/assets/models/batch1/urn.glb",
+      "dimensions_xyz_m": [
+        0.819,
+        0.68,
+        1.02
+      ],
+      "triangles": 1108,
+      "bytes": 330468
+    },
+    {
+      "batch": "batch1",
+      "name": "safe_beacon",
+      "path": "game/assets/models/batch1/safe_beacon.glb",
+      "dimensions_xyz_m": [
+        2.089,
+        2.089,
+        2.06
+      ],
+      "triangles": 2496,
+      "bytes": 511968
+    },
+    {
+      "batch": "batch1",
+      "name": "quest_board",
+      "path": "game/assets/models/batch1/quest_board.glb",
+      "dimensions_xyz_m": [
+        2.065,
+        0.821,
+        2.334
+      ],
+      "triangles": 3936,
+      "bytes": 635296
+    },
+    {
+      "batch": "batch1",
+      "name": "boss_gate",
+      "path": "game/assets/models/batch1/boss_gate.glb",
+      "dimensions_xyz_m": [
+        3.4,
+        0.31,
+        3.47
+      ],
+      "triangles": 3840,
+      "bytes": 493584
+    },
+    {
+      "batch": "batch1",
+      "name": "vault_gate",
+      "path": "game/assets/models/batch1/vault_gate.glb",
+      "dimensions_xyz_m": [
+        3.34,
+        0.63,
+        3.5
+      ],
+      "triangles": 1976,
+      "bytes": 570424
+    },
+    {
+      "batch": "batch1",
+      "name": "staircase_down",
+      "path": "game/assets/models/batch1/staircase_down.glb",
+      "dimensions_xyz_m": [
+        3.48,
+        3.46,
+        3.61
+      ],
+      "triangles": 2176,
+      "bytes": 369536
+    },
+    {
+      "batch": "batch1",
+      "name": "spike_trap",
+      "path": "game/assets/models/batch1/spike_trap.glb",
+      "dimensions_xyz_m": [
+        2.2,
+        2.2,
+        0.57
+      ],
+      "triangles": 360,
+      "bytes": 250464
+    },
+    {
+      "batch": "batch1",
+      "name": "lever",
+      "path": "game/assets/models/batch1/lever.glb",
+      "dimensions_xyz_m": [
+        0.56,
+        0.7,
+        1.56
+      ],
+      "triangles": 924,
+      "bytes": 550612
+    },
+    {
+      "batch": "batch1",
+      "name": "brazier",
+      "path": "game/assets/models/batch1/brazier.glb",
+      "dimensions_xyz_m": [
+        1.044,
+        1.044,
+        1.561
+      ],
+      "triangles": 1256,
+      "bytes": 412032
+    },
+    {
+      "batch": "batch1",
+      "name": "wall_banner",
+      "path": "game/assets/models/batch1/wall_banner.glb",
+      "dimensions_xyz_m": [
+        1.53,
+        0.75,
+        2.405
+      ],
+      "triangles": 1296,
+      "bytes": 570140
+    },
+    {
+      "batch": "batch1",
+      "name": "sanctuary_rug",
+      "path": "game/assets/models/batch1/sanctuary_rug.glb",
+      "dimensions_xyz_m": [
+        3.4,
+        2.2,
+        0.034
+      ],
+      "triangles": 324,
+      "bytes": 312232
+    },
+    {
+      "batch": "batch1",
+      "name": "merchant_stall",
+      "path": "game/assets/models/batch1/merchant_stall.glb",
+      "dimensions_xyz_m": [
+        2.88,
+        1.644,
+        2.94
+      ],
+      "triangles": 2020,
+      "bytes": 559456
+    },
+    {
+      "batch": "batch1",
+      "name": "barrel",
+      "path": "game/assets/models/batch1/barrel.glb",
+      "dimensions_xyz_m": [
+        0.72,
+        0.72,
+        0.94
+      ],
+      "triangles": 1116,
+      "bytes": 450708
+    },
+    {
+      "batch": "batch1",
+      "name": "boss_dais",
+      "path": "game/assets/models/batch1/boss_dais.glb",
+      "dimensions_xyz_m": [
+        5.687,
+        5.687,
+        0.502
+      ],
+      "triangles": 1976,
+      "bytes": 493420
+    },
+    {
+      "batch": "batch2",
+      "name": "iron_sword",
+      "path": "game/assets/models/batch2/iron_sword.glb",
+      "dimensions_xyz_m": [
+        0.408,
+        0.104,
+        1.25
+      ],
+      "triangles": 2134,
+      "bytes": 627576
+    },
+    {
+      "batch": "batch2",
+      "name": "iron_shield",
+      "path": "game/assets/models/batch2/iron_shield.glb",
+      "dimensions_xyz_m": [
+        0.77,
+        0.172,
+        0.77
+      ],
+      "triangles": 5888,
+      "bytes": 734828
+    },
+    {
+      "batch": "batch2",
+      "name": "steel_greatsword",
+      "path": "game/assets/models/batch2/steel_greatsword.glb",
+      "dimensions_xyz_m": [
+        0.752,
+        0.136,
+        1.78
+      ],
+      "triangles": 1566,
+      "bytes": 609164
+    },
+    {
+      "batch": "batch2",
+      "name": "hunting_bow",
+      "path": "game/assets/models/batch2/hunting_bow.glb",
+      "dimensions_xyz_m": [
+        0.062,
+        0.359,
+        1.384
+      ],
+      "triangles": 1524,
+      "bytes": 375912
+    },
+    {
+      "batch": "batch2",
+      "name": "arrow",
+      "path": "game/assets/models/batch2/arrow.glb",
+      "dimensions_xyz_m": [
+        0.068,
+        0.074,
+        0.84
+      ],
+      "triangles": 372,
+      "bytes": 596184
+    },
+    {
+      "batch": "batch2",
+      "name": "spell_orb",
+      "path": "game/assets/models/batch2/spell_orb.glb",
+      "dimensions_xyz_m": [
+        0.326,
+        0.238,
+        0.285
+      ],
+      "triangles": 1192,
+      "bytes": 177180
+    },
+    {
+      "batch": "batch2",
+      "name": "health_potion",
+      "path": "game/assets/models/batch2/health_potion.glb",
+      "dimensions_xyz_m": [
+        0.28,
+        0.276,
+        0.45
+      ],
+      "triangles": 736,
+      "bytes": 352084
+    },
+    {
+      "batch": "batch2",
+      "name": "mythic_gloves",
+      "path": "game/assets/models/batch2/mythic_gloves.glb",
+      "dimensions_xyz_m": [
+        0.572,
+        0.228,
+        0.46
+      ],
+      "triangles": 2656,
+      "bytes": 457200
+    },
+    {
+      "batch": "batch2",
+      "name": "fp_gauntlet_right",
+      "path": "game/assets/models/batch2/fp_gauntlet_right.glb",
+      "dimensions_xyz_m": [
+        0.184,
+        0.493,
+        0.195
+      ],
+      "triangles": 1784,
+      "bytes": 617292
+    },
+    {
+      "batch": "batch2",
+      "name": "fp_gauntlet_left",
+      "path": "game/assets/models/batch2/fp_gauntlet_left.glb",
+      "dimensions_xyz_m": [
+        0.184,
+        0.493,
+        0.195
+      ],
+      "triangles": 1784,
+      "bytes": 617292
+    },
+    {
+      "batch": "batch3",
+      "name": "player_crawler",
+      "path": "game/assets/models/batch3/player_crawler.glb",
+      "dimensions_xyz_m": [
+        0.999,
+        0.675,
+        1.94
+      ],
+      "triangles": 5044,
+      "bytes": 1052856
+    },
+    {
+      "batch": "batch3",
+      "name": "draugr_raider",
+      "path": "game/assets/models/batch3/draugr_raider.glb",
+      "dimensions_xyz_m": [
+        1.052,
+        1.202,
+        2.044
+      ],
+      "triangles": 6624,
+      "bytes": 1096668
+    },
+    {
+      "batch": "batch3",
+      "name": "bone_archer",
+      "path": "game/assets/models/batch3/bone_archer.glb",
+      "dimensions_xyz_m": [
+        0.76,
+        1.277,
+        1.877
+      ],
+      "triangles": 4716,
+      "bytes": 809060
+    },
+    {
+      "batch": "batch3",
+      "name": "goblin_streamer",
+      "path": "game/assets/models/batch3/goblin_streamer.glb",
+      "dimensions_xyz_m": [
+        1.07,
+        0.686,
+        1.768
+      ],
+      "triangles": 4246,
+      "bytes": 862976
+    },
+    {
+      "batch": "batch3",
+      "name": "iron_warden_boss",
+      "path": "game/assets/models/batch3/iron_warden_boss.glb",
+      "dimensions_xyz_m": [
+        2.125,
+        1.903,
+        3.166
+      ],
+      "triangles": 6348,
+      "bytes": 749944
+    },
+    {
+      "batch": "batch3",
+      "name": "safe_room_vendor",
+      "path": "game/assets/models/batch3/safe_room_vendor.glb",
+      "dimensions_xyz_m": [
+        1.034,
+        0.822,
+        2.08
+      ],
+      "triangles": 2280,
+      "bytes": 728580
+    }
+  ],
+  "previews": [
+    "art/previews/batch1_dungeon_kit.png",
+    "art/previews/batch2_weapons_gear.png",
+    "art/previews/batch3_characters_enemies.png"
+  ]
+}

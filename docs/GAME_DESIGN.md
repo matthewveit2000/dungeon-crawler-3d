@@ -1,8 +1,8 @@
 # Game Design Document (GDD)
 
-> **Status:** `Pre-Production Blueprint — Awaiting Final Sign-Off`  
+> **Status:** `Active Living Design Specification (v0.1+)`  
 > **North Star:** **Feels like Skyrim**, fused with the dark-humor multi-floor dungeon premise of ***Dungeon Crawler Carl***.  
-> **Decision References:** `D-001` through `D-027` in [`docs/DECISION_LOG.md`](DECISION_LOG.md).
+> **Decision References:** `D-001` through `D-030` in [`docs/DECISION_LOG.md`](DECISION_LOG.md).
 
 ---
 
@@ -13,12 +13,16 @@
 
 ---
 
-## 2. Camera & Controls (`D-012`, `D-016`)
+## 2. Camera, Controls & Low-Friction Tutorial Mode (`D-012`, `D-016`, `D-030`)
 
-- **First-Person Primary + Third-Person Toggle:** Play primarily in first-person with an instant toggle to over-the-shoulder third-person (just like Skyrim).
+- **First-Person Primary + Third-Person Toggle:** Play primarily in first-person with an instant toggle to over-the-shoulder third-person (just like Skyrim). First-person weapons and shields must be framed cleanly in the lower corners so sightlines stay wide open.
 - **Top Compass Bar:** Shows directional headings and reveals nearby landmarks (Safe Rooms, Boss Doors, Vaults, Staircases) as the player approaches them.
 - **Classic Menu Pause:** Opening Inventory, Character/Skills, Map, or Vendor screens freezes world simulation and the floor collapse timer cleanly.
 - **Interactive World Objects:** Aim at and interact with chests, enemy bodies, crates, urns, levers, traps, vendors, quest boards, and staircases.
+- **Low-Friction Toggleable Tutorial Mode (`D-030`):**
+  - Enabled by default and toggleable anytime in the Pause Menu (with an option to Reset Tutorials).
+  - The **first time** a player encounters or interacts with any mechanic (camera/movement, melee/blocking/power attacks, spells/archery, looting, inventory pause, Safe Room & Vendor, Boss Arena seal, 5-day clock & snapshot reset, hidden staircase descent), a sleek, unobtrusive corner hint card walks them through it in 1–2 crisp lines.
+  - Auto-completes with a subtle chime when the player performs the action (or dismisses cleanly with one tap/timeout) — never freezes the screen with annoying modal walls of text.
 
 ---
 
@@ -32,13 +36,13 @@
 
 ---
 
-## 4. World Structure (`D-015`, `D-021`, `D-022`)
+## 4. Hybrid World Structure: Procedural + Handcrafted Setpieces (`D-015`, `D-021`, `D-022`, `D-029`)
 
-- **Massive Interconnected Dungeon Labyrinth:** Each floor is a sprawling procedural labyrinth of modular rooms, vaulted halls, winding corridors, bridges, and side chambers (inspired by massive Skyrim Nordic ruins).
+- **Hybrid Procedural + Custom-Built Architecture (`D-029`):** Each floor seamlessly stitches **handcrafted, custom-built signature rooms and encounters** into a sprawling **procedurally generated interconnected Nordic-ruin labyrinth**. Custom-authored blueprints define focal landmarks (grand Entrance Halls, cozy lantern-lit Safe Room sanctuaries with hearth/carpet/vendor stall/quest board, dramatic multi-pillar Boss Arenas with bespoke encounter staging, ornate Treasure Vaults, shrine/puzzle chambers, and secret crypts) that are procedurally slotted and connected into every run's seeded dungeon graph.
 - **Deterministic Seeded Generation:** Every floor layout is generated from a seed so any floor can be reproduced identically for automated testing and bug reports.
-- **Discoverable Safe Rooms & Underground Towns:** Hidden pockets scattered in the labyrinth where pursuing enemies immediately break off and cannot enter. Contain **Vendors**, **Quest Boards**, and **Stash/Rest** spots.
-- **Optional Sealed Boss Arenas + Treasure Vaults:** Crossing a Boss Arena threshold seals the exit behind you until the boss falls; defeating the boss unlocks an adjoining high-tier **Treasure Vault**. Players constantly weigh risk and remaining time against big rewards.
-- **Hidden Exit Staircase:** Placed deep in the labyrinth to reward thorough exploration.
+- **Discoverable Safe Rooms & Underground Towns:** Handcrafted sanctuary pockets scattered in the labyrinth where pursuing enemies immediately break off and cannot enter. Contain **Vendors**, **Quest Boards**, and **Stash/Rest** spots.
+- **Optional Sealed Boss Arenas + Treasure Vaults:** Handcrafted boss chambers where crossing the threshold seals the exit behind you until the boss falls; defeating the boss unlocks an adjoining high-tier **Treasure Vault**. Players constantly weigh risk and remaining time against big rewards.
+- **Hidden Exit Staircase:** Placed deep in the labyrinth inside a carved descent chamber to reward thorough exploration.
 
 ---
 

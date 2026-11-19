@@ -24,6 +24,9 @@ Every major design decision—perspective, movement, combat weight, exploration,
 | **Open-Source Leverage** | Use existing **free, open-source** engines & libraries rather than building from scratch | Maximum speed, stability, flexibility, and zero proprietary lock-in |
 | **100% Original Art** | All art created by us using **Blender** and other free/open-source tools | Full ownership, cohesive style, zero asset-pack licensing issues |
 | **Automated-Testing First** | Anything that can be tested automatically **must** be tested automatically | Minimizes manual testing burden on the user and catches regressions early |
+| **Player-POV Visual & Motion QA (`D-028`)** | Always capture and visually inspect live in-game screenshots AND motion video (`./scripts/run-visual-qa.sh`) from the player's POV before shipping visual/UI/animation changes | Catches screen-blocking viewmodels, ugly menus, lighting issues, and stiff animations that unit tests alone cannot detect |
+| **Hybrid Procedural + Handcrafted World (`D-029`)** | Procedurally generated labyrinths weave custom-built, handcrafted rooms, setpieces, Safe Rooms, Boss Arenas, and Vaults into each floor | Combines infinite roguelike replayability with memorable, authored Skyrim-grade environmental storytelling and boss fights |
+| **Low-Friction Tutorial Mode (`D-030`)** | Toggleable Tutorial Mode (ON by default) walks players through each mechanic the first time they interact with it via sleek, non-blocking cards | Welcomes new players effortlessly without annoying modal popups or interruptions |
 | **Multi-AI Readiness** | Robust docs, `AGENTS.md`, `CLAUDE.md`, `.cursorrules`, Copilot instructions, decision logs, and changelogs for everything | Any AI tool can pick up the repo cold with full context and zero drift |
 
 ---

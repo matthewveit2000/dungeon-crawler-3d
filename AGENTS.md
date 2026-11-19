@@ -53,11 +53,16 @@ Because this repository must be seamlessly usable by **any AI tool** across sess
 
 ---
 
-## 5. Testing Mandate
+## 5. Testing & Mandatory Player-POV Visual QA Mandate
 
-- Every feature, system, data schema, and art-export pipeline step that can be verified automatically MUST have automated tests.
-- Automated tests should be fast, deterministic (seeded randomness), and run in CI.
-- Never merge or declare work complete when automated checks are failing.
+- **Automated Verification (`D-009`):** Every feature, system, data schema, and art-export pipeline step that can be verified automatically MUST have automated tests. Tests must be fast, deterministic (seeded randomness), and green in CI before declaring work complete.
+- **Mandatory Player-POV Visual & Motion Inspection (`D-028` — NON-NEGOTIABLE):** Passing unit tests is NOT enough for visual polish. Whenever you touch 3D assets, lighting, materials, camera framing, first-person hands/weapons/shields, animations, HUD, or menus, you **MUST** run `./scripts/run-visual-qa.sh` to capture **actual in-game screenshots AND motion video** of the running 3D game, open and inspect every screenshot and motion sequence with your own eyes, and **put yourself in the shoes of a real player**! Critically check:
+  - Does anything block the player's sightline (e.g., shield or weapon hogging the screen)?
+  - Do lighting, stonework, props, and atmosphere look rich, handcrafted, and Skyrim-worthy?
+  - Do swing/block/draw/cast/walk/enemy animations feel fluid, weighty, and expressive rather than stiff or robotic?
+  - Are HUD elements, menus, typography, spacing, and tutorials clean, stylish, readable, and high-QoL?
+  - Never ship a visual change you haven't personally scrutinized from the player's seat.
+- **Hybrid World & Low-Friction Tutorial Standards (`D-029`, `D-030`):** Rooms and encounters combine procedural layouts with handcrafted signature setpieces/boss arenas; every new mechanic must integrate with the toggleable, non-intrusive first-time Tutorial Mode.
 
 ---
 
@@ -67,8 +72,11 @@ Because this repository must be seamlessly usable by **any AI tool** across sess
 2. `docs/ROLES_AND_GOVERNANCE.md`
 3. `docs/VISION_AND_CONSTRAINTS.md`
 4. `docs/GAME_DESIGN.md`
-5. `docs/TESTING_STRATEGY.md`
-6. `docs/ROADMAP.md`
-7. `docs/DECISION_LOG.md`
-8. `docs/ALIGNMENT_LOG.md`
-9. `CHANGELOG.md`
+5. `docs/ARCHITECTURE.md`
+6. `docs/ART_PIPELINE.md`
+7. `docs/TESTING_STRATEGY.md`
+8. `docs/PLAYTEST_GUIDE.md`
+9. `docs/ROADMAP.md`
+10. `docs/DECISION_LOG.md`
+11. `docs/ALIGNMENT_LOG.md`
+12. `CHANGELOG.md` and `docs/changelogs/`

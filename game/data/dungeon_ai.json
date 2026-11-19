@@ -1,0 +1,68 @@
+{
+  "events": {
+    "floor_enter": [
+      {
+        "title": "WELCOME TO FLOOR {floor}",
+        "body": "You have 5 in-game days to find the stairwell before the ceiling becomes your new hat. No previews. Good luck, meatbag."
+      },
+      {
+        "title": "NEW FLOOR INITIALIZED — FLOOR {floor}",
+        "body": "The galactic broadcast ratings just ticked up 0.4%. Try not to trip over a draugr in the first five minutes."
+      }
+    ],
+    "safe_room_discovered": [
+      {
+        "title": "NEW ACHIEVEMENT! COWARD'S SANCTUARY!",
+        "body": "You found a Safe Room! Monsters legally cannot follow you inside due to Syndicate Zoning Ordinance 44-B. Browse the vendor and catch your breath."
+      }
+    ],
+    "boss_arena_sealed": [
+      {
+        "title": "LOCKDOWN ENGAGED — PRIME TIME BRAWL!",
+        "body": "The Iron Gate just slammed shut behind you! Two creatures enter, one crawler gets access to the Treasure Vault."
+      }
+    ],
+    "boss_defeated": [
+      {
+        "title": "NEW ACHIEVEMENT! HR COMPLAINT FILED!",
+        "body": "You dismantled the Floor Boss! The Treasure Vault seal has been lifted. Collect your totally-not-rigged loot before the floor collapses."
+      }
+    ],
+    "sponsored_loot": [
+      {
+        "title": "SPONSORED DROP! DON'T FORGET TO SMILE!",
+        "body": "A wealthy off-world sponsor noticed your flailing and dropped Mythic gear: {item_name}. Mention them in your obituary!"
+      }
+    ],
+    "floor_collapse": [
+      {
+        "title": "FLOOR COLLAPSE! TIME'S UP, CRAWLER!",
+        "body": "Five days elapsed and you're still here. Rewinding you to your Floor-Entry Snapshot. Maybe walk faster next attempt?"
+      }
+    ],
+    "player_death": [
+      {
+        "title": "NEW ACHIEVEMENT! GRAVITY & SHARP OBJECTS!",
+        "body": "You died! Luckily our contract forbids permanent cancellation on this tier. Restoring your Floor-Entry Snapshot..."
+      }
+    ],
+    "level_up": [
+      {
+        "title": "LEVEL UP — LEVEL {level}!",
+        "body": "Slightly harder to squish! Spend your Skill/Attribute bonuses in your Character Menu [Tab / I]."
+      }
+    ],
+    "time_warning": [
+      {
+        "title": "COLLAPSE WARNING — {days_left} DAYS REMAINING",
+        "body": "Reminder: the stone ceiling is scheduled to meet the stone floor. Find the hidden stairwell."
+      }
+    ],
+    "first_kill": [
+      {
+        "title": "NEW ACHIEVEMENT! FIRST BLOOD!",
+        "body": "You successfully applied sharp metal to a hostile resident. Viewership up 12%!"
+      }
+    ]
+  }
+}

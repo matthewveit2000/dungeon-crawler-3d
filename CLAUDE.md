@@ -12,3 +12,4 @@ This repository uses [`AGENTS.md`](AGENTS.md) as the canonical, tool-agnostic ha
 - Keep `AGENTS.md` and `docs/` as the single source of truth; do not diverge rules in this file.
 - Update [`CHANGELOG.md`](CHANGELOG.md) (and relevant domain changelogs in `docs/changelogs/`) for every meaningful change.
 - Prioritize automated tests for anything that can be tested automatically.
+- For any visual, 3D art, lighting, animation, HUD, or menu change, **always** run `./scripts/run-visual-qa.sh` and visually inspect the live screenshots and motion video from the player's POV (`D-028`).

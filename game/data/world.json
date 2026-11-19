@@ -1,0 +1,64 @@
+{
+  "grid": {
+    "tile_size_meters": 4.0,
+    "wall_height_meters": 4.5,
+    "width_tiles": 48,
+    "height_tiles": 48
+  },
+  "labyrinth": {
+    "room_count_min": 14,
+    "room_count_max": 20,
+    "room_min_size": 3,
+    "room_max_size": 7,
+    "boss_room_size": 7,
+    "vault_room_size": 4,
+    "safe_room_size": 5,
+    "loop_connection_chance": 0.28,
+    "corridor_width_tiles": 1,
+    "max_generation_attempts": 12,
+    "chest_room_chance": 0.55,
+    "trap_corridor_chance": 0.12,
+    "ambient_prop_density": 0.25
+  },
+  "floor_timer": {
+    "days_per_floor": 5,
+    "real_seconds_per_in_game_day": 1800.0,
+    "warning_thresholds_days_left": [3.0, 1.0, 0.25]
+  },
+  "compass": {
+    "discovery_radius_meters": 28.0,
+    "visible_radius_meters": 64.0,
+    "fov_degrees": 110.0
+  },
+  "stairs": {
+    "show_next_floor_preview": false
+  },
+  "floors": [
+    {
+      "floor_number": 1,
+      "theme_id": "nordic_catacombs",
+      "name": "The Bleak Antechamber",
+      "ambient_color": "#1a1f28",
+      "fog_color": "#11151d",
+      "fog_density": 0.014,
+      "torch_color": "#ff9e4a",
+      "safe_zone_color": "#6ce5c4",
+      "boss_color": "#e04838",
+      "enemy_budget": 14,
+      "boss_id": "iron_warden_boss"
+    },
+    {
+      "floor_number": 2,
+      "theme_id": "ember_catacombs",
+      "name": "The Cinder Crypts",
+      "ambient_color": "#281816",
+      "fog_color": "#1c0f0e",
+      "fog_density": 0.016,
+      "torch_color": "#ff6a2b",
+      "safe_zone_color": "#6ce5c4",
+      "boss_color": "#ff3824",
+      "enemy_budget": 18,
+      "boss_id": "iron_warden_boss"
+    }
+  ]
+}

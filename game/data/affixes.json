@@ -1,0 +1,151 @@
+{
+  "rarities": [
+    {
+      "id": "common",
+      "label": "Common",
+      "color": "#d8dce3",
+      "stat_multiplier": 1.0,
+      "affix_count": 0,
+      "weight": 54.0,
+      "value_multiplier": 1.0
+    },
+    {
+      "id": "uncommon",
+      "label": "Uncommon",
+      "color": "#5ad67a",
+      "stat_multiplier": 1.2,
+      "affix_count": 1,
+      "weight": 26.0,
+      "value_multiplier": 1.5
+    },
+    {
+      "id": "rare",
+      "label": "Rare",
+      "color": "#4da3ff",
+      "stat_multiplier": 1.45,
+      "affix_count": 2,
+      "weight": 12.0,
+      "value_multiplier": 2.3
+    },
+    {
+      "id": "epic",
+      "label": "Epic",
+      "color": "#b46cff",
+      "stat_multiplier": 1.8,
+      "affix_count": 3,
+      "weight": 5.5,
+      "value_multiplier": 3.8
+    },
+    {
+      "id": "sponsored",
+      "label": "Sponsored Mythic",
+      "color": "#ffae24",
+      "stat_multiplier": 2.35,
+      "affix_count": 3,
+      "weight": 2.5,
+      "value_multiplier": 6.5
+    }
+  ],
+  "prefixes": [
+    {
+      "id": "brutal",
+      "label": "Brutal",
+      "stat": "bonus_damage",
+      "min": 3.0,
+      "max": 8.0,
+      "applies_to": ["weapon", "armor", "accessory"]
+    },
+    {
+      "id": "stalwart",
+      "label": "Stalwart",
+      "stat": "armor",
+      "min": 4.0,
+      "max": 12.0,
+      "applies_to": ["armor", "shield", "accessory"]
+    },
+    {
+      "id": "keen",
+      "label": "Keen",
+      "stat": "bonus_crit_chance",
+      "min": 0.03,
+      "max": 0.09,
+      "applies_to": ["weapon", "accessory"]
+    },
+    {
+      "id": "arcane",
+      "label": "Arcane",
+      "stat": "bonus_magicka",
+      "min": 12.0,
+      "max": 32.0,
+      "applies_to": ["spell", "armor", "accessory"]
+    },
+    {
+      "id": "vigorous",
+      "label": "Vigorous",
+      "stat": "bonus_health",
+      "min": 15.0,
+      "max": 40.0,
+      "applies_to": ["armor", "shield", "accessory"]
+    }
+  ],
+  "suffixes": [
+    {
+      "id": "of_endurance",
+      "label": "of Endurance",
+      "stat": "bonus_stamina",
+      "min": 12.0,
+      "max": 30.0,
+      "applies_to": ["weapon", "armor", "shield", "accessory"]
+    },
+    {
+      "id": "of_the_draugr",
+      "label": "of the Draugr",
+      "stat": "bonus_damage",
+      "min": 4.0,
+      "max": 10.0,
+      "applies_to": ["weapon", "spell", "accessory"]
+    },
+    {
+      "id": "of_haste",
+      "label": "of Haste",
+      "stat": "cooldown_reduction",
+      "min": 0.06,
+      "max": 0.16,
+      "applies_to": ["weapon", "spell", "accessory"]
+    },
+    {
+      "id": "of_fortune",
+      "label": "of Ratings",
+      "stat": "gold_find_bonus",
+      "min": 0.12,
+      "max": 0.35,
+      "applies_to": ["weapon", "armor", "shield", "accessory"]
+    }
+  ],
+  "sponsored_effects": [
+    {
+      "id": "explosive_crits",
+      "label": "Sponsored Blast Wave",
+      "description": "Critical strikes detonate a shockwave for +14 bonus damage.",
+      "bonus_aoe_damage": 14.0,
+      "aoe_radius": 3.5
+    },
+    {
+      "id": "vampiric_viewers",
+      "label": "Prime-Time Siphon",
+      "description": "Audience applause heals you for 12 Health on every kill.",
+      "heal_on_kill": 12.0
+    },
+    {
+      "id": "tax_rebate_gold",
+      "label": "Syndicate Cashback",
+      "description": "Every enemy slain drops +15 bonus Syndicate Gold.",
+      "bonus_gold_on_kill": 15
+    }
+  ],
+  "vendor": {
+    "sell_price_ratio": 0.4,
+    "stock_count": 7,
+    "floor_level_bonus": 1
+  }
+}
