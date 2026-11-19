@@ -35,3 +35,21 @@ See [`docs/TESTING_STRATEGY.md`](../TESTING_STRATEGY.md) and [`docs/DECISION_LOG
      - `test_vendor_compass_ai_console.gd` — Vendor buy/sell economy, Compass discovery/bearing math, Dungeon AI banner templates, Audit Console dispatch.
      - `test_headless_gameplay_integration.gd` — Full headless 3D `GameMain` integration suite verifying fresh boot, 1st/3rd-person toggle, menu clock freeze, Safe Room enemy repulsion, Boss Gate seal & Vault unlock, Floor Collapse + Combat Death snapshot resets, Floor 2 descent, Save-and-Quit resume, spells/archery projectiles, melee enemy kills + Skyrim skill use + corpse looting, chest/Quest Board/Vendor interaction, and every Playtest Audit Console command.
 - **Hardened GUT Failure Guard:** Updated `scripts/run-tests.sh` to inspect GUT output and fail the build if any test script encounters a parse/load error or gets silently ignored by GUT.
+
+## 2026-11-19 — Presentation Test Suite & Forward+ Visual QA (`D-036`)
+
+- Added `game/tests/test_settings_and_materials.gd` (settings defaults/set-get, rebinding conflict swap & reset, event serialisation, material library build & name binding) and `game/tests/test_ui_and_visuals.gd` (every menu opens/refreshes/closes with time-pause, unequip & sell-all-common, item comparison/sort/filter, map fog-of-war + save/load, all six characters expose required clips & weapon sockets, enemy corpses keep the animated body, chest lid opens, dungeon is dressed & lit with quality-scaled environment, death screen).
+- `scripts/validate-assets.py` rewritten for the v2 library: GLB integrity, per-category triangle budgets, required animation clips, material/texture existence, item icons, setpiece/weapon references, UI kit and font licences.
+- `scripts/run-visual-qa.sh` captures Vulkan Forward+ by default (Mesa lavapipe when no GPU), supports `QA_ONLY` groups and `RENDER=opengl3`; capture tool rewritten to stage title, all loadouts, third-person, each enemy, corridor, safe room, boss, every menu, death screen and a 40-frame combat clip.
+- Totals: 12 test scripts, 53 tests, 5,600+ assertions — all green.
+
+## 2026-11-19 — Visual QA Harness Iteration Support
+
+- `visual_qa_capture.gd` honours `QA_OUT` (write captures elsewhere, leaving `art/visual_qa/` intact) and `QA_QUALITY` (graphics preset override) for fast targeted re-captures.
+- The field-guide card is captured once (first-person shot) and then hidden, so later scene shots are unobstructed; the combat clip stages the draugr at its real attack range instead of inside the camera.
+- `scripts/validate-assets.py` now also requires the `bar_back` UI texture.
+- New tests in `test_ui_and_visuals.gd`: menus fit a 1280×720 screen (inventory columns & both tabs, pause column, settings panel), HUD labels both hands for two-handed weapons and bows, the death card hides the HUD until dismissed, and the Low preset skips dust motes instead of creating a 0-particle emitter (a real engine error the Low-quality capture exposed).
+- Also: floor entry clears stale broadcasts (`GameHud.clear_transient_messages`).
+- `scripts/validate-assets.py` now opens every character `.glb` and requires its clips to be exactly the character's own tracks with no `.NNN`-suffixed names; `test_each_character_plays_its_own_clips` checks the same at runtime (and that the two-handed draugr and Iron Warden use their 40-frame attack, not the player's 28-frame one). Both would have caught the shared-clip export bug.
+- Totals: 12 test scripts, 59 tests, 5,724 assertions — all green.
+- Showcase clips: `QA_ONLY=clips` (optionally `QA_CLIPS=bow,spell,...`) records corridor walk, bow, spell, battleaxe, third-person and boss clips to `art/visual_qa/clips/`; run with `--fixed-fps 20` so animation advances exactly one simulation step per frame.

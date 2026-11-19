@@ -30,7 +30,12 @@ var hud: GameHud = null
 var inventory_menu: InventoryMenu = null
 var vendor_menu: VendorMenu = null
 var pause_menu: PauseMenu = null
+var map_menu: MapMenu = null
+var death_screen: DeathScreen = null
 var debug_overlay: DebugOverlay = null
+## Explored tiles for the map's fog of war (saved with the session).
+var map_seen: Dictionary = {}
+var _last_player_tile: Vector2i = Vector2i(-999, -999)
 
 var boss_actor: EnemyActor = null
 var boss_defeated_this_floor: bool = false
@@ -120,7 +125,23 @@ func initialize_game(p_seed: int = 20261118, try_load_save: bool = true) -> void
 		"reset_floor": func() -> void:
 			close_all_menus()
 			reset_floor_to_snapshot("manual_reset"),
+		"quit_to_title": _on_quit_to_title,
 	})
+
+	map_menu = MapMenu.new()
+	add_child(map_menu)
+	map_menu.setup(close_all_menus)
+
+	death_screen = DeathScreen.new()
+	add_child(death_screen)
+	# The HUD steps aside while the death / collapse card is up
+	death_screen.visibility_changed.connect(func() -> void:
+		if hud != null:
+			hud.visible = not death_screen.visible
+	)
+
+	if GameSettings != null and not GameSettings.changed.is_connected(_on_settings_changed):
+		GameSettings.changed.connect(_on_settings_changed)
 
 	debug_overlay = DebugOverlay.new()
 	add_child(debug_overlay)
@@ -154,6 +175,10 @@ func enter_floor(target_floor: int, capture_snapshot: bool = true) -> void:
 	quest_bounty_claimed = false
 	ai_director.reset_floor_flags()
 	floor_timer.reset()
+	map_seen.clear()
+	_last_player_tile = Vector2i(-999, -999)
+	if hud != null:
+		hud.clear_transient_messages()  # stale broadcasts from the previous floor / attempt don't linger
 
 	if capture_snapshot:
 		snapshot_mgr.capture_floor_entry_snapshot(_build_snapshot_payload())
@@ -217,6 +242,8 @@ func reset_floor_to_snapshot(reason: String) -> void:
 			EventBus.sfx_requested.emit("collapse_rumble")
 
 	enter_floor(floor_number, false)
+	if death_screen != null and reason in ["death", "collapse"]:
+		death_screen.show_reset(reason, floor_number)
 	if EventBus != null:
 		EventBus.floor_reset_completed.emit(floor_number, reason)
 
@@ -238,8 +265,16 @@ func save_current_session() -> bool:
 		"timer": floor_timer.to_dict(),
 		"tutorials": tutorial_sys.to_dict() if tutorial_sys != null else {},
 		"boss_defeated": boss_defeated_this_floor,
+		"map_seen": _map_seen_to_array(),
 	}
 	return snapshot_mgr.save_session_to_file(session, save_path)
+
+
+func _map_seen_to_array() -> Array:
+	var out: Array = []
+	for t in map_seen.keys():
+		out.append(t.y * 1000 + t.x)
+	return out
 
 
 func load_saved_session() -> bool:
@@ -271,6 +306,9 @@ func load_saved_session() -> bool:
 	player.magicka = clampf(float(session.get("magicka", player.max_magicka)), 0.0, player.max_magicka)
 	player.stamina = clampf(float(session.get("stamina", player.max_stamina)), 0.0, player.max_stamina)
 	floor_timer.from_dict(session.get("timer", {}))
+	for code in session.get("map_seen", []):
+		var ci := int(code)
+		map_seen[Vector2i(ci % 1000, ci / 1000)] = true
 	if bool(session.get("boss_defeated", false)):
 		boss_defeated_this_floor = true
 		dungeon_builder.unlock_boss_and_vault()
@@ -295,6 +333,7 @@ func open_exclusive_menu(menu_name: String) -> void:
 	inventory_menu.visible = false
 	vendor_menu.visible = false
 	pause_menu.visible = false
+	map_menu.visible = false
 	debug_overlay.visible = false
 	set_menu_pause(true, menu_name)
 	match menu_name:
@@ -305,8 +344,19 @@ func open_exclusive_menu(menu_name: String) -> void:
 			vendor_menu.open_menu()
 			_complete_tutorial("safe_room")
 		"pause":
-			var status := "Floor %d  •  %s  •  Lv %d  •  %dg" % [floor_number, floor_timer.get_formatted_clock(), progression.level, player.gold]
+			var fcfg := DataLoader.get_floor_config(floor_number)
+			var status := "Floor %d  ·  %s\n%s\nLevel %d  ·  %d gold  ·  %d items carried" % [floor_number, str(fcfg.get("name", "")),
+				floor_timer.get_formatted_clock().replace("|", "·"), progression.level, player.gold, player.inventory.size()]
 			pause_menu.open_menu(status, tutorial_sys.enabled if tutorial_sys != null else false)
+		"map":
+			var fc := DataLoader.get_floor_config(floor_number)
+			var found := 0
+			for lm in current_layout.landmarks:
+				if bool(lm.get("discovered", false)):
+					found += 1
+			map_menu.open_map(current_layout, map_seen, player.global_position, -player.rotation.y,
+				"Floor %d  ·  %s" % [floor_number, str(fc.get("name", ""))],
+				"%s\nLandmarks found: %d / %d" % [floor_timer.get_formatted_clock().replace("|", "·"), found, current_layout.landmarks.size()])
 		"console":
 			debug_overlay.open_console()
 
@@ -315,6 +365,7 @@ func close_all_menus() -> void:
 	inventory_menu.visible = false
 	vendor_menu.visible = false
 	pause_menu.visible = false
+	map_menu.visible = false
 	debug_overlay.visible = false
 	set_menu_pause(false, "")
 
@@ -332,11 +383,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		player.apply_mouse_look((event as InputEventMouseMotion).relative)
 		return
 
-	if event is InputEventKey and (event as InputEventKey).pressed and not (event as InputEventKey).echo:
-		if (event as InputEventKey).keycode == KEY_H and not is_menu_paused and tutorial_sys != null:
-			tutorial_sys.dismiss_current()
-			_sync_tutorial_hud()
-			return
+	if event.is_action_pressed("dismiss_hint") and not is_menu_paused and tutorial_sys != null:
+		tutorial_sys.dismiss_current()
+		_sync_tutorial_hud()
+		return
 
 	if event.is_action_pressed("toggle_console"):
 		if active_menu_name == "console":
@@ -346,10 +396,19 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if event.is_action_pressed("toggle_pause"):
+		if active_menu_name == "pause" and pause_menu.back():
+			return
 		if is_menu_paused:
 			close_all_menus()
 		else:
 			open_exclusive_menu("pause")
+		return
+
+	if event.is_action_pressed("toggle_map"):
+		if active_menu_name == "map":
+			close_all_menus()
+		elif not is_menu_paused:
+			open_exclusive_menu("map")
 		return
 
 	if event.is_action_pressed("toggle_inventory"):
@@ -431,6 +490,8 @@ func step_simulation(delta: float, input_override: Dictionary = {}) -> void:
 		_trigger_tutorial("combat_hands")
 	if tutorial_sys != null and tutorial_sys.tick(delta, is_menu_paused):
 		_sync_tutorial_hud()
+
+	_update_map_seen()
 
 	# 3. Check Safe Room, Boss Arena Threshold, and Spike Traps
 	_check_zone_triggers(delta)
@@ -547,8 +608,10 @@ func _on_player_melee_swing(swing: Dictionary) -> void:
 		}, str(swing["skill_name"]))
 		hit_any = true
 
-	if hit_any and EventBus != null:
-		EventBus.sfx_requested.emit("sword_hit")
+	if hit_any:
+		player.on_melee_hit(bool(swing["is_power_attack"]))
+		if EventBus != null:
+			EventBus.sfx_requested.emit("sword_hit")
 
 
 func _on_spawn_projectile(params: Dictionary) -> void:
@@ -590,9 +653,11 @@ func _apply_player_hit_to_enemy(enemy: EnemyActor, params: Dictionary, skill_nam
 	attack_params["target_armor"] = enemy.armor
 	var res := CombatMath.resolve_attack(attack_params, DataLoader.get_player(), rng)
 	var dmg := float(res["final_damage"])
+	var hit_pos := enemy.global_position + Vector3(0.0, 1.2 if not enemy.is_boss else 2.0, 0.0)
 	enemy.take_damage(dmg)
 	if hud != null:
 		hud.trigger_hit_marker()
+	_spawn_hit_feedback(hit_pos, dmg, bool(res.get("is_crit", false)))
 
 	# Skyrim use-to-improve proficiency gain on landing a hit!
 	var s_res := progression.record_skill_use(skill_name)
@@ -611,6 +676,35 @@ func _apply_player_hit_to_enemy(enemy: EnemyActor, params: Dictionary, skill_nam
 			if other is EnemyActor and is_instance_valid(other):
 				if (other as EnemyActor).global_position.distance_to(enemy.global_position) <= aoe_r:
 					(other as EnemyActor).take_damage(aoe_d)
+
+
+func _spawn_hit_feedback(pos: Vector3, dmg: float, crit: bool) -> void:
+	if not is_inside_tree():
+		return
+	var burst := VfxFactory.make_impact_burst(Color(1.0, 0.75, 0.4) if not crit else Color(1.0, 0.9, 0.3), 18 if not crit else 34, 3.6)
+	projectiles_root.add_child(burst)
+	burst.global_position = pos
+	if GameSettings != null and not bool(GameSettings.get_value("gameplay", "show_damage_numbers")):
+		return
+	var lbl := Label3D.new()
+	lbl.text = ("%d!" if crit else "%d") % int(round(dmg))
+	lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	lbl.no_depth_test = true
+	lbl.font_size = 64 if crit else 44
+	lbl.pixel_size = 0.004
+	lbl.outline_size = 12
+	lbl.modulate = Color(1.0, 0.86, 0.3) if crit else Color(1.0, 0.95, 0.88)
+	lbl.outline_modulate = Color(0.1, 0.02, 0.0, 0.9)
+	if UiTheme.font_heading() != null:
+		lbl.font = UiTheme.font_heading()
+	projectiles_root.add_child(lbl)
+	var jitter := Vector3(rng.next_float_range("ai", -0.3, 0.3), 0.0, rng.next_float_range("ai", -0.3, 0.3))
+	lbl.global_position = pos + jitter
+	var tw := lbl.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(lbl, "global_position", lbl.global_position + Vector3(0, 0.9, 0), 0.9).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(lbl, "modulate:a", 0.0, 0.9).set_delay(0.35)
+	tw.chain().tween_callback(lbl.queue_free)
 
 
 func _on_enemy_died(enemy: EnemyActor) -> void:
@@ -634,15 +728,24 @@ func _on_enemy_died(enemy: EnemyActor) -> void:
 	var forced_r := enemy.guaranteed_rarity
 	var has_item := not forced_r.is_empty() or rng.next_float("loot") <= enemy.loot_drop_chance
 	var loot_item := LootGenerator.roll_loot(DataLoader.get_items_pack(), DataLoader.get_affixes_pack(), floor_number, rng, forced_r) if has_item else {}
-	corpse.setup("corpse_%s" % enemy.enemy_id, "corpse", "Loot %s" % enemy.display_name, {
+	corpse.setup("corpse_%s" % enemy.enemy_id, "corpse", "Search %s" % enemy.display_name, {
 		"gold": gold_roll,
 		"item": loot_item,
-	}, _on_interactable_triggered, Vector3(1.1, 0.7, 1.1))
+	}, _on_interactable_triggered, Vector3(1.2, 0.8, 1.2))
 	corpse.position = enemy.global_position
-	var pile := ModelLoader.instantiate_model("res://assets/models/batch1/chest.glb", Vector3(0.7, 0.4, 0.6))
-	pile.scale = Vector3(0.55, 0.45, 0.55)
-	corpse.add_child(pile)
+	corpse.rotation.y = enemy.rotation.y
+	var body := enemy.detach_visual()
+	if body != null:
+		corpse.add_child(body)
+		body.transform = Transform3D.IDENTITY
+		corpse.visual_root = body
+	var ccol := corpse.get_child(0) as CollisionShape3D
+	if ccol != null and not enemy.is_boss:
+		ccol.position = Vector3(0.0, 0.4, -0.7)
 	corpses_root.add_child(corpse)
+	var dust := VfxFactory.make_impact_burst(Color(0.6, 0.55, 0.45), 18, 2.0)
+	projectiles_root.add_child(dust)
+	dust.global_position = enemy.global_position + Vector3(0, 0.3, 0)
 
 	_announce_ai("first_kill", {}, "info", true)
 
@@ -773,6 +876,40 @@ func _on_level_up(new_level: int) -> void:
 func _on_prompt_changed(prompt: String) -> void:
 	if not prompt.is_empty():
 		_trigger_tutorial("looting")
+
+
+func _update_map_seen() -> void:
+	if current_layout == null:
+		return
+	var t := current_layout.world_to_tile(player.global_position)
+	if t == _last_player_tile:
+		return
+	_last_player_tile = t
+	for dy in range(-2, 3):
+		for dx in range(-2, 3):
+			if absi(dx) + absi(dy) > 2:
+				continue
+			var n := t + Vector2i(dx, dy)
+			if current_layout.is_walkable(n.x, n.y):
+				map_seen[n] = true
+	for room in current_layout.rooms:
+		var rect: Rect2i = room["rect"]
+		if rect.has_point(t):
+			for yy in range(rect.position.y, rect.end.y):
+				for xx in range(rect.position.x, rect.end.x):
+					map_seen[Vector2i(xx, yy)] = true
+			break
+
+
+func _on_settings_changed(section: String, key: String, _value: Variant) -> void:
+	if section == "graphics" and key in ["quality", "brightness"] and dungeon_builder != null:
+		dungeon_builder.refresh_environment_quality()
+
+
+func _on_quit_to_title() -> void:
+	save_current_session()
+	if DisplayServer.get_name() != "headless" and is_inside_tree():
+		get_tree().change_scene_to_file("res://scenes/title.tscn")
 
 
 func _on_save_and_quit() -> void:

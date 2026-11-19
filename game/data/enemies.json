@@ -23,9 +23,15 @@
       "gold_max": 18,
       "loot_drop_chance": 0.45,
       "spawn_weight": 50.0,
-      "model": "res://assets/models/batch3/draugr_raider.glb",
+      "model": "res://assets/models/characters/draugr.glb",
       "radius": 0.5,
-      "height": 1.9
+      "height": 1.9,
+      "visual": {
+        "kind": "draugr",
+        "weapon": "res://assets/models/gear/battleaxe.glb",
+        "weapon_hand": "r",
+        "weapon_scale": 1.0
+      }
     },
     {
       "id": "bone_archer",
@@ -46,9 +52,15 @@
       "gold_max": 22,
       "loot_drop_chance": 0.5,
       "spawn_weight": 30.0,
-      "model": "res://assets/models/batch3/bone_archer.glb",
+      "model": "res://assets/models/characters/bone_archer.glb",
       "radius": 0.45,
-      "height": 1.85
+      "height": 1.85,
+      "visual": {
+        "kind": "bone_archer",
+        "weapon": "res://assets/models/gear/hunting_bow.glb",
+        "weapon_hand": "l",
+        "weapon_scale": 1.0
+      }
     },
     {
       "id": "goblin_influencer",
@@ -67,9 +79,15 @@
       "gold_max": 35,
       "loot_drop_chance": 0.72,
       "spawn_weight": 20.0,
-      "model": "res://assets/models/batch3/goblin_streamer.glb",
+      "model": "res://assets/models/characters/goblin_streamer.glb",
       "radius": 0.42,
-      "height": 1.35
+      "height": 1.35,
+      "visual": {
+        "kind": "goblin_streamer",
+        "weapon": "res://assets/models/gear/ratings_cleaver.glb",
+        "weapon_hand": "r",
+        "weapon_scale": 0.75
+      }
     },
     {
       "id": "iron_warden_boss",
@@ -92,9 +110,15 @@
       "loot_drop_chance": 1.0,
       "guaranteed_rarity": "sponsored",
       "spawn_weight": 0.0,
-      "model": "res://assets/models/batch3/iron_warden_boss.glb",
+      "model": "res://assets/models/characters/iron_warden.glb",
       "radius": 0.85,
-      "height": 2.9
+      "height": 2.9,
+      "visual": {
+        "kind": "iron_warden",
+        "weapon": "res://assets/models/gear/battleaxe.glb",
+        "weapon_hand": "r",
+        "weapon_scale": 2.1
+      }
     }
   ]
 }

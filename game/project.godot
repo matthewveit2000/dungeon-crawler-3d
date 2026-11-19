@@ -8,11 +8,12 @@ config_version=5
 
 config/name="Dungeon Crawler 3D"
 config/description="Free, open-source 3D Skyrim-inspired Dungeon Crawler Carl roguelike."
-run/main_scene="res://scenes/main.tscn"
+run/main_scene="res://scenes/title.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 
 [autoload]
 
+GameSettings="*res://src/core/game_settings.gd"
 DataLoader="*res://src/core/data_loader.gd"
 EventBus="*res://src/core/event_bus.gd"
 AudioManager="*res://src/core/audio_manager.gd"
@@ -120,3 +121,15 @@ quick_potion={
 "events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":81,"key_label":0,"unicode":113,"location":0,"echo":false,"script":null)
 ]
 }
+
+[rendering]
+
+occlusion_culling/use_occlusion_culling=true
+lights_and_shadows/positional_shadow/soft_shadow_filter_quality=3
+lights_and_shadows/positional_shadow/atlas_size=4096
+anti_aliasing/quality/msaa_3d=2
+anti_aliasing/quality/screen_space_aa=1
+environment/volumetric_fog/volume_size=96
+environment/volumetric_fog/volume_depth=96
+textures/default_filters/anisotropic_filtering_level=3
+lights_and_shadows/use_physical_light_units=false

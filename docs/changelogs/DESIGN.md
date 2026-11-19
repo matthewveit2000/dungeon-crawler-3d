@@ -32,3 +32,13 @@ Detailed record of gameplay systems, rules, tuning, and DCC flavor implemented f
 - **Skyrim Combat Feel & QoL Overhaul:**
   - Shrunk resting shield footprint to ~11% lower-left corner, added smooth alternating diagonal melee combos + power cleave + shield block raise + bow draw FOV zoom + 3rd-person wall-collision camera pullback + enemy telegraph wind-up & hit-flash reactions.
   - Replaced plain Godot default UI controls with obsidian-glass & antique-gold dark-fantasy HUD, Inventory, Vendor, Pause, and Audit Console themes (`UiTheme`).
+
+## 2026-11-19 — UX & Quality-of-Life Suite (`D-035`) — no rule or balance changes
+
+- Title screen (Continue with save summary, New Expedition with overwrite confirmation, Settings, Credits), Quit to Title.
+- Dungeon map (`M`) with fog of war that persists in saves; landmark icons; zoom & pan.
+- Inventory: equipment portrait, filters, sorting, stat comparison vs. equipped, double-click equip/use, right-click off-hand, unequip; separate Skills & Perks tab.
+- Vendor: comparison card, double-click buy/sell, Sell All Common.
+- HUD: landmark icons on the compass, vitals that fade when full, damage trails, low-health pulse, contextual crosshair (hit markers, block, bow-draw ring), key-cap prompts, loot toasts, area titles, level-up banner, potion count, death/collapse screen.
+- Settings & accessibility: see `D-035`. Gameplay timing is unchanged — enemy attack animations are synchronised to the existing attack timers (`D-033`).
+

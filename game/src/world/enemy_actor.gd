@@ -1,11 +1,16 @@
 class_name EnemyActor
 extends CharacterBody3D
-## 3D Enemy & Floor Boss Actor (Phase 6 + Expressive Procedural Combat Animations).
+## 3D Enemy & Floor Boss Actor (Phase 6 + rigged skeletal animation).
 ## Implements aggro, melee/ranged attacks, Safe Room repulsion (D-021),
-## Boss Arena dormancy/enrage phases (D-022), lootable corpse generation,
-## and fluid procedural idle/stride/wind-up/lunge/stagger animations.
+## Boss Arena dormancy/enrage phases (D-022) and lootable corpses.
+## Presentation: rigged Blender character (CharacterVisual) with cross-faded idle/walk/run,
+## telegraphed attack clips whose impact frame lands exactly when damage resolves,
+## hit flinches + flashes, death falls that remain as lootable bodies, and a sleek health bar.
 
 enum AiState { DORMANT, IDLE, CHASE, ATTACK, FLEE_SAFE_ZONE, DEAD }
+
+## Seconds from the start of each attack clip to its impact frame (clip timing authored in Blender).
+const IMPACT_TIME := {"attack_1h": 0.47, "attack_2h": 0.6, "shoot": 1.08, "slam": 0.6}
 
 var enemy_id: String = ""
 var display_name: String = "Enemy"
@@ -36,15 +41,22 @@ var guaranteed_rarity: String = ""
 var state: AiState = AiState.IDLE
 var enraged: bool = false
 var spawn_pos: Vector3 = Vector3.ZERO
+var visual: CharacterVisual = null
 var _attack_timer: float = 0.0
 var _hit_flash_timer: float = 0.0
-var _attack_anim_t: float = 0.0
-var _attack_anim_dur: float = 0.42
 var _anim_time: float = 0.0
-var _stride_phase: float = 0.0
-var _visual_root: Node3D = null
-var _hp_bar_3d: Label3D = null
+var _attack_clip: String = "attack"
+var _impact_time: float = 0.47
+var _attack_anim_started: bool = false
+var _roared: bool = false
+var _health_bar: Node3D = null
+var _health_fill: MeshInstance3D = null
+var _health_lag: MeshInstance3D = null
+var _name_label: Label3D = null
+var _lag_ratio: float = 1.0
+var _bar_visible_t: float = 0.0
 var _boss_ember_light: OmniLight3D = null
+var _height: float = 1.85
 
 var _layout: DungeonGenerator.FloorLayout = null
 var _player_ref: Node3D = null
@@ -105,7 +117,6 @@ func setup(
 	guaranteed_rarity = str(enemy_def.get("guaranteed_rarity", ""))
 	_anim_time = _rng.next_float("ai") * TAU if _rng != null else 0.0
 
-	# Boss stays dormant until player crosses into the Boss Arena (D-022)
 	state = AiState.DORMANT if is_boss else AiState.IDLE
 
 	add_to_group("enemies")
@@ -115,45 +126,140 @@ func setup(
 	collision_mask = 1
 
 	var radius := float(enemy_def.get("radius", 0.5))
-	var height := float(enemy_def.get("height", 1.85))
+	_height = float(enemy_def.get("height", 1.85))
 	var col := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
 	cap.radius = radius
-	cap.height = height
+	cap.height = _height
 	col.shape = cap
-	col.position.y = height * 0.5
+	col.position.y = _height * 0.5
 	add_child(col)
 
-	var model_path := str(enemy_def.get("model", ""))
-	_visual_root = ModelLoader.instantiate_model(model_path, Vector3(radius * 2.0, height, radius * 2.0), Color(0.75, 0.25, 0.25))
-	add_child(_visual_root)
+	var vdef: Dictionary = enemy_def.get("visual", {})
+	var kind := str(vdef.get("kind", str(enemy_def.get("model", "")).get_file().get_basename()))
+	visual = CharacterVisual.create(kind)
+	add_child(visual)
+	var weapon_path := str(vdef.get("weapon", ""))
+	if not weapon_path.is_empty():
+		var w := ModelLoader.instantiate_model(weapon_path, Vector3(0.1, 0.8, 0.1))
+		w.scale = Vector3.ONE * float(vdef.get("weapon_scale", 1.0))
+		var grip_name := "GripL" if str(vdef.get("weapon_hand", "r")) == "l" else "GripR"
+		var grip := visual.model.find_child(grip_name + "*", true, false) as Node3D
+		if grip != null:
+			grip.add_child(w)
+		else:
+			visual.attach_to_bone("hand_" + str(vdef.get("weapon_hand", "r")), w)
+	if archetype == "ranged":
+		_attack_clip = "shoot"
+	elif is_boss:
+		_attack_clip = "slam" if visual.has_anim("slam") else "attack"
+	else:
+		_attack_clip = "attack"
+	var key := "shoot" if _attack_clip == "shoot" else ("slam" if _attack_clip == "slam" else ("attack_2h" if kind in ["draugr", "iron_warden"] else "attack_1h"))
+	_impact_time = float(IMPACT_TIME.get(key, 0.47))
+	visual.play_state("idle", 0.0)
+	if visual.anim != null and visual.has_anim("idle"):
+		visual.anim.seek(fmod(_anim_time, 2.0), true)
 
 	if is_boss:
-		# Dedicated warm furnace key light slightly ahead of the Boss chest so forged steel armor gleams dramatically!
 		_boss_ember_light = OmniLight3D.new()
-		_boss_ember_light.position = Vector3(0.0, 2.05, 1.35)
-		_boss_ember_light.light_color = Color(1.0, 0.64, 0.28)
-		_boss_ember_light.light_energy = 2.0
-		_boss_ember_light.omni_range = 7.5
-		add_child(_boss_ember_light)
+		_boss_ember_light.position = Vector3(0.0, 2.05, 0.9)
+		_boss_ember_light.light_color = Color(1.0, 0.5, 0.2)
+		_boss_ember_light.light_energy = 1.4
+		_boss_ember_light.omni_range = 5.5
+		_boss_ember_light.shadow_enabled = false
+		var core_socket := visual.model.find_child("CoreSocket*", true, false) as Node3D
+		if core_socket != null:
+			core_socket.add_child(_boss_ember_light)
+			_boss_ember_light.position = Vector3(0, 0, 0.2)
+			var glow := VfxFactory.make_glow(Color(1.0, 0.45, 0.15), 0.9, 1.4)
+			core_socket.add_child(glow)
+		else:
+			add_child(_boss_ember_light)
 	else:
-		# Clean subtle floating plate for regular mobs (Boss uses dramatic top-center HUD Boss Health Bar!)
-		_hp_bar_3d = Label3D.new()
-		_hp_bar_3d.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		_hp_bar_3d.font_size = 15
-		_hp_bar_3d.outline_size = 4
-		_hp_bar_3d.outline_modulate = Color(0.04, 0.04, 0.06, 0.92)
-		_hp_bar_3d.position = Vector3(0.0, height + 0.34, 0.0)
-		_hp_bar_3d.modulate = Color(0.96, 0.88, 0.72)
-		add_child(_hp_bar_3d)
-		_update_label()
-
+		_build_health_bar()
+	if kind == "goblin_streamer":
+		var ring := visual.model.find_child("RingLight*", true, false) as Node3D
+		if ring != null:
+			var rl := OmniLight3D.new()
+			rl.light_color = Color(1.0, 0.35, 0.85)
+			rl.light_energy = 1.2
+			rl.omni_range = 3.5
+			ring.add_child(rl)
 	global_position = spawn_pos
+
+
+func _build_health_bar() -> void:
+	_health_bar = Node3D.new()
+	_health_bar.name = "HealthBar"
+	_health_bar.position = Vector3(0.0, _height + 0.38, 0.0)
+	add_child(_health_bar)
+	var mk := func(col: Color, w: float, h: float, z: float, pri: int) -> MeshInstance3D:
+		var mi := MeshInstance3D.new()
+		var q := QuadMesh.new()
+		q.size = Vector2(w, h)
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.albedo_color = col
+		m.no_depth_test = true
+		m.render_priority = pri
+		q.material = m
+		mi.mesh = q
+		mi.position.z = z
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		return mi
+	_health_bar.add_child(mk.call(Color(0.02, 0.02, 0.03, 0.78), 0.86, 0.085, 0.0, 1))
+	_health_lag = mk.call(Color(1.0, 0.85, 0.55, 0.85), 0.82, 0.05, 0.001, 2)
+	_health_bar.add_child(_health_lag)
+	_health_fill = mk.call(Color(0.86, 0.16, 0.12, 1.0), 0.82, 0.05, 0.002, 3)
+	_health_bar.add_child(_health_fill)
+	_name_label = Label3D.new()
+	_name_label.text = display_name
+	_name_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_name_label.no_depth_test = true
+	_name_label.font_size = 26
+	_name_label.pixel_size = 0.0042
+	_name_label.outline_size = 8
+	_name_label.modulate = Color(0.95, 0.9, 0.8)
+	_name_label.outline_modulate = Color(0, 0, 0, 0.85)
+	_name_label.position = Vector3(0, 0.12, 0)
+	_name_label.render_priority = 4
+	if UiTheme.font_ui() != null:
+		_name_label.font = UiTheme.font_ui()
+	_health_bar.add_child(_name_label)
+	_health_bar.visible = false
+
+
+func _update_health_bar(delta: float, dist: float) -> void:
+	if _health_bar == null:
+		return
+	var ratio := clampf(current_health / maxf(1.0, max_health), 0.0, 1.0)
+	_lag_ratio = move_toward(_lag_ratio, ratio, delta * 0.6) if _lag_ratio > ratio else ratio
+	_health_fill.scale.x = maxf(0.001, ratio)
+	_health_fill.position.x = -0.41 * (1.0 - ratio)
+	_health_lag.scale.x = maxf(0.001, _lag_ratio)
+	_health_lag.position.x = -0.41 * (1.0 - _lag_ratio)
+	_bar_visible_t = maxf(0.0, _bar_visible_t - delta)
+	var mode := str(GameSettings.get_value("gameplay", "enemy_health_bars")) if GameSettings != null else "damaged"
+	var show := false
+	match mode:
+		"always":
+			show = dist <= 18.0
+		"never":
+			show = false
+		_:
+			show = (current_health < max_health or _bar_visible_t > 0.0) and dist <= 22.0
+	_health_bar.visible = show and state != AiState.DEAD
 
 
 func wake_boss() -> void:
 	if state == AiState.DORMANT:
 		state = AiState.CHASE
+		if not _roared and visual != null and visual.play_action("roar", 0.15):
+			_roared = true
+			_attack_timer = maxf(_attack_timer, 1.6)
 
 
 func step_ai(delta: float, is_paused: bool) -> void:
@@ -165,17 +271,14 @@ func step_ai(delta: float, is_paused: bool) -> void:
 		_attack_timer = maxf(0.0, _attack_timer - delta)
 	if _hit_flash_timer > 0.0:
 		_hit_flash_timer = maxf(0.0, _hit_flash_timer - delta)
-	if _attack_anim_t > 0.0:
-		_attack_anim_t = maxf(0.0, _attack_anim_t - delta)
 
 	if state == AiState.DORMANT:
-		_update_procedural_pose(delta, 0.0)
+		_update_animation(delta, 0.0)
 		return
 
 	var player_pos := _player_ref.global_position
 	var player_in_safe := _layout != null and _layout.is_world_in_safe_room(player_pos)
 
-	# D-021: Enemies legally cannot pursue into Safe Rooms and immediately flee back!
 	if player_in_safe and not is_boss:
 		state = AiState.FLEE_SAFE_ZONE
 		var retreat_dir := (spawn_pos - global_position)
@@ -184,21 +287,19 @@ func step_ai(delta: float, is_paused: bool) -> void:
 			var spd := move_speed * 1.15
 			velocity.x = retreat_dir.normalized().x * spd
 			velocity.z = retreat_dir.normalized().z * spd
-			_face_dir(retreat_dir)
+			_face_dir(retreat_dir, delta)
 		else:
 			velocity.x = 0.0
 			velocity.z = 0.0
 		velocity.y = -4.0 if not is_on_floor() else 0.0
 		move_and_slide()
-		_update_procedural_pose(delta, Vector2(velocity.x, velocity.z).length())
+		_update_animation(delta, Vector2(velocity.x, velocity.z).length())
 		return
 
 	var to_player := player_pos - global_position
 	var flat_to_player := Vector3(to_player.x, 0.0, to_player.z)
 	var dist := flat_to_player.length()
-
-	if _hp_bar_3d != null:
-		_hp_bar_3d.visible = (dist <= 11.5) or (current_health < max_health)
+	_update_health_bar(delta, dist)
 
 	if state == AiState.FLEE_SAFE_ZONE:
 		state = AiState.IDLE
@@ -211,11 +312,13 @@ func step_ai(delta: float, is_paused: bool) -> void:
 			velocity.z = 0.0
 			velocity.y = -4.0 if not is_on_floor() else 0.0
 			move_and_slide()
-			_update_procedural_pose(delta, 0.0)
+			_update_animation(delta, 0.0)
 			return
 
 	var eff_speed := move_speed * (enrage_speed_mult if enraged else 1.0)
-	_face_dir(flat_to_player)
+	if visual != null and visual.oneshot == "roar":
+		eff_speed = 0.0
+	_face_dir(flat_to_player, delta)
 
 	if dist <= attack_range:
 		state = AiState.ATTACK
@@ -226,6 +329,11 @@ func step_ai(delta: float, is_paused: bool) -> void:
 		else:
 			velocity.x = 0.0
 			velocity.z = 0.0
+		# Start the attack clip so its impact frame lands exactly when the strike resolves
+		if not _attack_anim_started and _attack_timer <= _impact_time / _anim_speed():
+			_attack_anim_started = true
+			if visual != null:
+				visual.play_action(_attack_clip, 0.1, _anim_speed())
 		if _attack_timer <= 0.0:
 			_perform_attack(flat_to_player)
 	else:
@@ -242,7 +350,11 @@ func step_ai(delta: float, is_paused: bool) -> void:
 
 	velocity.y = -6.0 if not is_on_floor() else 0.0
 	move_and_slide()
-	_update_procedural_pose(delta, Vector2(velocity.x, velocity.z).length())
+	_update_animation(delta, Vector2(velocity.x, velocity.z).length())
+
+
+func _anim_speed() -> float:
+	return 1.2 if enraged else 1.0
 
 
 func take_damage(amount: float) -> Dictionary:
@@ -250,15 +362,24 @@ func take_damage(amount: float) -> Dictionary:
 		return {"killed": false, "damage_taken": 0.0}
 	if state == AiState.DORMANT or state == AiState.IDLE:
 		state = AiState.CHASE
+		if is_boss and not _roared:
+			wake_boss()
 
 	current_health = maxf(0.0, current_health - maxf(1.0, amount))
 	_hit_flash_timer = 0.22
+	_bar_visible_t = 4.0
+	if visual != null:
+		visual.flash(Color(1.0, 0.82, 0.7) if current_health > 0.0 else Color(1.0, 0.3, 0.2))
+		var winding_up := _attack_anim_started and visual.oneshot == _attack_clip
+		if current_health > 0.0 and not winding_up and not is_boss:
+			visual.play_action("hit", 0.05)
 
 	if is_boss and not enraged and current_health > 0.0 and (current_health / max_health) <= enrage_hp_threshold:
 		enraged = true
 		if _boss_ember_light != null:
-			_boss_ember_light.light_color = Color(1.0, 0.34, 0.14)
-			_boss_ember_light.light_energy = 3.2
+			_boss_ember_light.light_color = Color(1.0, 0.3, 0.1)
+		if visual != null:
+			visual.play_action("roar", 0.1, 1.3)
 		if EventBus != null:
 			EventBus.dungeon_ai_announcement.emit(
 				"BOSS PHASE 2 — %s ENRAGED!" % display_name.to_upper(),
@@ -266,9 +387,12 @@ func take_damage(amount: float) -> Dictionary:
 				"warning"
 			)
 
-	_update_label()
 	if current_health <= 0.0:
 		state = AiState.DEAD
+		if _health_bar != null:
+			_health_bar.visible = false
+		if visual != null:
+			visual.play_action("death", 0.08)
 		if _on_died.is_valid():
 			_on_died.call(self)
 		queue_free()
@@ -276,82 +400,52 @@ func take_damage(amount: float) -> Dictionary:
 	return {"killed": false, "damage_taken": amount}
 
 
-func _update_procedural_pose(delta: float, horiz_speed: float) -> void:
-	if _visual_root == null:
+## Hands the animated body over to the lootable corpse so the death fall plays out and stays.
+func detach_visual() -> Node3D:
+	if visual == null or not is_instance_valid(visual):
+		return null
+	var v := visual
+	var xf := v.global_transform if v.is_inside_tree() else global_transform
+	remove_child(v)
+	visual = null
+	v.set_meta("world_xf", xf)
+	return v
+
+
+func _update_animation(delta: float, horiz_speed: float) -> void:
+	if visual == null:
 		return
-
-	var move_ratio := clampf(horiz_speed / maxf(1.0, move_speed), 0.0, 1.4)
-	if move_ratio > 0.08:
-		var stride_rate := (5.4 if is_boss else 8.2) * (1.25 if enraged else 1.0)
-		_stride_phase += delta * stride_rate
-	else:
-		_stride_phase = lerpf(_stride_phase, 0.0, clampf(delta * 5.0, 0.0, 1.0))
-
-	# Base living breathing + walk stride bob & torso sway
-	var breathe := sin(_anim_time * (2.2 if is_boss else 2.8))
-	var pos := Vector3(0.0, absf(sin(_stride_phase)) * (0.09 if is_boss else 0.07) * move_ratio, 0.0)
-	var rot_deg := Vector3(
-		move_ratio * (7.0 if is_boss else 9.0),
-		sin(_stride_phase) * 5.0 * move_ratio,
-		sin(_stride_phase) * (5.5 if is_boss else 7.0) * move_ratio
-	)
-	var scl := Vector3(1.0 + breathe * 0.014, 1.0 - breathe * 0.012, 1.0 + breathe * 0.014)
-
-	# Clear attack telegraph wind-up right before strike lands (lets player read & block!)
-	if state == AiState.ATTACK and _attack_anim_t <= 0.0 and _attack_timer > 0.0 and _attack_timer < 0.34:
-		var wind := 1.0 - (_attack_timer / 0.34)
-		var ew := ease(wind, -1.6)
-		pos.y += (0.14 if is_boss else 0.08) * ew
-		pos.z -= 0.14 * ew
-		rot_deg.x -= (18.0 if is_boss else 14.0) * ew
-		rot_deg.y += (24.0 if is_boss else 18.0) * ew
-
-	# Dramatic lunging strike follow-through!
-	if _attack_anim_t > 0.0:
-		var u := 1.0 - (_attack_anim_t / maxf(0.01, _attack_anim_dur))
-		var lunge := sin(minf(1.0, u * 1.45) * PI)
-		pos.z += (0.48 if is_boss else 0.32) * lunge
-		pos.y -= 0.05 * lunge
-		rot_deg.x += (26.0 if is_boss else 22.0) * lunge
-		rot_deg.y -= (30.0 if is_boss else 24.0) * lunge
-
-	# Crisp hit-stagger knockback recoil when struck by the player
-	if _hit_flash_timer > 0.0:
-		var hit_k := sin((_hit_flash_timer / 0.22) * PI)
-		pos.z -= (0.14 if is_boss else 0.22) * hit_k
-		rot_deg.x -= (12.0 if is_boss else 18.0) * hit_k
-		rot_deg.z += 9.0 * hit_k
-		scl *= (1.0 + 0.05 * hit_k)
-
-	_visual_root.position = pos
-	_visual_root.rotation_degrees = rot_deg
-	_visual_root.scale = scl
-
+	var speed_ratio := horiz_speed / maxf(0.5, move_speed)
+	var target := "idle"
+	if state == AiState.ATTACK or (state == AiState.CHASE and horiz_speed < 0.2):
+		target = "idle_combat"
+	if horiz_speed > 0.25:
+		target = "run" if speed_ratio > 1.15 or (enraged and is_boss) or archetype == "charger" else "walk"
+	var play_speed := clampf(speed_ratio * (0.75 if target == "run" else 1.1), 0.6, 1.6) if target in ["walk", "run"] else 1.0
+	visual.play_state(target if visual.has_anim(target) else "idle", 0.2, play_speed)
+	if visual.oneshot.is_empty():
+		_attack_anim_started = false if _attack_timer > _impact_time else _attack_anim_started
 	if _boss_ember_light != null:
-		var base_e := 3.2 if enraged else 2.0
-		_boss_ember_light.light_energy = base_e + sin(_anim_time * 5.2) * 0.35
+		var base_e := 2.6 if enraged else 1.4
+		_boss_ember_light.light_energy = base_e + sin(_anim_time * 5.2) * 0.3
 
 
 func _perform_attack(flat_dir: Vector3) -> void:
 	_attack_timer = attack_cooldown_sec / (1.2 if enraged else 1.0)
-	_attack_anim_dur = 0.52 if is_boss else 0.40
-	_attack_anim_t = _attack_anim_dur
+	_attack_anim_started = false
 	var eff_dmg := damage * (enrage_damage_mult if enraged else 1.0)
 	if archetype == "ranged" and _on_shoot_projectile.is_valid():
-		var origin := global_position + Vector3(0.0, 1.35, 0.0)
+		var origin := global_position + Vector3(0.0, 1.45, 0.0) + flat_dir.normalized() * 0.4
 		var target := _player_ref.global_position + Vector3(0.0, 1.2, 0.0)
 		var dir := (target - origin).normalized()
 		_on_shoot_projectile.call(self, origin, dir * projectile_speed, eff_dmg)
 	elif _on_attack_player.is_valid():
 		_on_attack_player.call(self, eff_dmg, flat_dir.normalized())
+	if EventBus != null:
+		EventBus.sfx_requested.emit("bow_release" if archetype == "ranged" else "sword_swing")
 
 
-func _face_dir(flat_dir: Vector3) -> void:
+func _face_dir(flat_dir: Vector3, delta: float = 1.0) -> void:
 	if flat_dir.length_squared() > 0.001:
-		rotation.y = atan2(flat_dir.x, flat_dir.z)
-
-
-func _update_label() -> void:
-	if _hp_bar_3d == null:
-		return
-	_hp_bar_3d.text = "%s\n%.0f / %.0f" % [display_name, current_health, max_health]
+		var target := atan2(flat_dir.x, flat_dir.z)
+		rotation.y = lerp_angle(rotation.y, target, clampf(delta * 10.0, 0.0, 1.0))
