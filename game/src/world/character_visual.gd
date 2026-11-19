@@ -16,6 +16,8 @@ var state: String = ""
 var oneshot: String = ""
 var speed_scale: float = 1.0
 var _flash_t: float = 0.0
+## Additive hit-flash strength: a readable warm pulse that never washes the model out to a silhouette
+const FLASH_ALPHA := 0.22
 var _flash_mats: Array = []
 var _fallback_t: float = 0.0
 var _dead: bool = false
@@ -161,7 +163,7 @@ func flash(col: Color = Color(1.0, 0.25, 0.2), duration: float = 0.16) -> void:
 			ov.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 			ov.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 			ov.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-			ov.albedo_color = Color(col.r, col.g, col.b, 0.55)
+			ov.albedo_color = Color(col.r, col.g, col.b, FLASH_ALPHA)
 			mi.material_overlay = ov
 
 
@@ -181,6 +183,6 @@ func _tick_flash(delta: float) -> void:
 		var mi: MeshInstance3D = entry
 		if is_instance_valid(mi) and mi.material_overlay != null:
 			var m := mi.material_overlay as StandardMaterial3D
-			m.albedo_color.a = 0.55 * k
+			m.albedo_color.a = FLASH_ALPHA * k
 			if _flash_t <= 0.0:
 				mi.material_overlay = null

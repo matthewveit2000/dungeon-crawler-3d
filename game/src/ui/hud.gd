@@ -5,7 +5,7 @@ extends CanvasLayer
 ## interaction prompts, equipped-item icons, Dungeon-AI announcement cards, loot toasts, area
 ## titles, level-up banner, boss bar with enrage marker, tutorial card and damage/low-health vignettes.
 
-const VITAL_FADE_DELAY := 3.0
+const VITAL_FADE_DELAY := 6.0
 
 
 class CompassStrip extends Control:
@@ -104,7 +104,10 @@ class VitalBar extends Control:
 		var val_w := inner.size.x * clampf(value, 0.0, 1.0)
 		var lag_rect := Rect2(inner.position + Vector2((inner.size.x - lag_w) * 0.5 if reverse else 0.0, 0), Vector2(lag_w, inner.size.y))
 		var val_rect := Rect2(inner.position + Vector2((inner.size.x - val_w) * 0.5 if reverse else 0.0, 0), Vector2(val_w, inner.size.y))
-		draw_rect(inner, Color(0.02, 0.018, 0.016, 0.85), true)
+		var bk := UiTheme.tex("bar_back")
+		if bk != null:
+			draw_style_box(_nine(bk), r)
+		draw_rect(inner, Color(0.02, 0.018, 0.016, 0.6), true)
 		if ft != null:
 			draw_texture_rect(ft, lag_rect, false, Color(1.0, 0.92, 0.75, 0.75))
 			var c := fill_col.lerp(Color.WHITE, flash * 0.5)
@@ -112,13 +115,16 @@ class VitalBar extends Control:
 			draw_texture_rect(ft, val_rect, false, c)
 		var fr := UiTheme.tex("bar_frame")
 		if fr != null:
-			var sb := StyleBoxTexture.new()
-			sb.texture = fr
-			sb.texture_margin_left = 12
-			sb.texture_margin_right = 12
-			sb.texture_margin_top = 8
-			sb.texture_margin_bottom = 8
-			draw_style_box(sb, r)
+			draw_style_box(_nine(fr), r)
+
+	func _nine(t: Texture2D) -> StyleBoxTexture:
+		var sb := StyleBoxTexture.new()
+		sb.texture = t
+		sb.texture_margin_left = 12
+		sb.texture_margin_right = 12
+		sb.texture_margin_top = 8
+		sb.texture_margin_bottom = 8
+		return sb
 
 
 class Crosshair extends Control:
@@ -193,6 +199,8 @@ var _left_icon: TextureRect = null
 var _left_name: Label = null
 var _right_icon: TextureRect = null
 var _right_name: Label = null
+var _left_hint: Label = null
+var _right_hint: Label = null
 var _gold_lbl: Label = null
 var _potion_lbl: Label = null
 
@@ -531,9 +539,6 @@ func _make_hand_box(left: bool) -> Control:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", -2)
 	v.alignment = BoxContainer.ALIGNMENT_END
-	var key_row := HBoxContainer.new()
-	key_row.add_theme_constant_override("separation", 6)
-	key_row.alignment = BoxContainer.ALIGNMENT_BEGIN if left else BoxContainer.ALIGNMENT_END
 	var nm := UiTheme.label("", 18, UiTheme.COL_TEXT, UiTheme.font_ui_semibold(), HORIZONTAL_ALIGNMENT_LEFT if left else HORIZONTAL_ALIGNMENT_RIGHT)
 	nm.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
 	var hint := UiTheme.label("RMB  ·  Block / Cast" if left else "LMB  ·  Attack (hold for power)", 13, UiTheme.COL_MUTED, UiTheme.font_ui(),
@@ -543,11 +548,13 @@ func _make_hand_box(left: bool) -> Control:
 	if left:
 		_left_icon = ic
 		_left_name = nm
+		_left_hint = hint
 		box.add_child(ic)
 		box.add_child(v)
 	else:
 		_right_icon = ic
 		_right_name = nm
+		_right_hint = hint
 		_gold_lbl = UiTheme.label("", 15, UiTheme.COL_GOLD, UiTheme.font_ui_semibold(), HORIZONTAL_ALIGNMENT_RIGHT)
 		v.add_child(_gold_lbl)
 		box.add_child(v)
@@ -583,7 +590,7 @@ func _process(delta: float) -> void:
 	# Vital fade when full & idle (Skyrim-style), always visible in combat or when hurt
 	var full := _hp.value >= 0.999 and _mp.value >= 0.999 and _sp.value >= 0.999
 	_vitals_idle = _vitals_idle + delta if full else 0.0
-	var target_a := 0.28 if _vitals_idle > VITAL_FADE_DELAY else 1.0
+	var target_a := 0.6 if _vitals_idle > VITAL_FADE_DELAY else 1.0
 	_vitals_alpha = move_toward(_vitals_alpha, target_a, delta * 1.5)
 	_vitals_box.modulate.a = _vitals_alpha
 	# Damage / heal / low-health vignettes
@@ -640,12 +647,27 @@ func update_stats(stats: Dictionary) -> void:
 	_sp.value = sp / msp
 	var rh := str(stats.get("right_hand_name", "Empty"))
 	var lh := str(stats.get("left_hand_name", "Empty"))
+	var rh_item: Dictionary = stats.get("right_hand_item", {})
+	var is_bow := str(rh_item.get("weapon_type", "")) == "archery"
+	var both_hands := is_bow or bool(rh_item.get("two_handed", false))
 	_right_name.text = rh
-	_left_name.text = lh
+	_right_hint.text = "LMB  ·  Hold to draw, release to loose" if is_bow else (
+		"LMB  ·  Cast" if str(rh_item.get("category", "")) == "spell" else "LMB  ·  Attack (hold for power)")
 	if stats.has("right_hand_item"):
-		_right_icon.texture = UiTheme.item_icon(stats["right_hand_item"])
-	if stats.has("left_hand_item"):
-		_left_icon.texture = UiTheme.item_icon(stats["left_hand_item"])
+		_right_icon.texture = UiTheme.item_icon(rh_item)
+	if both_hands and lh == "Empty":
+		# Two-handed weapons and bows occupy the off hand too: say so instead of "Empty"
+		_left_name.text = "Both hands"
+		_left_hint.text = "Bow held in the off hand" if is_bow else "Two-handed grip"
+		_left_icon.texture = UiTheme.item_icon(rh_item)
+		_left_icon.modulate = Color(1, 1, 1, 0.45)
+	else:
+		_left_name.text = lh
+		var lcat := str(stats.get("left_hand_item", {}).get("category", ""))
+		_left_hint.text = "RMB  ·  Cast" if lcat == "spell" else ("RMB  ·  Attack" if lcat == "weapon" else "RMB  ·  Block")
+		_left_icon.modulate = Color.WHITE
+		if stats.has("left_hand_item"):
+			_left_icon.texture = UiTheme.item_icon(stats["left_hand_item"])
 	_gold_lbl.text = "%d gold  ·  Armor %d" % [int(stats.get("gold", 0)), int(stats.get("armor", 0.0))]
 	var pots := int(stats.get("health_potions", -1))
 	_potion_lbl.text = ("Q  ·  Health Draught ×%d" % pots) if pots >= 0 else ""
@@ -656,7 +678,11 @@ func update_stats(stats: Dictionary) -> void:
 func update_clock(floor_num: int, floor_name: String, formatted_clock: String) -> void:
 	_floor_lbl.text = "FLOOR %d  ·  %s" % [floor_num, floor_name.to_upper()]
 	_clock_lbl.text = formatted_clock.replace("|", "·")
-	var urgent := formatted_clock.find("0.") >= 0 and formatted_clock.find("UNTIL") >= 0
+	var days_left := 99.0
+	var parts := formatted_clock.split("|")
+	if parts.size() > 1:
+		days_left = parts[1].strip_edges().to_float()
+	var urgent := days_left < 1.0
 	_clock_lbl.add_theme_color_override("font_color", UiTheme.COL_DANGER if urgent else UiTheme.COL_MUTED)
 
 

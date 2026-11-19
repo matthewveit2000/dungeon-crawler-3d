@@ -212,5 +212,58 @@ def render_icon(objs, name, samples=48, size=256, yaw=-0.6, elev=0.45, lens=50.0
     out = ICONS / f"{name}.png"
     bpy.context.scene.render.filepath = str(out)
     bpy.ops.render.render(write_still=True)
+    finish_icon(out)
     print(f"[icon] {out}")
     return out
+
+
+def _dilate(m, steps):
+    import numpy as np
+    out = m.copy()
+    for _ in range(steps):
+        g = out.copy()
+        g[1:, :] |= out[:-1, :]
+        g[:-1, :] |= out[1:, :]
+        g[:, 1:] |= out[:, :-1]
+        g[:, :-1] |= out[:, 1:]
+        out = g
+    return out
+
+
+def _box_blur(a, r):
+    import numpy as np
+    k = 2 * r + 1
+    p = np.pad(a, r, mode="edge")
+    c = np.cumsum(np.cumsum(p, 0), 1)
+    c = np.pad(c, ((1, 0), (1, 0)))
+    return (c[k:, k:] - c[:-k, k:] - c[k:, :-k] + c[:-k, :-k]) / (k * k)
+
+
+def finish_icon(path, target_p95=0.8, max_gain=2.2):
+    """Make icons read on dark UI slots: normalise exposure of dark items (axe, bow, shield) and add a
+    soft warm backlight halo around the silhouette. Runs on the fresh render, so it is idempotent per build."""
+    import numpy as np
+    img = bpy.data.images.load(str(path), check_existing=False)
+    w, h = img.size
+    px = np.array(img.pixels[:], dtype=np.float32).reshape(h, w, 4)
+    rgb, a = px[..., :3], px[..., 3]
+    solid = a > 0.5
+    if solid.any():
+        lum = (0.2126 * rgb[..., 0] + 0.7152 * rgb[..., 1] + 0.0722 * rgb[..., 2])[solid]
+        gain = float(np.clip(target_p95 / max(float(np.percentile(lum, 95)), 1e-3), 1.0, max_gain))
+        x = rgb * gain
+        knee = 0.82
+        rgb = np.where(x < knee, x, knee + (1.0 - knee) * (1.0 - np.exp(-(x - knee) / (1.0 - knee))))
+    m = a > 0.3
+    halo = _box_blur(_dilate(m, 2).astype(np.float32), 4) * 0.42
+    halo = np.clip(halo - a, 0.0, 1.0)
+    halo_rgb = np.array([1.0, 0.86, 0.62], np.float32)
+    out_a = a + halo * (1.0 - a)
+    safe = np.maximum(out_a, 1e-4)[..., None]
+    out_rgb = (rgb * a[..., None] + halo_rgb * (halo * (1.0 - a))[..., None]) / safe
+    res = np.concatenate([np.clip(out_rgb, 0, 1), np.clip(out_a, 0, 1)[..., None]], axis=-1)
+    img.pixels[:] = res.reshape(-1).tolist()
+    img.filepath_raw = str(path)
+    img.file_format = "PNG"
+    img.save()
+    bpy.data.images.remove(img)

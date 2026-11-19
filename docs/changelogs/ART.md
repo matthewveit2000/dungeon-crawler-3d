@@ -50,3 +50,12 @@ Requested by the User: replace blocky/low-poly art, stiff animation and plain me
 - **Previews:** [`kit room`](../../art/previews/batch1_kit_room.png), [`props`](../../art/previews/batch1_props.png), [`gear`](../../art/previews/batch2_weapons_gear.png), [`characters`](../../art/previews/batch3_characters.png), [`texture library`](../../art/previews/texture_library.png).
 - **Removed:** the 38 first-pass `batch1/2/3` models, 256² textures and old build scripts (superseded).
 
+## 2026-11-19 — v2 Visual QA Polish Pass (`D-028`)
+
+Every screenshot and the 40-frame combat clip from the full Forward+ capture were reviewed from the player's camera; fixes:
+- **First-person arms:** forearms slimmed and re-angled — the forearm now leaves the fist at ~125° to the grip axis (back and down toward the pommel side, like a real sword grip) instead of 90°, so with the blade cocked up-forward the forearm runs out of the bottom of the view; the vambrace ends in a domed elbow cop, so it never reads as a hollow tube.
+- **Steel:** `steel_blade` re-authored as polished, lightly brushed steel (lower normal strength and roughness, smoother albedo); `steel_armor` normal scale reduced.
+- **New `chainmail` material** (two interlinked ring lattices, tiles exactly) and a mail aventail on the `crawler` helm, so the 3rd-person view no longer shows a bare head under the helmet.
+- **Icons:** finishing pass on every inventory icon (exposure normalisation for dark items + soft warm halo) — the axe, bow and shield now read on dark slots.
+- **UI kit:** vital bar split into `bar_back` (trough, under the fill) and `bar_frame` (border, over it) — the old frame's dark interior was dimming every bar; new `map_paper.webp` vellum with a faint survey grid replaces the handwriting-ruled parchment behind the map.
+

@@ -24,7 +24,7 @@ BUDGETS = {"kit": 20000, "props": 30000, "gear": 12000, "characters": 32000}
 REQUIRED_CATEGORIES = {"kit": 12, "props": 20, "gear": 20, "characters": 6}
 REQUIRED_CLIPS = {"idle", "walk", "run", "attack", "hit", "death"}
 UI_REQUIRED = ["panel_frame", "panel_soft", "card", "button_normal", "button_hover", "button_pressed", "button_disabled",
-               "slot_bg", "slot_border", "bar_frame", "bar_fill", "divider", "vignette", "keycap", "compass_bg", "crest",
+               "slot_bg", "slot_border", "bar_back", "bar_frame", "bar_fill", "divider", "vignette", "keycap", "compass_bg", "crest",
                "icon_skull", "icon_shield", "icon_stairs", "icon_player", "icon_coin", "check_on", "check_off", "slider_grabber"]
 
 

@@ -285,22 +285,23 @@ def iron_dark(s, seed):
     return {"albedo": alb, "height": h, "rough": rough, "metal": metal, "ao": ao}
 
 
-@recipe("steel_blade", normal_strength=0.35)
+@recipe("steel_blade", normal_strength=0.12)
 def steel_blade(s, seed):
     brushed = tg.fbm(s, seed, 0.7, 30.0, sx=1.0, sy=0.02)
     fine = tg.fbm(s, seed + 1, 0.5, 200.0, sx=1.0, sy=0.03)
-    scratch = tg.smoothstep(0.86, 0.96, tg.fbm(s, seed + 2, 0.4, 120.0, sx=0.2, sy=1.0))
-    stain = tg.smoothstep(0.55, 0.85, tg.fbm(s, seed + 3, 2.2, 2.0))
-    h = tg.normalize(0.6 * brushed + 0.4 * fine - scratch * 0.3)
-    alb = tg.colorize(tg.normalize(0.7 * brushed + 0.3 * fine), [(0.0, "#8d9198"), (1.0, "#c4c8ce")])
-    alb = tg.blend(alb, alb * np.array([0.72, 0.68, 0.62], np.float32), stain * 0.5)
-    rough = np.clip(0.22 + 0.10 * fine + 0.18 * stain + 0.12 * scratch, 0.1, 0.8)
+    scratch = tg.smoothstep(0.9, 0.97, tg.fbm(s, seed + 2, 0.4, 120.0, sx=0.2, sy=1.0))
+    stain = tg.smoothstep(0.62, 0.9, tg.fbm(s, seed + 3, 2.2, 2.0))
+    h = tg.normalize(0.85 * tg.blur(brushed, 1.0) + 0.15 * fine - scratch * 0.15)
+    alb = tg.colorize(tg.normalize(0.85 * brushed + 0.15 * fine), [(0.0, "#a3a7ad"), (1.0, "#cdd1d6")])
+    alb = tg.blend(alb, alb * np.array([0.78, 0.74, 0.68], np.float32), stain * 0.35)
+    rough = np.clip(0.3 + 0.06 * fine + 0.14 * stain + 0.08 * scratch, 0.2, 0.62)
     return {"albedo": alb, "height": h, "rough": rough, "metal": np.full_like(h, 1.0), "ao": np.ones_like(h)}
 
 
-@recipe("steel_armor", normal_strength=0.7)
+@recipe("steel_armor", normal_strength=0.55)
 def steel_armor(s, seed):
-    f1, f2, cid = tg.voronoi(s, seed, 160)
+    # broad hand-forged dents (fewer, larger cells read as hammered plate, not woven mesh, up close)
+    f1, f2, cid = tg.voronoi(s, seed, 56)
     hammer = tg.normalize(np.sqrt(f1)) * 0.5
     brushed = tg.fbm(s, seed + 1, 0.9, 20.0, sx=1.0, sy=0.04)
     scratch = tg.smoothstep(0.88, 0.97, tg.fbm(s, seed + 2, 0.4, 100.0, sx=0.15, sy=1.0))
@@ -311,6 +312,34 @@ def steel_armor(s, seed):
     alb = tg.blend(alb, np.minimum(alb * 1.3, 1.0), scratch * 0.6)
     rough = np.clip(0.34 + 0.25 * grime + 0.1 * brushed - 0.08 * scratch, 0.15, 0.9)
     return {"albedo": alb, "height": h, "rough": rough, "metal": np.clip(0.96 - grime * 0.3, 0, 1), "ao": tg.cavity_ao(h, 4, 1.2)}
+
+
+@recipe("chainmail", normal_strength=1.6)
+def chainmail(s, seed):
+    """Riveted mail: two offset lattices of interlinked rings (tiles exactly: integer ring counts)."""
+    u, v = tg.grid(s)
+    n = 16
+    x, y = u * n, v * n
+
+    def ring_field(ox, oy):
+        fx = ((x + ox) % 1.0) - 0.5
+        fy = (((y + oy) % 1.0) - 0.5) * 1.12
+        d = np.sqrt(fx * fx + fy * fy)
+        prof = 1.0 - tg.smoothstep(0.0, 0.075, np.abs(d - 0.42))
+        # light falls on the upper rim of each ring (rings are tilted like scales)
+        return prof * (0.75 + 0.25 * np.clip(-fy * 3.0, -1, 1))
+
+    a = ring_field(0.0, 0.0)
+    b = ring_field(0.5, 0.5)
+    h = np.maximum(a, b * 0.92)
+    gaps = 1.0 - tg.smoothstep(0.05, 0.3, h)
+    grime = tg.smoothstep(0.55, 0.9, tg.fbm(s, seed, 1.8, 3.0))
+    tone = tg.normalize(tg.fbm(s, seed + 1, 1.0, 40.0))
+    alb = tg.colorize(np.clip(0.75 * h + 0.25 * tone, 0, 1), [(0.0, "#121214"), (0.45, "#4c5056"), (1.0, "#9a9fa6")])
+    alb = tg.blend(alb, alb * np.array([0.55, 0.45, 0.36], np.float32), grime * 0.6)
+    rough = np.clip(0.36 + 0.5 * gaps + 0.2 * grime, 0.2, 0.95)
+    metal = np.clip(0.95 - gaps * 0.7 - grime * 0.3, 0, 1)
+    return {"albedo": alb, "height": tg.normalize(h), "rough": rough, "metal": metal, "ao": np.clip(1.0 - gaps * 0.65, 0, 1)}
 
 
 @recipe("gold_antique", normal_strength=0.5)

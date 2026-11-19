@@ -79,6 +79,12 @@ var _spell_light: OmniLight3D = null
 var _offhand_axe: bool = false
 var _trail: MeshInstance3D = null
 var _trail_pts: Array = []
+const TRAIL_LIFE := 0.09
+const TWO_HAND_LEFT_ROLL := -40.0
+## Two-handed carry: haft held across the body at chest height, fist low-centre, head to the right
+const TWO_HAND_POS := Vector3(0.06, -0.3, -0.5)
+const TWO_HAND_GRIP := Vector3(0.75, 0.55, -0.35)
+const TWO_HAND_FOREARM := Vector3(0.35, -0.45, 0.82)
 var _blade_tip: Node3D = null
 var _blade_base: Node3D = null
 var _hitstop: float = 0.0
@@ -593,13 +599,14 @@ func refresh_hand_visuals() -> void:
 				_fp_right_weapon_holder.add_child(w_model)
 				var tip_len := 0.95 if is_two_hand else 0.9
 				_blade_base = Node3D.new()
-				_blade_base.position = Vector3(0, 0.62 if is_two_hand else 0.16, 0)
+				_blade_base.position = Vector3(0, 0.95 if is_two_hand else 0.55, 0)
 				_fp_right_weapon_holder.add_child(_blade_base)
 				_blade_tip = Node3D.new()
 				_blade_tip.position = Vector3(0, tip_len + (0.12 if is_two_hand else 0.0), 0)
 				_fp_right_weapon_holder.add_child(_blade_tip)
 				if is_two_hand:
 					_offhand_axe = true
+					_fp_right_weapon_holder.basis = _two_hand_holder_basis()
 
 	# --- LEFT HAND ---
 	if is_bow:
@@ -630,6 +637,7 @@ func refresh_hand_visuals() -> void:
 			fp_left_anchor.add_child(_arm("fp_arm_grip_l"))
 			var sh := ModelLoader.instantiate_model(str(lh.get("model", "")), Vector3(0.8, 0.8, 0.1))
 			sh.rotation_degrees = Vector3(0.0, 180.0, 0.0)
+			sh.scale = Vector3.ONE * 0.62
 			_disable_shadows(sh)
 			_fp_left_weapon_holder.add_child(sh)
 		elif lcat == "spell":
@@ -767,11 +775,12 @@ func _update_procedural_animations(delta: float, move_amount: float, is_sprintin
 	var r_spell := str(rh.get("category", "")) == "spell"
 
 	# --- RIGHT HAND rest pose -------------------------------------------------------
-	var r_pos := Vector3(0.30, -0.30, -0.50)
-	var r_rot := Vector3(-22.0, -8.0, 16.0)
+	var r_pos := Vector3(0.30, -0.32, -0.52)
+	var r_rot := Vector3(-20.0, -8.0, 16.0)
 	if is_two_hand:
-		r_pos = Vector3(0.24, -0.42, -0.46)
-		r_rot = Vector3(-48.0, -26.0, 38.0)
+		# Haft carried diagonally across the body, head high on the right
+		r_pos = TWO_HAND_POS
+		r_rot = _hand_basis(TWO_HAND_GRIP, TWO_HAND_FOREARM).get_euler() * (180.0 / PI)
 	elif is_bow:
 		r_pos = Vector3(0.24, -0.34, -0.42)
 		r_rot = Vector3(-60.0, 10.0, 70.0)
@@ -858,18 +867,24 @@ func _update_procedural_animations(delta: float, move_amount: float, is_sprintin
 	# --- LEFT HAND ------------------------------------------------------------------
 	var l_pos := Vector3(-0.36, -0.38, -0.56)
 	var l_rot := Vector3(-6.0, 22.0, -6.0)
+	var l_basis := Basis.IDENTITY
 	var lcat := str(lh.get("category", ""))
 	if is_bow:
+		# Bow arm extended forward-left: the bow stands canted in the fist while the forearm runs back
+		# toward the left shoulder; drawing straightens the bow and brings it toward the centre line
 		var recoil := Vector3(0.0, 0.015, 0.05) * _bow_release_recoil
-		l_pos = Vector3(-0.2, -0.26, -0.56).lerp(Vector3(-0.1, -0.12, -0.6), _draw_blend) + recoil
-		l_rot = Vector3(-4.0, 6.0, 26.0).lerp(Vector3(0.0, 0.0, 12.0), _draw_blend)
+		l_pos = Vector3(-0.32, -0.3, -0.7).lerp(Vector3(-0.21, -0.17, -0.76), _draw_blend) + recoil
+		var rest_b := _hand_basis(Vector3(0.45, 0.89, -0.1), Vector3(-0.2, -0.45, 0.87))
+		var draw_b := _hand_basis(Vector3(0.17, 0.985, 0.0), Vector3(-0.25, -0.3, 0.92))
+		l_basis = Basis(rest_b.get_rotation_quaternion().slerp(draw_b.get_rotation_quaternion(), _draw_blend))
 	elif _offhand_axe:
 		pass
 	elif lcat == "shield":
-		var rest_p := Vector3(-0.42, -0.42, -0.58)
-		var rest_r := Vector3(-4.0, 34.0, -10.0)
-		var blk_p := Vector3(-0.2, -0.26, -0.46)
-		var blk_r := Vector3(2.0, 8.0, -4.0)
+		# Rest: tucked edge-on in the lower-left corner. Block: raised across the left of centre.
+		var rest_p := Vector3(-0.5, -0.44, -0.62)
+		var rest_r := Vector3(-8.0, 58.0, -14.0)
+		var blk_p := Vector3(-0.24, -0.28, -0.56)
+		var blk_r := Vector3(0.0, 20.0, -6.0)
 		var be := ease(_block_blend, -1.6)
 		l_pos = rest_p.lerp(blk_p, be)
 		l_rot = rest_r.lerp(blk_r, be)
@@ -899,28 +914,47 @@ func _update_procedural_animations(delta: float, move_amount: float, is_sprintin
 	fp_right_anchor.position = r_pos
 	fp_right_anchor.rotation_degrees = r_rot
 	if _offhand_axe:
-		# Left hand rides the haft above the right hand
-		var hold := fp_right_anchor.transform * Transform3D(Basis.IDENTITY, Vector3(0.0, 0.42, 0.0))
+		# Left hand takes the lower wrap of the haft (below the right hand), rolled around the haft so
+		# its forearm leaves the frame to the lower left instead of crossing the view
+		var hold := fp_right_anchor.transform * Transform3D(Basis(Vector3.UP, deg_to_rad(TWO_HAND_LEFT_ROLL)), Vector3(0.0, -0.17, 0.0))
 		fp_left_anchor.transform = hold
+	elif is_bow:
+		fp_left_anchor.transform = Transform3D(l_basis, l_pos)
 	else:
 		fp_left_anchor.position = l_pos
 		fp_left_anchor.rotation_degrees = l_rot
 
 	# --- Bowstring pull, nocked arrow & drawing hand ---------------------------------
 	if is_bow and _bow_node != null:
-		var pull := 0.5 * _draw_blend
-		var nock_local := Vector3(0.0, 0.0, _string_rest_z - pull) if _string_top != null else Vector3.ZERO
+		var bow_to_anchor := _fp_left_weapon_holder.transform * _bow_node.transform
+		var bow_to_cam := fp_left_anchor.transform * bow_to_anchor
+		var rest_nock_cam := bow_to_cam * Vector3(0.0, 0.0, _string_rest_z)
+		# Full draw anchors the nock low-right in front of the face, so neither the string nor the arrow passes through the lens
+		var cheek := Vector3(0.12, -0.2, -0.36)
+		var nock_cam := rest_nock_cam.lerp(cheek, ease(_draw_blend, 0.8))
+		var nock_local := bow_to_cam.affine_inverse() * nock_cam
 		if _string_top != null and _string_bot != null:
 			_aim_segment(_string_top, _string_tip_top, nock_local)
 			_aim_segment(_string_bot, _string_tip_bot, nock_local)
-		var nock_anchor := _fp_left_weapon_holder.transform * (_bow_node.transform * nock_local)
 		if _fp_nocked_arrow != null:
 			_fp_nocked_arrow.visible = _bow_release_recoil <= 0.15
-			_fp_nocked_arrow.position = nock_anchor + Vector3(0.012, 0.012, -0.35)
-		var nock_cam := fp_left_anchor.transform * nock_anchor
-		var drawing_hand := nock_cam + Vector3(0.03, -0.02, 0.05)
-		fp_right_anchor.position = r_pos.lerp(drawing_hand, clampf(_draw_blend * 1.6 + (0.35 if is_right_holding else 0.0), 0.0, 1.0))
-		fp_right_anchor.rotation_degrees = r_rot.lerp(Vector3(-80.0, 0.0, 90.0), _draw_blend)
+			var rest_pt := bow_to_cam * Vector3(0.024, 0.055, 0.0)
+			var dir := (rest_pt - nock_cam).normalized()
+			var mid_cam := nock_cam + dir * 0.36
+			var anchor_inv := fp_left_anchor.transform.affine_inverse()
+			var y_axis := anchor_inv.basis * dir
+			var x_axis := y_axis.cross(Vector3.UP).normalized()
+			if x_axis.length() < 0.1:
+				x_axis = Vector3.RIGHT
+			var z_axis := x_axis.cross(y_axis).normalized()
+			_fp_nocked_arrow.transform = Transform3D(Basis(x_axis, y_axis, z_axis), anchor_inv * mid_cam)
+		# Drawing hand hooks the string (fingers curled across it, toward the bow) with the forearm
+		# running back-right toward the raised elbow, off the edge of the screen
+		var pull := clampf(_draw_blend * 1.4 + (0.3 if is_right_holding else 0.0), 0.0, 1.0)
+		fp_right_anchor.position = r_pos.lerp(nock_cam + Vector3(0.025, -0.01, 0.02), pull)
+		var rest_q := Basis.from_euler(r_rot * (PI / 180.0)).get_rotation_quaternion()
+		var hook_q := _hand_basis(Vector3(-0.95, 0.05, -0.3), Vector3(0.45, 0.15, 0.88)).get_rotation_quaternion()
+		fp_right_anchor.basis = Basis(rest_q.slerp(hook_q, pull))
 
 	# --- Spell glow breathing --------------------------------------------------------
 	if _spell_fx != null and is_instance_valid(_spell_fx):
@@ -946,6 +980,27 @@ func _update_procedural_animations(delta: float, move_amount: float, is_sprintin
 		tp_visual.play_state(st, 0.18, 1.0 if st != "walk" else clampf(0.8 + _move_blend * 0.4, 0.8, 1.3))
 
 
+## Orientation for a first-person fist from where its grip axis (through the fist) and its forearm (toward
+## the elbow) should point. Matches the fp_arm_grip models: grip = +Y, forearm in the +Z half of the YZ plane.
+static func _hand_basis(grip_dir: Vector3, forearm_dir: Vector3) -> Basis:
+	var y := grip_dir.normalized()
+	var z := forearm_dir - y * forearm_dir.dot(y)
+	if z.length() < 0.001:
+		z = Vector3.BACK
+	z = z.normalized()
+	return Basis(y.cross(z).normalized(), y, z)
+
+
+## Rolls a two-handed weapon around its haft inside the fist so that, in the carry pose, the head's flat
+## face turns toward the camera (otherwise the axe head is seen edge-on and vanishes).
+static func _two_hand_holder_basis() -> Basis:
+	var g := TWO_HAND_GRIP.normalized()
+	var v := (TWO_HAND_POS + g * 0.95).normalized()
+	var n := (g * v.dot(g) - v).normalized()
+	var weapon_b := Basis(g.cross(n).normalized(), g, n)
+	return _hand_basis(TWO_HAND_GRIP, TWO_HAND_FOREARM).inverse() * weapon_b
+
+
 func _aim_segment(seg: Node3D, tip: Vector3, target: Vector3) -> void:
 	var d := target - tip
 	var ln := d.length()
@@ -967,12 +1022,10 @@ func _update_blade_trail() -> void:
 	if swinging:
 		var inv := camera.global_transform.affine_inverse()
 		var u := 1.0 - (_right_swing_t / maxf(0.01, _right_swing_dur))
-		if u > 0.22 and u < 0.62:
-			_trail_pts.push_front([inv * _blade_base.global_position, inv * _blade_tip.global_position])
-	if not swinging or _trail_pts.size() > 9:
-		if not _trail_pts.is_empty():
-			_trail_pts.pop_back()
-	if not swinging and _trail_pts.size() > 0:
+		if u > 0.24 and u < 0.6:
+			_trail_pts.push_front([inv * _blade_base.global_position, inv * _blade_tip.global_position, _anim_time])
+	# Keep only the last ~90 ms of blade path so the streak has the same length at any frame rate
+	while not _trail_pts.is_empty() and (_anim_time - float(_trail_pts.back()[2]) > TRAIL_LIFE or _trail_pts.size() > 12):
 		_trail_pts.pop_back()
 	if _trail_pts.size() < 2:
 		return
@@ -980,7 +1033,7 @@ func _update_blade_trail() -> void:
 	var n := _trail_pts.size()
 	for i in range(n):
 		var a := 1.0 - float(i) / float(n - 1)
-		var c := Color(1.0, 0.86, 0.6, 0.55 * a * a)
+		var c := Color(1.0, 0.82, 0.55, 0.13 * a * a)
 		var pair: Array = _trail_pts[i]
 		im.surface_set_color(Color(c.r, c.g, c.b, c.a * 0.2))
 		im.surface_add_vertex(pair[0])

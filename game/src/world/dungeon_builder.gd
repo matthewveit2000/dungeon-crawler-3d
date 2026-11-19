@@ -261,8 +261,11 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 			"stairs":
 				_build_stairs_interactable(center_w, interact_cb)
 			"boss":
-				_add_light(_world_root, center_w + Vector3(0.0, 3.9, 0.0), Color(1.0, 0.55, 0.32), 2.2, 16.0, true)
-				_add_light(_world_root, center_w + Vector3(0.0, 0.9, 0.0), Color.html(str(floor_cfg.get("boss_color", "#e04838"))), 1.6, 9.0, false)
+				# Warm key from above keeps the boss readable; the red crucible glow stays low so it reads
+				# as an accent instead of tinting the whole arena through the volumetric fog
+				_add_light(_world_root, center_w + Vector3(0.0, 3.9, 0.0), Color(1.0, 0.72, 0.5), 2.0, 16.0, true)
+				var glow := _add_light(_world_root, center_w + Vector3(0.0, 0.9, 0.0), Color.html(str(floor_cfg.get("boss_color", "#e04838"))), 1.2, 8.0, false)
+				glow.light_volumetric_fog_energy = 0.35
 			"entrance":
 				_add_light(_world_root, center_w + Vector3(0.0, 3.4, 0.0), Color(1.0, 0.78, 0.55), 1.0, 14.0, false)
 		_dress_room(room, wall_slots, rng)
@@ -592,8 +595,9 @@ func _add_room_atmosphere(room: Dictionary) -> void:
 	var extent := Vector3(float(rect.size.x) * ts - 1.0, 3.2, float(rect.size.y) * ts - 1.0)
 	var dust := VfxFactory.make_dust(extent)
 	var origin := layout.tile_to_world(rect.position) - Vector3(ts * 0.5, 0, ts * 0.5)
-	dust.position = origin + Vector3(float(rect.size.x) * ts * 0.5, 2.0, float(rect.size.y) * ts * 0.5)
-	_world_root.add_child(dust)
+	if dust != null:
+		dust.position = origin + Vector3(float(rect.size.x) * ts * 0.5, 2.0, float(rect.size.y) * ts * 0.5)
+		_world_root.add_child(dust)
 	# cobwebs in inner corners just under the ceiling
 	var corners := [
 		[rect.position, Vector3(1, 0, 1)],

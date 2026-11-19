@@ -22,6 +22,7 @@ func _ready() -> void:
 	for t in TAB_TITLES:
 		_tabs.add_tab(t)
 	_tabs.tab_changed.connect(_show_tab)
+	_tabs.clip_tabs = false
 	add_child(_tabs)
 	var body := HBoxContainer.new()
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -42,7 +43,7 @@ func _ready() -> void:
 		stack.add_child(page)
 		_pages.append(page)
 	var side := PanelContainer.new()
-	side.custom_minimum_size = Vector2(250, 0)
+	side.custom_minimum_size = Vector2(220, 0)
 	side.add_theme_stylebox_override("panel", UiTheme.panel_style("card"))
 	body.add_child(side)
 	var sv := VBoxContainer.new()
@@ -133,8 +134,10 @@ func _row(parent: Control, label_text: String, help: String) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	row.custom_minimum_size.y = 46
-	var l := UiTheme.label(label_text, 20, UiTheme.COL_TEXT, UiTheme.font_ui_semibold())
-	l.custom_minimum_size.x = 300
+	var l := UiTheme.label(label_text, 19, UiTheme.COL_TEXT, UiTheme.font_ui_semibold())
+	l.custom_minimum_size.x = 210
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(l)
 	row.mouse_entered.connect(func() -> void: _help.text = help)
@@ -147,19 +150,27 @@ func _toggle(parent: Control, section: String, key: String, label_text: String, 
 	var row := _row(parent, label_text, help)
 	var cb := CheckBox.new()
 	cb.button_pressed = bool(GameSettings.get_value(section, key))
-	cb.text = "On" if cb.button_pressed else "Off"
+	var state := UiTheme.label("On" if cb.button_pressed else "Off", 18, UiTheme.COL_GOLD_BRIGHT if cb.button_pressed else UiTheme.COL_MUTED, UiTheme.font_ui_semibold())
+	state.custom_minimum_size.x = 44
+	state.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	cb.toggled.connect(func(on: bool) -> void:
-		cb.text = "On" if on else "Off"
+		state.text = "On" if on else "Off"
+		state.add_theme_color_override("font_color", UiTheme.COL_GOLD_BRIGHT if on else UiTheme.COL_MUTED)
 		GameSettings.set_value(section, key, on)
 	)
 	cb.mouse_entered.connect(func() -> void: _help.text = help)
-	row.add_child(cb)
+	var holder := HBoxContainer.new()
+	holder.custom_minimum_size.x = 220
+	holder.add_theme_constant_override("separation", 8)
+	holder.add_child(cb)
+	holder.add_child(state)
+	row.add_child(holder)
 
 
 func _option(parent: Control, section: String, key: String, label_text: String, names: Array, values: Array, help: String) -> void:
 	var row := _row(parent, label_text, help)
 	var ob := OptionButton.new()
-	ob.custom_minimum_size.x = 260
+	ob.custom_minimum_size.x = 220
 	for n in names:
 		ob.add_item(str(n))
 	var cur: Variant = GameSettings.get_value(section, key)
@@ -179,10 +190,10 @@ func _slider(parent: Control, section: String, key: String, label_text: String, 
 	s.max_value = hi
 	s.step = step
 	s.value = float(GameSettings.get_value(section, key))
-	s.custom_minimum_size = Vector2(240, 28)
+	s.custom_minimum_size = Vector2(160, 28)
 	s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var vl := UiTheme.label(fmt % (s.value * display_mult), 18, UiTheme.COL_GOLD_BRIGHT, UiTheme.font_ui_semibold())
-	vl.custom_minimum_size.x = 64
+	vl.custom_minimum_size.x = 56
 	s.value_changed.connect(func(v: float) -> void:
 		vl.text = fmt % (v * display_mult)
 		GameSettings.set_value(section, key, v)
@@ -194,7 +205,7 @@ func _slider(parent: Control, section: String, key: String, label_text: String, 
 
 func _binding_row(parent: Control, action: String, label_text: String) -> void:
 	var row := _row(parent, label_text, "Click to rebind %s." % label_text)
-	var b := UiTheme.button(GameSettings.action_label(action), 180, 18)
+	var b := UiTheme.button(GameSettings.action_label(action), 220, 18)
 	b.pressed.connect(func() -> void:
 		if _rebind_btn != null:
 			_rebind_btn.text = GameSettings.action_label(_rebind_action)

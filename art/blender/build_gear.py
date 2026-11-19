@@ -519,7 +519,9 @@ def hand_grip_skeleton():
     def polar(ang_deg, rad, z):
         a = math.radians(ang_deg)
         return (math.cos(a) * rad, math.sin(a) * rad, z)
-    elbow = add((0.03, -0.36, -0.035), (0.046, 0.042))
+    # Forearm leaves the fist at ~125 deg to the grip axis (back and down toward the pommel side), like a real
+    # sword grip: with the blade cocked up-forward the forearm runs back-down out of the first-person view
+    elbow = add((0.03, -0.288, -0.153), (0.04, 0.037))
     wrist = add((0.03, -0.075, -0.005), (0.03, 0.022))
     edges.append((elbow, wrist))
     palm = add(polar(-55, 0.036, 0.0), (0.03, 0.02))
@@ -553,7 +555,7 @@ def hand_open_skeleton():
         verts.append(p)
         radii.append(r)
         return len(verts) - 1
-    elbow = add((0.0, 0.3, -0.12), (0.046, 0.042))
+    elbow = add((0.0, 0.24, -0.1), (0.04, 0.037))
     wrist = add((0.0, 0.06, -0.06), (0.03, 0.022))
     edges.append((elbow, wrist))
     palm = add((0.0, 0.055, -0.01), (0.034, 0.016))
@@ -587,30 +589,32 @@ def build_fp_arm(pose="grip", side="r"):
     parts = [hand]
     # glove cuff flare + vambrace
     if pose == "grip":
-        wrist, elbow = Vector((0.03, -0.075, -0.005)), Vector((0.03, -0.36, -0.035))
+        wrist, elbow = Vector((0.03, -0.075, -0.005)), Vector((0.03, -0.288, -0.153))
     else:
-        wrist, elbow = Vector((0.0, 0.06, -0.06)), Vector((0.0, 0.3, -0.12))
+        wrist, elbow = Vector((0.0, 0.06, -0.06)), Vector((0.0, 0.24, -0.1))
     axis = (elbow - wrist).normalized()
     q = axis.to_track_quat("Z", "X")
 
     def along(t):
         return wrist.lerp(elbow, t)
-    cuff = shapes.lathe([(0.034, 0.0), (0.044, 0.02), (0.046, 0.05), (0.0, 0.05)], 16, "Cuff", "leather_dark", cap_top=False)
+    cuff = shapes.lathe([(0.032, 0.0), (0.04, 0.02), (0.042, 0.045), (0.0, 0.045)], 16, "Cuff", "leather_dark", cap_top=False)
     cuff.matrix_world = Matrix.Translation(along(0.06)) @ q.to_matrix().to_4x4()
     parts.append(cuff)
-    vamb = shapes.lathe([(0.047, 0.0), (0.05, 0.03), (0.055, 0.16), (0.058, 0.2), (0.06, 0.205)], 20, "Vambrace", "steel_armor",
+    vamb = shapes.lathe([(0.042, 0.0), (0.045, 0.025), (0.048, 0.12), (0.05, 0.15), (0.051, 0.155)], 20, "Vambrace", "steel_armor",
                         cap_bottom=False, cap_top=False)
     core.add_solidify(vamb, 0.004, 1.0)
-    vamb.matrix_world = Matrix.Translation(along(0.18)) @ q.to_matrix().to_4x4()
+    vamb.matrix_world = Matrix.Translation(along(0.2)) @ q.to_matrix().to_4x4()
     parts.append(vamb)
-    for t, rr in ((0.24, 0.054), (0.7, 0.063)):
+    for t, rr in ((0.28, 0.049), (0.8, 0.054)):
         band = shapes.torus(rr, 0.006, (0, 0, 0), major=24, minor=6, mat="leather_dark")
         band.matrix_world = Matrix.Translation(along(t)) @ q.to_matrix().to_4x4()
         parts.append(band)
-    sleeve = shapes.lathe([(0.058, 0.0), (0.066, 0.06), (0.07, 0.12)], 16, "Sleeve", "cloth_dark", cap_bottom=False, cap_top=False)
-    core.add_solidify(sleeve, 0.004, 1.0)
-    sleeve.matrix_world = Matrix.Translation(along(0.82)) @ q.to_matrix().to_4x4()
-    parts.append(sleeve)
+    # Domed elbow cop closes the end of the vambrace: seen from behind it reads as an elbow guard, never a hollow tube
+    cop = shapes.lathe([(0.052, 0.0), (0.05, 0.022), (0.042, 0.04), (0.026, 0.052), (0.0, 0.057)], 20, "ElbowCop", "steel_armor",
+                       cap_bottom=True, cap_top=False)
+    cop.matrix_world = Matrix.Translation(along(0.86)) @ q.to_matrix().to_4x4()
+    parts.append(cop)
+
     # knuckle plates on the glove back (grip pose)
     if pose == "grip":
         for z in (0.032, 0.01, -0.012, -0.032):

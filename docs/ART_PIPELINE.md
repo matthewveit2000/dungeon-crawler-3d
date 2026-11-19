@@ -9,9 +9,9 @@
 
 | Stage | Tool | Script | Output |
 |---|---|---|---|
-| Tileable PBR textures (35 materials) | NumPy + Pillow | `art/pipeline/generate_textures.py` | `game/assets/textures/<mat>_{albedo,normal,orm[,height,emission]}.webp` |
+| Tileable PBR textures (36 materials) | NumPy + Pillow | `art/pipeline/generate_textures.py` | `game/assets/textures/<mat>_{albedo,normal,orm[,height,emission]}.webp` |
 | VFX sprites (flame flipbook, smoke, embers, glow, cobweb) | NumPy + Pillow | `art/pipeline/generate_textures.py --vfx` | `game/assets/vfx/*.webp` |
-| UI kit (frames, buttons, slots, bars, icons, crest, cursor) | Pillow | `art/pipeline/generate_ui.py` | `game/assets/ui/*.png` |
+| UI kit (frames, buttons, slots, bars, icons, crest, cursor, map vellum) | Pillow | `art/pipeline/generate_ui.py` | `game/assets/ui/*.png`, `map_paper.webp` |
 | Material definitions (shared by Blender + Godot) | JSON | `game/data/materials.json` | — |
 | Modular architecture kit | Blender | `art/blender/build_environment.py` | `game/assets/models/kit/*.glb` |
 | Props, setpieces & dressing | Blender | `art/blender/build_props.py` | `game/assets/models/props/*.glb` |
@@ -45,7 +45,7 @@ vertex ambient occlusion** baked in Blender (`dclib/shapes.bake_vertex_ao`) × r
 - `core.py` — scene/mesh helpers, world-metre box & cylindrical UVs (with per-part `uv_lock` so wood grain follows each board), vertex-colour weathering, glTF export (+ tangents, vertex colours, animations) and manifest recording.
 - `shapes.py` — irregular hand-cut stones (bevel + chipped corners + Perlin lumpiness), lathe, swept tubes with taper, tori, arches (voussoirs), planks, cloth panels with folds & frayed/swallowtail hems, straps, rivets, chains, ray-cast AO baking.
 - `rig.py` — humanoid skeleton with forward-rolled bones (+X rotation = swing forward), skin-modifier bodies, distance-based smooth skinning, rigid/blended weights for gear, keyframe animation DSL (one NLA track per clip).
-- `render.py` — Cycles preview sheets (distance-normalised 3-point torch lighting) and orthographic, tightly framed transparent item icons.
+- `render.py` — Cycles preview sheets (distance-normalised 3-point torch lighting) and orthographic, tightly framed transparent item icons. Each icon gets a finishing pass (`finish_icon`): dark items are exposure-normalised (95th-percentile luminance → 0.8, gain ≤ 2.2) and a soft warm backlight halo is added so silhouettes read on dark inventory slots.
 
 ## 4. Asset Inventory (63 models)
 
@@ -54,10 +54,10 @@ Conventions: 4 m grid; walls span the tile edge with the face toward -Y (Blender
 
 **Props (23)** — torch sconce (`FlameSocket`), brazier (`FlameSocket`), candle cluster, chest (child `Lid` hinged for the opening animation), crate, barrel (individual staves), urn, war banner (swallowtail, original sigil), sanctuary rug (tasselled), boss dais (rune-lit octagonal crucible), safe beacon (floating crystal, `GlowSocket`), merchant stall (striped canopy, wares, lantern `LanternSocket`), quest board (pinned parchments, a dagger), boss portcullis, gilded vault doors, spike trap, lever, rubble pile, bone pile, sarcophagus, weapon rack, table, descending stairwell.
 
-**Gear (22)** — fullered longsword, bearded battleaxe, painted round shield, recurve bow (string = `StringTop`/`StringBottom` children re-aimed at the nock while drawing), arrow, three spell tomes, health & magicka potions (glass + liquid), horned helm, cuirass with layered pauldrons, steel & sponsored gauntlets, boots, ring, amulet, ratings cleaver, and four first-person arms (`fp_arm_grip_r/l`, `fp_arm_open_r/l`: gloved skin-modifier hands, vambraces, sleeves).
+**Gear (22)** — fullered longsword, bearded battleaxe, painted round shield, recurve bow (string = `StringTop`/`StringBottom` children re-aimed at the nock while drawing), arrow, three spell tomes, health & magicka potions (glass + liquid), horned helm, cuirass with layered pauldrons, steel & sponsored gauntlets, boots, ring, amulet, ratings cleaver, and four first-person arms (`fp_arm_grip_r/l`, `fp_arm_open_r/l`: gloved skin-modifier hands and short vambraced forearms that end before the elbow, so nothing crosses the centre of view).
 Grip convention: origin = centre of the hand's grip, grip/blade axis = +Z (Blender) = +Y (Godot).
 
-**Characters (6, rigged + animated)** — `crawler` (player 3rd-person), `draugr`, `bone_archer`, `goblin_streamer` (ring-light rig), `iron_warden` (2.95 m boss with furnace core), `vendor`. Every character ships `idle, idle_combat, walk, run, attack, hit, death`; extras: crawler `block, cast, draw_hold`; archer `shoot`; boss `roar, slam`; vendor `talk`. Weapon sockets `GripR`/`GripL` (bone-parented) and role sockets (`CoreSocket`, `RingLight`).
+**Characters (6, rigged + animated)** — `crawler` (player 3rd-person; horned helm with a `chainmail` aventail), `draugr`, `bone_archer`, `goblin_streamer` (ring-light rig), `iron_warden` (2.95 m boss with furnace core), `vendor`. Every character ships `idle, idle_combat, walk, run, attack, hit, death`; extras: crawler `block, cast, draw_hold`; archer `shoot`; boss `roar, slam`; vendor `talk`. Weapon sockets `GripR`/`GripL` (bone-parented) and role sockets (`CoreSocket`, `RingLight`).
 
 Preview sheets for review: [`kit room`](../art/previews/batch1_kit_room.png), [`props`](../art/previews/batch1_props.png), [`gear`](../art/previews/batch2_weapons_gear.png), [`characters`](../art/previews/batch3_characters.png), [`textures`](../art/previews/texture_library.png).
 
@@ -72,4 +72,4 @@ Preview sheets for review: [`kit room`](../art/previews/batch1_kit_room.png), [`
 ## 6. Validation & Visual QA (`D-009`, `D-028`)
 
 `scripts/validate-assets.py` (CI) checks GLB integrity, per-category triangle budgets (kit 20k, props 30k, gear 12k, characters 32k), required animation clips, material/texture existence, item icons, UI kit and font licences.
-`./scripts/run-visual-qa.sh` captures the real game (Vulkan Forward+, Mesa lavapipe when no GPU) into `art/visual_qa/`: title, every first-person loadout, third-person, staged combat with each enemy, corridor, safe room, boss arena, all menus, death screen and a 40-frame combat clip (`combat_motion.mp4`).
+`./scripts/run-visual-qa.sh` captures the real game (Vulkan Forward+, Mesa lavapipe when no GPU) into `art/visual_qa/`: title, every first-person loadout, third-person, staged combat with each enemy, corridor, safe room, boss arena, all menus, death screen and a 40-frame combat clip (`combat_motion.mp4`). `QA_ONLY=fp,tp,...` limits the groups; for quick iterations run the capture scene directly with `QA_OUT=<dir>` (keeps `art/visual_qa/` intact) and optionally `QA_QUALITY=0..3`.

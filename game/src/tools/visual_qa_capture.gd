@@ -11,6 +11,11 @@ var only: PackedStringArray = PackedStringArray()
 
 func _ready() -> void:
 	out_dir = ProjectSettings.globalize_path("res://../art/visual_qa")
+	# QA_OUT redirects captures (quick pose / layout iterations); QA_QUALITY overrides the preset (0-3)
+	if not OS.get_environment("QA_OUT").is_empty():
+		out_dir = OS.get_environment("QA_OUT")
+	if not OS.get_environment("QA_QUALITY").is_empty() and GameSettings != null:
+		GameSettings.set_value("graphics", "quality", int(OS.get_environment("QA_QUALITY")), false)
 	DirAccess.make_dir_recursive_absolute(out_dir)
 	DirAccess.make_dir_recursive_absolute(out_dir.path_join("frames"))
 	var env_only := OS.get_environment("QA_ONLY")
@@ -77,12 +82,18 @@ func _run() -> void:
 	await _wait(8)
 	game.set_physics_process(false)
 	var ent := _room_center(game.current_layout.entrance_room_id)
+	if not _want("fp"):
+		game.tutorial_sys.set_enabled(false)
+		game._sync_tutorial_hud()
 
 	if _want("fp"):
 		game.player.quick_equip_preset(1)
 		_look(ent + Vector3(0.0, 1.62, 3.4), ent + Vector3(0.0, 1.5, -6.0))
 		_step(6)
 		await _shot("01_fp_sword_shield.png", 8)
+		# The field guide card is shown once above; hide it so the remaining shots show the scene
+		game.tutorial_sys.set_enabled(false)
+		game._sync_tutorial_hud()
 		game.player.handle_hand_press("right_hand")
 		_step(1)
 		game.player.handle_hand_release("right_hand")
@@ -219,7 +230,8 @@ func _run() -> void:
 		var d2 := _enemy("draugr")
 		_look(ent + Vector3(0.0, 1.62, 3.2), ent + Vector3(0.0, 1.3, -2.0))
 		if d2 != null:
-			d2.global_position = ent + Vector3(0.0, 0.05, 0.3)
+			# Stand the draugr at its real attack range from where the walk-in ends
+			d2.global_position = ent + Vector3(0.0, 0.05, -0.8)
 			d2.rotation.y = 0.0
 		for f in range(40):
 			var inp: Dictionary = {"move_vec": Vector2(0.0, -0.25 if f < 8 else 0.0)}

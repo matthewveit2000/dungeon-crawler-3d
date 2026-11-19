@@ -55,6 +55,10 @@
   "size": 1024,
   "height": false
  },
+ "chainmail": {
+  "size": 1024,
+  "height": false
+ },
  "gold_antique": {
   "size": 1024,
   "height": false

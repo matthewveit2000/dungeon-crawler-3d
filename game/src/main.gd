@@ -134,6 +134,11 @@ func initialize_game(p_seed: int = 20261118, try_load_save: bool = true) -> void
 
 	death_screen = DeathScreen.new()
 	add_child(death_screen)
+	# The HUD steps aside while the death / collapse card is up
+	death_screen.visibility_changed.connect(func() -> void:
+		if hud != null:
+			hud.visible = not death_screen.visible
+	)
 
 	if GameSettings != null and not GameSettings.changed.is_connected(_on_settings_changed):
 		GameSettings.changed.connect(_on_settings_changed)

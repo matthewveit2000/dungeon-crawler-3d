@@ -161,7 +161,7 @@ func _build_ui() -> void:
 	h.add_child(mp)
 	_canvas = MapCanvas.new()
 	_canvas.clip_contents = true
-	_canvas.paper = load("res://assets/textures/parchment_albedo.webp") as Texture2D if ResourceLoader.exists("res://assets/textures/parchment_albedo.webp") else null
+	_canvas.paper = load("res://assets/ui/map_paper.webp") as Texture2D if ResourceLoader.exists("res://assets/ui/map_paper.webp") else null
 	mp.add_child(_canvas)
 	var side := PanelContainer.new()
 	side.custom_minimum_size.x = 320

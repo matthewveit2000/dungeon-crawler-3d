@@ -62,6 +62,7 @@ Because this repository must be seamlessly usable by **any AI tool** across sess
   - Do swing/block/draw/cast/walk/enemy animations feel fluid, weighty, and expressive rather than stiff or robotic?
   - Are HUD elements, menus, typography, spacing, and tutorials clean, stylish, readable, and high-QoL?
   - Never ship a visual change you haven't personally scrutinized from the player's seat.
+- **Visual Overhaul v2 Standards (`D-031`–`D-036`):** New art must come from the procedural pipeline (`art/pipeline/` for textures & UI art, `art/blender/dclib` for models) and use material names defined in `game/data/materials.json` (never embed images in `.glb`). Characters must ship the standard animation clips. UI must be built with `UiTheme` helpers. `./scripts/run-visual-qa.sh` captures the Vulkan Forward+ renderer by default (`RENDER=opengl3` for the fallback, `QA_ONLY=...` for subsets). See [`docs/ART_PIPELINE.md`](docs/ART_PIPELINE.md).
 - **Hybrid World & Low-Friction Tutorial Standards (`D-029`, `D-030`):** Rooms and encounters combine procedural layouts with handcrafted signature setpieces/boss arenas; every new mechanic must integrate with the toggleable, non-intrusive first-time Tutorial Mode.
 
 ---

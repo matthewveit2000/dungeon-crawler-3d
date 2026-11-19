@@ -202,13 +202,14 @@ static func make_fire(scale: float = 1.0, with_smoke: bool = true) -> Node3D:
 
 
 ## Slow floating dust motes filling a room volume — catches torchlight beautifully.
+## Returns null on the Low preset (no motes) — callers skip it.
 static func make_dust(extent: Vector3) -> GPUParticles3D:
+	var amount: int = [0, 40, 90][clampi(quality, 0, 2)]
+	if amount <= 0:
+		return null
 	var p := GPUParticles3D.new()
 	p.name = "DustMotes"
-	p.amount = [0, 40, 90][clampi(quality, 0, 2)]
-	if p.amount == 0:
-		p.emitting = false
-		p.amount = 1
+	p.amount = amount
 	p.lifetime = 9.0
 	p.preprocess = 9.0
 	p.visibility_aabb = AABB(-extent * 0.5 - Vector3.ONE, extent + Vector3.ONE * 2.0)

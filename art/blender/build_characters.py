@@ -422,6 +422,20 @@ def build_crawler():
     parts.append(tag(helm, "head"))
     parts.append(tag(shapes.torus(0.127, 0.012, (hh.x, hh.y, hh.z + 0.12), major=40, minor=6, mat="bronze", scale=(0.95, 1.06, 1)), "head"))
     parts.append(tag(shapes.box((0.022, 0.012, 0.1), (hh.x, hh.y - 0.137, hh.z + 0.085), mat="steel_armor", bevel=0.004), "head"))
+    # Mail aventail hung from inside the helm rim: wraps the back and sides of the head and neck, open at the face
+    av_r = 0.124
+    av = shapes.cloth_panel(0.5, 0.19, cols=18, rows=6, folds=2.5, fold_amp=0.005, seed=11, mat="chainmail", bottom="straight",
+                            thickness=0.004, name="Aventail")
+    bend_around(av, av_r)
+    for v in av.data.vertices:
+        v.co.x, v.co.y = -v.co.x, -v.co.y  # wrap toward the face
+        f = 1.0 + max(0.0, -v.co.z) * 0.75  # flare over the shoulders
+        v.co.x *= f
+        v.co.y = (v.co.y + av_r) * f - av_r
+    av.data.update()
+    from build_props import _xf as _xf_av
+    _xf_av(av, (hh.x, hh.y - 0.01 + av_r, hh.z + 0.128))
+    parts.append(tag(av, "head"))
     for sx in (-1, 1):
         cheek = shell((hh.x + sx * 0.1, hh.y - 0.04, hh.z + 0.06), 0.06, (0.5, 1.0, 1.2), (0, 0, sx * 0.3), "steel_armor", cut_z=-1.0, thick=0.005)
         parts.append(tag(cheek, "head"))

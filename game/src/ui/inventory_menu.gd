@@ -15,6 +15,7 @@ const SLOT_LAYOUT := [
 var _player: PlayerController = null
 var _close_cb: Callable = Callable()
 var _tabs: TabBar = null
+const SLOT_SIZE := 72.0
 var _inv_page: Control = null
 var _skill_page: Control = null
 var _equip_left: VBoxContainer = null
@@ -86,6 +87,7 @@ func _build_ui() -> void:
 	_tabs.add_tab("Inventory")
 	_tabs.add_tab("Skills & Perks")
 	_tabs.tab_changed.connect(_show_tab)
+	_tabs.clip_tabs = false
 	_tabs.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	header.add_child(_tabs)
 	_points_badge = UiTheme.label("", 16, UiTheme.COL_GOLD_BRIGHT, UiTheme.font_ui_bold())
@@ -115,7 +117,7 @@ func _build_ui() -> void:
 
 	# --- Column 1: portrait + equipment ---------------------------------------------
 	var c1 := PanelContainer.new()
-	c1.custom_minimum_size.x = 380
+	c1.custom_minimum_size.x = 340
 	c1.add_theme_stylebox_override("panel", UiTheme.panel_style("frame"))
 	_inv_page.add_child(c1)
 	var c1v := VBoxContainer.new()
@@ -177,8 +179,9 @@ func _build_ui() -> void:
 		refresh()
 	)
 	bag_head.add_child(sort)
-	var filters := HBoxContainer.new()
-	filters.add_theme_constant_override("separation", 6)
+	var filters := HFlowContainer.new()
+	filters.add_theme_constant_override("h_separation", 6)
+	filters.add_theme_constant_override("v_separation", 6)
 	c2v.add_child(filters)
 	for pair in [["all", "All"], ["weapons", "Weapons"], ["apparel", "Apparel"], ["magic", "Magic"], ["consumables", "Consumables"]]:
 		var fb := UiTheme.button(pair[1], 0, 16)
@@ -196,15 +199,22 @@ func _build_ui() -> void:
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	c2v.add_child(scroll)
 	_grid = GridContainer.new()
-	_grid.columns = 6
+	_grid.columns = 4
+	# Columns follow the available width so the pack never forces the screen wider (720p .. 4K)
+	scroll.resized.connect(func() -> void:
+		_grid.columns = maxi(3, int((scroll.size.x + 8.0) / (SLOT_SIZE + 8.0)))
+	)
 	_grid.add_theme_constant_override("h_separation", 8)
 	_grid.add_theme_constant_override("v_separation", 8)
 	scroll.add_child(_grid)
-	c2v.add_child(UiTheme.label("Click to inspect  ·  Double-click to equip or use  ·  Right-click to equip in off-hand", 15, UiTheme.COL_FAINT, UiTheme.font_ui()))
+	var help := UiTheme.label("Click to inspect  ·  Double-click to equip or use  ·  Right-click to equip in off-hand", 15, UiTheme.COL_FAINT, UiTheme.font_ui())
+	help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	help.custom_minimum_size.x = 200
+	c2v.add_child(help)
 
 	# --- Column 3: details + summary ----------------------------------------------------
 	var c3 := VBoxContainer.new()
-	c3.custom_minimum_size.x = 380
+	c3.custom_minimum_size.x = 350
 	c3.add_theme_constant_override("separation", 12)
 	_inv_page.add_child(c3)
 	var dp := PanelContainer.new()
@@ -378,7 +388,7 @@ func _refresh_bag() -> void:
 		var badge := ""
 		if str(item.get("category", "")) == "consumable":
 			badge = "%d" % int(item.get("heal_health", item.get("heal_magicka", 0)))
-		var w := UiTheme.item_slot(item, 72, badge)
+		var w := UiTheme.item_slot(item, SLOT_SIZE, badge)
 		w.mouse_filter = Control.MOUSE_FILTER_STOP
 		w.tooltip_text = "%s\n%s  ·  %s" % [str(item.get("name", "")), UiTheme.rarity_name(str(item.get("rarity", "common"))), ItemInfo.type_line(item)]
 		if idx == _selected_idx:

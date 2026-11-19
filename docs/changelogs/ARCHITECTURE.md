@@ -45,3 +45,11 @@ See [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) and [`docs/DECISION_LOG.md`](..
 - **Data:** `game/data/materials.json`; `items.json` gains `icon`; `enemies.json` gains `visual` (character kind, weapon, hand, scale); `setpieces.json` rewritten for the new props (with colliders & fire scale).
 - **Project:** occlusion culling, soft-shadow quality, MSAA/FXAA, volumetric fog volume and anisotropic filtering settings; texture import presets pinned by `scripts/configure-texture-imports.py`.
 
+## 2026-11-19 — v2 Visual QA Polish Pass (`D-028`)
+
+- **`PlayerController`:** first-person shield scaled to 0.62 and posed edge-on at rest / across the left of centre when blocking; new `_hand_basis(grip_dir, forearm_dir)` builds fist orientations from where the grip axis and the forearm should point (used for the bow hand, the string-hooking draw hand and the two-handed carry), replacing hand-tuned Euler angles; two-handed weapons are carried diagonally (head upper-right) with the left hand on the lower haft wrap; the bow draw anchors the nock low-right in front of the face so neither the string nor the arrow passes through the lens; blade streak keeps only the last 90 ms of blade path (`TRAIL_LIFE`), so its length no longer depends on frame rate.
+- **`CharacterVisual`:** additive hit flash capped at `FLASH_ALPHA = 0.22` (enemies flash warm instead of turning into white silhouettes).
+- **`GameHud`:** hand panels label two-handed weapons and bows as occupying both hands and show context hints (draw/cast/attack/block); vital bars draw a separate trough under the fill; idle full vitals fade to 60 % after 6 s instead of 28 % after 3 s.
+- **Layouts at 1280×720:** `InventoryMenu` pack grid computes its column count from the available width, filters wrap (`HFlowContainer`) and side columns shrink, so the detail column and both tabs fit; `PauseMenu` uses a compact crest/title and moves the tutorial toggles into the status panel; `SettingsPanel` rows expand/wrap labels, narrower controls and an explicit On/Off label beside each checkbox.
+- **`MapMenu`** draws on the new `map_paper.webp`; **`GameMain`** hides the HUD while the death / collapse card is visible.
+

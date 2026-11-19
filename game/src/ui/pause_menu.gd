@@ -58,23 +58,23 @@ func _update_tutorial_button(enabled: bool) -> void:
 func _build_ui() -> void:
 	var margin := MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", 70)
-	margin.add_theme_constant_override("margin_right", 70)
-	margin.add_theme_constant_override("margin_top", 60)
-	margin.add_theme_constant_override("margin_bottom", 60)
+	margin.add_theme_constant_override("margin_left", 52)
+	margin.add_theme_constant_override("margin_right", 52)
+	margin.add_theme_constant_override("margin_top", 34)
+	margin.add_theme_constant_override("margin_bottom", 34)
 	root.add_child(margin)
 	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 46)
+	h.add_theme_constant_override("separation", 34)
 	margin.add_child(h)
 
 	var left := VBoxContainer.new()
-	left.custom_minimum_size.x = 330
-	left.add_theme_constant_override("separation", 8)
+	left.custom_minimum_size.x = 310
+	left.add_theme_constant_override("separation", 7)
 	h.add_child(left)
-	var crest := UiTheme.icon_rect(UiTheme.tex("crest"), 120)
+	var crest := UiTheme.icon_rect(UiTheme.tex("crest"), 88)
 	crest.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	left.add_child(crest)
-	left.add_child(UiTheme.label("PAUSED", 40, UiTheme.COL_GOLD_BRIGHT, UiTheme.font_title(), HORIZONTAL_ALIGNMENT_CENTER))
+	left.add_child(UiTheme.label("PAUSED", 36, UiTheme.COL_GOLD_BRIGHT, UiTheme.font_title(), HORIZONTAL_ALIGNMENT_CENTER))
 	_sub_lbl = UiTheme.label("The floor clock is frozen", 17, UiTheme.COL_MUTED, UiTheme.font_italic(), HORIZONTAL_ALIGNMENT_CENTER)
 	left.add_child(_sub_lbl)
 	left.add_child(UiTheme.divider())
@@ -82,12 +82,6 @@ func _build_ui() -> void:
 	_btn(left, "Settings", func() -> void: _show_section("settings"))
 	_btn(left, "Controls", func() -> void: _show_section("controls"))
 	_btn(left, "Toggle 1st / 3rd Person", func() -> void: _cb("toggle_camera"))
-	_tut_btn = _btn(left, "Tutorial Hints: On", func() -> void:
-		var cb: Callable = _callbacks.get("toggle_tutorial", Callable())
-		if cb.is_valid():
-			_update_tutorial_button(bool(cb.call()))
-	)
-	_btn(left, "Replay Tutorial Hints", func() -> void: _cb("reset_tutorials"))
 	_btn(left, "Save Game", func() -> void:
 		var cb: Callable = _callbacks.get("save", Callable())
 		var ok := bool(cb.call()) if cb.is_valid() else false
@@ -117,6 +111,18 @@ func _build_ui() -> void:
 	_status_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_info_box.add_child(_status_lbl)
 	_info_box.add_child(UiTheme.body("The Syndicate's broadcast is on hold. While paused, the five-day collapse timer, enemies and traps are frozen. Your game saves your exact position and remaining time whenever you save or quit.", 19, UiTheme.COL_MUTED, true))
+	var tut_row := HBoxContainer.new()
+	tut_row.add_theme_constant_override("separation", 10)
+	_tut_btn = UiTheme.button("Tutorial Hints: On", 230, 17)
+	_tut_btn.pressed.connect(func() -> void:
+		var cb: Callable = _callbacks.get("toggle_tutorial", Callable())
+		if cb.is_valid():
+			_update_tutorial_button(bool(cb.call()))
+	)
+	tut_row.add_child(_tut_btn)
+	var replay := UiTheme.button("Replay Tutorial Hints", 230, 17)
+	replay.pressed.connect(func() -> void: _cb("reset_tutorials"))
+	tut_row.add_child(replay)
 	_info_box.add_child(UiTheme.heading("Crawler's Field Notes", 20, UiTheme.COL_GOLD))
 	for tip in [
 		"Hold Attack to wind up a power attack — it staggers and deals heavy damage.",
@@ -132,6 +138,8 @@ func _build_ui() -> void:
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		r.add_child(l)
 		_info_box.add_child(r)
+
+	_info_box.add_child(tut_row)
 
 	_settings = SettingsPanel.new()
 	_settings.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -186,7 +194,8 @@ func _build_controls() -> void:
 
 
 func _btn(parent: Control, text: String, cb: Callable) -> Button:
-	var b := UiTheme.button(text, 0, 20)
+	var b := UiTheme.button(text, 0, 19)
+	b.custom_minimum_size.y = 42
 	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	b.pressed.connect(cb)
 	parent.add_child(b)

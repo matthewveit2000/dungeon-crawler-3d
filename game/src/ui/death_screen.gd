@@ -19,7 +19,7 @@ func _ready() -> void:
 	_root.theme = UiTheme.get_theme()
 	add_child(_root)
 	var bg := ColorRect.new()
-	bg.color = Color(0.06, 0.0, 0.0, 0.82)
+	bg.color = Color(0.05, 0.0, 0.0, 0.9)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(bg)

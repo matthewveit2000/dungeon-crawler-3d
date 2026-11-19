@@ -167,10 +167,13 @@ def slot():
 
 def bars():
     w, h = 200, 22
+    poly = chamfer_poly(SS, SS, w * SS - SS, h * SS - SS, 8 * SS)
+    # Trough (drawn under the fill) and frame (drawn over it) are separate so the fill stays bright
+    b = canvas(w, h)
+    ImageDraw.Draw(b).polygon(poly, fill=(6, 5, 5, 205))
+    finish(b, "bar_back")
     f = canvas(w, h)
     d = ImageDraw.Draw(f)
-    poly = chamfer_poly(SS, SS, w * SS - SS, h * SS - SS, 8 * SS)
-    d.polygon(poly, fill=(6, 5, 5, 205))
     d.polygon(poly, outline=GOLD_DIM + (255,), width=int(1.4 * SS))
     for cx in (3 * SS, w * SS - 3 * SS):
         r = 4 * SS
@@ -438,8 +441,29 @@ def slider_parts():
     finish(img, "slider_grabber")
 
 
+def map_paper(size=1024, seed=77):
+    """Clean aged vellum for the dungeon map: fibres, foxing stains, a faint survey grid and darkened edges
+    (no handwriting rows, unlike the quest-board parchment material)."""
+    base = tg.fbm(size, seed, 2.0, 2.0)
+    fib = tg.fbm(size, seed + 1, 0.6, 160.0)
+    stains = tg.smoothstep(0.58, 0.86, tg.fbm(size, seed + 2, 2.4, 3.0))
+    fox = tg.smoothstep(0.78, 0.9, tg.fbm(size, seed + 3, 1.2, 14.0))
+    alb = tg.colorize(tg.normalize(0.72 * base + 0.28 * fib), [(0.0, "#8f7752"), (0.5, "#bba478"), (1.0, "#d8c69c")])
+    alb = tg.blend(alb, alb * np.array([0.74, 0.6, 0.42], np.float32), stains * 0.55)
+    alb = tg.blend(alb, alb * np.array([0.62, 0.46, 0.3], np.float32), fox * 0.5)
+    u, v = tg.grid(size)
+    cells = 16
+    gx = np.abs(((u * cells) % 1.0) - 0.5)
+    gy = np.abs(((v * cells) % 1.0) - 0.5)
+    gridline = np.maximum(tg.smoothstep(0.47, 0.5, gx), tg.smoothstep(0.47, 0.5, gy))
+    alb = tg.blend(alb, alb * np.array([0.8, 0.72, 0.6], np.float32), gridline * 0.22)
+    rgb = (np.clip(alb, 0, 1) * 255).astype(np.uint8)
+    Image.fromarray(rgb, "RGB").save(OUT / "map_paper.webp", quality=90, method=6)
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
+    map_paper()
     panel_frame()
     panel_soft()
     card()

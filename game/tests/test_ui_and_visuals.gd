@@ -160,3 +160,74 @@ func test_death_screen_appears_after_combat_death() -> void:
 	game.reset_floor_to_snapshot("death")
 	assert_true(game.death_screen.visible, "Death screen overlays the reset")
 	assert_string_contains(game.death_screen._title.text, "FALLEN")
+
+
+func test_death_screen_hides_hud_until_dismissed() -> void:
+	assert_true(game.hud.visible)
+	game.reset_floor_to_snapshot("death")
+	assert_false(game.hud.visible, "HUD steps aside while the death card is up")
+	game.death_screen.visible = false
+	assert_true(game.hud.visible, "HUD returns when the card closes")
+
+
+func test_hud_labels_both_hands_for_two_handed_weapons_and_bows() -> void:
+	var p := game.player
+	p.quick_equip_preset(2)
+	p.emit_stats()
+	assert_eq(game.hud._left_name.text, "Both hands", "Two-handed weapon occupies the off hand")
+	assert_eq(game.hud._left_hint.text, "Two-handed grip")
+	p.quick_equip_preset(4)
+	p.emit_stats()
+	assert_eq(game.hud._left_name.text, "Both hands", "Bow occupies the off hand")
+	assert_string_contains(game.hud._right_hint.text, "draw")
+	p.quick_equip_preset(1)
+	p.emit_stats()
+	assert_ne(game.hud._left_name.text, "Both hands", "Shield shows its own name again")
+	assert_eq(game.hud._left_hint.text, "RMB  ·  Block")
+
+
+func _force_size(ctrl: Control, sz: Vector2) -> void:
+	# Pin the menu root to exactly 1280x720 regardless of the headless window size
+	ctrl.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	ctrl.size = sz
+
+
+func _assert_fits(ctrl: Control, bounds: Rect2, what: String) -> void:
+	var r := ctrl.get_global_rect()
+	assert_true(r.position.x >= bounds.position.x - 1.0 and r.end.x <= bounds.end.x + 1.0 and r.end.y <= bounds.end.y + 1.0,
+		"%s fits on a 1280x720 screen (rect %s)" % [what, r])
+
+
+func test_menus_fit_a_720p_screen() -> void:
+	var bounds := Rect2(Vector2.ZERO, Vector2(1280, 720))
+	game.run_console_command("spawn_loot sponsored")
+	game.run_console_command("spawn_loot epic")
+	game.open_exclusive_menu("inventory")
+	_force_size(game.inventory_menu.root, bounds.size)
+	for _i in range(4):
+		await get_tree().process_frame
+	_assert_fits(game.inventory_menu._inv_page, bounds, "Inventory columns")
+	var tabs := game.inventory_menu._tabs
+	assert_true(tabs.get_tab_rect(1).end.x <= tabs.size.x + 1.0, "Both character tabs are fully visible")
+	game.open_exclusive_menu("pause")
+	_force_size(game.pause_menu.root, bounds.size)
+	for _i in range(4):
+		await get_tree().process_frame
+	_assert_fits(game.pause_menu._first_btn.get_parent() as Control, bounds, "Pause action column")
+	game.pause_menu._show_section("settings")
+	for _i in range(4):
+		await get_tree().process_frame
+	_assert_fits(game.pause_menu._settings, bounds, "Settings panel")
+	game.close_all_menus()
+
+
+func test_low_preset_skips_dust_motes_instead_of_zero_particles() -> void:
+	var prev := VfxFactory.quality
+	VfxFactory.quality = 0
+	assert_null(VfxFactory.make_dust(Vector3(8, 3, 8)), "Low preset builds no dust emitter (a 0-particle emitter is an engine error)")
+	VfxFactory.quality = 2
+	var dust := VfxFactory.make_dust(Vector3(8, 3, 8))
+	assert_not_null(dust)
+	assert_gt(dust.amount, 0)
+	dust.free()
+	VfxFactory.quality = prev

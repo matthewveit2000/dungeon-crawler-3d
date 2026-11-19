@@ -41,11 +41,12 @@
         0.424,
         1.936
       ],
-      "triangles": 21032,
-      "bytes": 1519892,
+      "triangles": 21560,
+      "bytes": 1554844,
       "materials": [
         "bone",
         "bronze",
+        "chainmail",
         "cloth_crimson",
         "cloth_dark",
         "eye_white",
@@ -254,14 +255,13 @@
       "name": "fp_arm_grip_l",
       "path": "game/assets/models/gear/fp_arm_grip_l.glb",
       "dimensions_xyz_m": [
-        0.148,
-        0.471,
-        0.163
+        0.134,
+        0.351,
+        0.236
       ],
-      "triangles": 8122,
-      "bytes": 388836,
+      "triangles": 8088,
+      "bytes": 390408,
       "materials": [
-        "cloth_dark",
         "leather_brown",
         "leather_dark",
         "steel_armor"
@@ -272,14 +272,13 @@
       "name": "fp_arm_grip_r",
       "path": "game/assets/models/gear/fp_arm_grip_r.glb",
       "dimensions_xyz_m": [
-        0.148,
-        0.471,
-        0.163
+        0.134,
+        0.351,
+        0.236
       ],
-      "triangles": 8122,
-      "bytes": 388836,
+      "triangles": 8088,
+      "bytes": 390408,
       "materials": [
-        "cloth_dark",
         "leather_brown",
         "leather_dark",
         "steel_armor"
@@ -290,14 +289,13 @@
       "name": "fp_arm_open_l",
       "path": "game/assets/models/gear/fp_arm_open_l.glb",
       "dimensions_xyz_m": [
-        0.156,
-        0.378,
-        0.349
+        0.142,
+        0.259,
+        0.294
       ],
-      "triangles": 7222,
-      "bytes": 341384,
+      "triangles": 7060,
+      "bytes": 331044,
       "materials": [
-        "cloth_dark",
         "leather_brown",
         "leather_dark",
         "steel_armor"
@@ -308,14 +306,13 @@
       "name": "fp_arm_open_r",
       "path": "game/assets/models/gear/fp_arm_open_r.glb",
       "dimensions_xyz_m": [
-        0.156,
-        0.378,
-        0.349
+        0.142,
+        0.259,
+        0.294
       ],
-      "triangles": 7222,
-      "bytes": 341384,
+      "triangles": 7060,
+      "bytes": 331044,
       "materials": [
-        "cloth_dark",
         "leather_brown",
         "leather_dark",
         "steel_armor"
