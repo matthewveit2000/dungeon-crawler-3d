@@ -37,20 +37,20 @@
       "cooldown_sec": 0.92,
       "range_meters": 3.0,
       "base_value": 85,
-      "model": "res://assets/models/batch2/war_axe.glb",
-      "description": "Heavy two-handed iron axe that settles arguments quickly."
+      "model": "res://assets/models/batch2/steel_greatsword.glb",
+      "description": "Heavy two-handed Nordic blade that settles arguments quickly."
     },
     {
       "id": "nordic_kite_shield",
-      "name": "Banded Iron Kite Shield",
+      "name": "Banded Nordic Round Shield",
       "category": "shield",
       "weapon_type": "block",
       "slot": "left_hand",
       "armor": 18.0,
       "block_bonus": 0.18,
       "base_value": 55,
-      "model": "res://assets/models/batch2/kite_shield.glb",
-      "description": "Iron-rimmed oak shield scarred by older crawlers."
+      "model": "res://assets/models/batch2/iron_shield.glb",
+      "description": "Iron-rimmed oak war shield scarred by older crawlers."
     },
     {
       "id": "hunting_bow",

@@ -4,6 +4,8 @@
 # Godot engine generated files
 game/.godot/
 game/.import/
+game/assets/models/**/*.png
+game/assets/models/**/*.png.import
 *.translation
 game/export_presets.cfg
 
@@ -20,3 +22,5 @@ __pycache__/
 .gut_editor_config.json
 .gut_editor_shortcuts.cfg
 tmp/
+art/visual_qa/
+

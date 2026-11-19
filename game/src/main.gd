@@ -1,6 +1,7 @@
 class_name GameMain
 extends Node3D
-## Master Game Coordinator wiring Tier 1 Core, Tier 2 Pure Rules, 3D World, and Skyrim UI.
+## Master Game Coordinator wiring Tier 1 Core, Tier 2 Pure Rules, 3D World,
+## Low-Friction Toggleable Tutorial Mode (D-030), and Skyrim Dark-Fantasy UI.
 ## Boots immediately into a playable Floor 1 Nordic-ruin labyrinth (or resumes saved session).
 
 var run_seed: int = 20261118
@@ -16,6 +17,7 @@ var floor_timer: FloorTimer = null
 var snapshot_mgr: SnapshotManager = null
 var vendor_sys: VendorSystem = null
 var ai_director: DungeonAiDirector = null
+var tutorial_sys: TutorialSystem = null
 
 var dungeon_builder: DungeonBuilder = null
 var player: PlayerController = null
@@ -35,6 +37,7 @@ var boss_defeated_this_floor: bool = false
 var player_in_safe_room: bool = false
 var quest_bounty_claimed: bool = false
 var _trap_damage_cooldown: float = 0.0
+var _spawn_anchor_pos: Vector3 = Vector3.ZERO
 var _initialized: bool = false
 
 
@@ -54,6 +57,7 @@ func initialize_game(p_seed: int = 20261118, try_load_save: bool = true) -> void
 	snapshot_mgr = SnapshotManager.new()
 	vendor_sys = VendorSystem.new(DataLoader.get_affixes_pack())
 	ai_director = DungeonAiDirector.new(DataLoader.get_dungeon_ai_pack())
+	tutorial_sys = TutorialSystem.new(DataLoader.get_tutorials_pack())
 
 	dungeon_builder = DungeonBuilder.new()
 	dungeon_builder.name = "DungeonBuilder"
@@ -77,37 +81,58 @@ func initialize_game(p_seed: int = 20261118, try_load_save: bool = true) -> void
 	player.setup(DataLoader.get_player(), progression, rng, {
 		"melee_swing": _on_player_melee_swing,
 		"spawn_projectile": _on_spawn_projectile,
+		"player_damaged": func(_dmg: float) -> void:
+			if hud != null:
+				hud.trigger_damage_flash(),
 	})
+	dungeon_builder.set_light_focus_target(player)
 
 	hud = GameHud.new()
 	add_child(hud)
 
 	inventory_menu = InventoryMenu.new()
 	add_child(inventory_menu)
-	inventory_menu.setup(player, _close_all_menus)
+	inventory_menu.setup(player, close_all_menus)
 
 	vendor_menu = VendorMenu.new()
 	add_child(vendor_menu)
-	vendor_menu.setup(player, vendor_sys, _close_all_menus)
+	vendor_menu.setup(player, vendor_sys, close_all_menus)
 
 	pause_menu = PauseMenu.new()
 	add_child(pause_menu)
 	pause_menu.setup({
-		"resume": _close_all_menus,
+		"resume": close_all_menus,
+		"toggle_camera": func() -> void:
+			player.toggle_camera_mode()
+			_complete_tutorial("movement_camera"),
+		"toggle_tutorial": func() -> bool:
+			tutorial_sys.set_enabled(not tutorial_sys.enabled)
+			_sync_tutorial_hud()
+			return tutorial_sys.enabled,
+		"reset_tutorials": func() -> void:
+			tutorial_sys.reset_tutorials()
+			tutorial_sys.set_enabled(true)
+			_trigger_tutorial("movement_camera")
+			_sync_tutorial_hud(),
 		"save": func() -> bool: return save_current_session(),
+		"save_quit": _on_save_and_quit,
 		"save_and_quit": _on_save_and_quit,
-		"reset_floor": func() -> void: reset_floor_to_snapshot("manual_reset"),
+		"reset_floor": func() -> void:
+			close_all_menus()
+			reset_floor_to_snapshot("manual_reset"),
 	})
 
 	debug_overlay = DebugOverlay.new()
 	add_child(debug_overlay)
-	debug_overlay.setup(run_console_command, _close_all_menus)
+	debug_overlay.setup(run_console_command, close_all_menus)
 
 	if EventBus != null:
 		if not EventBus.player_died.is_connected(_on_player_died):
 			EventBus.player_died.connect(_on_player_died)
 		if not EventBus.level_up_occurred.is_connected(_on_level_up):
 			EventBus.level_up_occurred.connect(_on_level_up)
+		if not EventBus.interaction_prompt_changed.is_connected(_on_prompt_changed):
+			EventBus.interaction_prompt_changed.connect(_on_prompt_changed)
 
 	# Resume saved mid-floor session if one exists (D-017)
 	var resumed := false
@@ -149,15 +174,22 @@ func enter_floor(target_floor: int, capture_snapshot: bool = true) -> void:
 	# Place player at Entrance room center
 	var ent_center: Vector2i = current_layout.rooms[current_layout.entrance_room_id]["center"]
 	player.global_position = current_layout.tile_to_world(ent_center) + Vector3(0.0, 0.25, 0.0)
+	_spawn_anchor_pos = player.global_position
 	player.velocity = Vector3.ZERO
 	player.recalculate_vitals(true)
 
 	_spawn_floor_enemies(enemies_pack)
 
+	if hud != null:
+		hud.update_boss_bar(false)
+		hud.set_zone_banner("", Color.WHITE)
+
 	var fname := str(floor_cfg.get("name", "Floor %d" % floor_number))
 	if EventBus != null:
 		EventBus.floor_entered.emit(floor_number, fname, run_seed)
 	_announce_ai("floor_enter", {"floor": floor_number}, "info")
+	if floor_number == 1:
+		_trigger_tutorial("movement_camera")
 	_update_hud_navigation()
 
 
@@ -204,6 +236,7 @@ func save_current_session() -> bool:
 		"inventory": player.inventory.duplicate(true),
 		"progression": progression.to_dict(),
 		"timer": floor_timer.to_dict(),
+		"tutorials": tutorial_sys.to_dict() if tutorial_sys != null else {},
 		"boss_defeated": boss_defeated_this_floor,
 	}
 	return snapshot_mgr.save_session_to_file(session, save_path)
@@ -221,6 +254,8 @@ func load_saved_session() -> bool:
 	for item in session.get("inventory", []):
 		player.inventory.append(item.duplicate(true))
 	progression.from_dict(session.get("progression", {}))
+	if tutorial_sys != null and session.has("tutorials"):
+		tutorial_sys.from_dict(session["tutorials"])
 	player.refresh_hand_visuals()
 
 	enter_floor(floor_number, not snapshot_mgr.has_snapshot())
@@ -243,6 +278,7 @@ func load_saved_session() -> bool:
 			boss_actor.queue_free()
 			boss_actor = null
 	player.emit_stats()
+	_sync_tutorial_hud()
 	_update_hud_navigation()
 	return true
 
@@ -255,30 +291,72 @@ func set_menu_pause(paused: bool, menu_name: String = "") -> void:
 		EventBus.menu_pause_changed.emit(is_menu_paused, active_menu_name)
 
 
+func open_exclusive_menu(menu_name: String) -> void:
+	inventory_menu.visible = false
+	vendor_menu.visible = false
+	pause_menu.visible = false
+	debug_overlay.visible = false
+	set_menu_pause(true, menu_name)
+	match menu_name:
+		"inventory":
+			inventory_menu.open_menu()
+			_complete_tutorial("inventory_pause")
+		"vendor":
+			vendor_menu.open_menu()
+			_complete_tutorial("safe_room")
+		"pause":
+			var status := "Floor %d  •  %s  •  Lv %d  •  %dg" % [floor_number, floor_timer.get_formatted_clock(), progression.level, player.gold]
+			pause_menu.open_menu(status, tutorial_sys.enabled if tutorial_sys != null else false)
+		"console":
+			debug_overlay.open_console()
+
+
+func close_all_menus() -> void:
+	inventory_menu.visible = false
+	vendor_menu.visible = false
+	pause_menu.visible = false
+	debug_overlay.visible = false
+	set_menu_pause(false, "")
+
+
+func _open_exclusive_menu(menu_name: String) -> void:
+	open_exclusive_menu(menu_name)
+
+
+func _close_all_menus() -> void:
+	close_all_menus()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and not is_menu_paused:
 		player.apply_mouse_look((event as InputEventMouseMotion).relative)
 		return
 
+	if event is InputEventKey and (event as InputEventKey).pressed and not (event as InputEventKey).echo:
+		if (event as InputEventKey).keycode == KEY_H and not is_menu_paused and tutorial_sys != null:
+			tutorial_sys.dismiss_current()
+			_sync_tutorial_hud()
+			return
+
 	if event.is_action_pressed("toggle_console"):
 		if active_menu_name == "console":
-			_close_all_menus()
+			close_all_menus()
 		else:
-			_open_exclusive_menu("console")
+			open_exclusive_menu("console")
 		return
 
 	if event.is_action_pressed("toggle_pause"):
 		if is_menu_paused:
-			_close_all_menus()
+			close_all_menus()
 		else:
-			_open_exclusive_menu("pause")
+			open_exclusive_menu("pause")
 		return
 
 	if event.is_action_pressed("toggle_inventory"):
 		if active_menu_name == "inventory":
-			_close_all_menus()
+			close_all_menus()
 		else:
-			_open_exclusive_menu("inventory")
+			open_exclusive_menu("inventory")
 		return
 
 	if is_menu_paused:
@@ -286,22 +364,30 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	if event.is_action_pressed("toggle_camera"):
 		player.toggle_camera_mode()
+		_complete_tutorial("movement_camera")
 	elif event.is_action_pressed("interact"):
 		player.trigger_interact()
 	elif event.is_action_pressed("right_hand_action"):
 		player.handle_hand_press("right_hand")
+		_complete_tutorial("combat_hands")
 	elif event.is_action_released("right_hand_action"):
 		player.handle_hand_release("right_hand")
 	elif event.is_action_pressed("left_hand_action"):
 		player.handle_hand_press("left_hand")
+		_complete_tutorial("combat_hands")
 	elif event.is_action_pressed("quick_loadout_1"):
 		player.quick_equip_preset(1)
+		_complete_tutorial("combat_hands")
 	elif event.is_action_pressed("quick_loadout_2"):
 		player.quick_equip_preset(2)
+		_complete_tutorial("combat_hands")
 	elif event.is_action_pressed("quick_loadout_3"):
 		player.quick_equip_preset(3)
+		_complete_tutorial("combat_hands")
 	elif event.is_action_pressed("quick_loadout_4"):
 		player.quick_equip_preset(4)
+		_complete_tutorial("combat_hands")
+		_trigger_tutorial("archery_aim")
 	elif event.is_action_pressed("quick_potion"):
 		player.quick_drink_health_potion()
 
@@ -318,6 +404,7 @@ func step_simulation(delta: float, input_override: Dictionary = {}) -> void:
 	var tick_res := floor_timer.tick(delta, is_menu_paused)
 	if float(tick_res["warning_days_left"]) > 0.0:
 		_announce_ai("time_warning", {"days_left": str(tick_res["warning_days_left"])}, "warning")
+		_trigger_tutorial("floor_clock")
 	if bool(tick_res["collapsed_now"]):
 		if EventBus != null:
 			EventBus.floor_collapsed.emit(floor_number)
@@ -329,14 +416,27 @@ func step_simulation(delta: float, input_override: Dictionary = {}) -> void:
 
 	# 2. Step Player & Enemy AI
 	player.step_simulation(delta, is_menu_paused, input_override)
+	var enemy_nearby := false
 	for child in enemies_root.get_children():
 		if child is EnemyActor:
-			(child as EnemyActor).step_ai(delta, is_menu_paused)
+			var ea := child as EnemyActor
+			ea.step_ai(delta, is_menu_paused)
+			if not ea.is_boss and ea.global_position.distance_to(player.global_position) <= 10.5:
+				enemy_nearby = true
+
+	# Contextual low-friction tutorial triggers
+	if player.global_position.distance_to(_spawn_anchor_pos) > 2.4:
+		_complete_tutorial("movement_camera")
+	if enemy_nearby:
+		_trigger_tutorial("combat_hands")
+	if tutorial_sys != null and tutorial_sys.tick(delta, is_menu_paused):
+		_sync_tutorial_hud()
 
 	# 3. Check Safe Room, Boss Arena Threshold, and Spike Traps
 	_check_zone_triggers(delta)
+	dungeon_builder.update_light_budget()
 
-	# 4. Update Skyrim Compass Bar & Floor Clock
+	# 4. Update Skyrim Compass Bar, Floor Clock & Boss HP Bar
 	_update_hud_navigation()
 
 
@@ -391,6 +491,7 @@ func _check_zone_triggers(delta: float) -> void:
 		if EventBus != null:
 			EventBus.safe_room_entered.emit()
 		_announce_ai("safe_room_discovered", {}, "info", true)
+		_trigger_tutorial("safe_room")
 	elif not in_safe and player_in_safe_room:
 		player_in_safe_room = false
 		if EventBus != null:
@@ -406,6 +507,7 @@ func _check_zone_triggers(delta: float) -> void:
 					EventBus.boss_arena_sealed.emit(boss_actor.display_name)
 					EventBus.sfx_requested.emit("door_seal")
 				_announce_ai("boss_arena_sealed", {}, "danger", true)
+				_trigger_tutorial("boss_arena")
 
 	# Spike Traps
 	_trap_damage_cooldown = maxf(0.0, _trap_damage_cooldown - delta)
@@ -450,6 +552,8 @@ func _on_player_melee_swing(swing: Dictionary) -> void:
 
 
 func _on_spawn_projectile(params: Dictionary) -> void:
+	if bool(params.get("from_player", false)) and str(params.get("kind", "")) == "arrow":
+		_complete_tutorial("archery_aim")
 	var proj := GameProjectile.new()
 	projectiles_root.add_child(proj)
 	proj.global_position = params["origin"]
@@ -487,6 +591,8 @@ func _apply_player_hit_to_enemy(enemy: EnemyActor, params: Dictionary, skill_nam
 	var res := CombatMath.resolve_attack(attack_params, DataLoader.get_player(), rng)
 	var dmg := float(res["final_damage"])
 	enemy.take_damage(dmg)
+	if hud != null:
+		hud.trigger_hit_marker()
 
 	# Skyrim use-to-improve proficiency gain on landing a hit!
 	var s_res := progression.record_skill_use(skill_name)
@@ -511,7 +617,6 @@ func _on_enemy_died(enemy: EnemyActor) -> void:
 	var eq_totals := LootGenerator.aggregate_equipment_stats(player.equipment)
 	var sponsored: Array = eq_totals["sponsored_effects"]
 
-	# Sponsored on-kill effects
 	if sponsored.has("vampiric_viewers"):
 		player.health = minf(player.max_health, player.health + float(DataLoader.get_sponsored_effect_def("vampiric_viewers").get("heal_on_kill", 12.0)))
 	var bonus_gold := int(DataLoader.get_sponsored_effect_def("tax_rebate_gold").get("bonus_gold_on_kill", 15)) if sponsored.has("tax_rebate_gold") else 0
@@ -545,6 +650,7 @@ func _on_enemy_died(enemy: EnemyActor) -> void:
 		boss_defeated_this_floor = true
 		boss_actor = null
 		dungeon_builder.unlock_boss_and_vault()
+		_complete_tutorial("boss_arena")
 		if EventBus != null:
 			EventBus.boss_defeated.emit(enemy.display_name)
 			EventBus.sfx_requested.emit("door_seal")
@@ -563,6 +669,8 @@ func _on_interactable_triggered(inter: InteractableObject, _actor: Node3D) -> bo
 			var rolled := LootGenerator.roll_loot(DataLoader.get_items_pack(), DataLoader.get_affixes_pack(), floor_number, rng, forced, true)
 			var gold_gain := rng.next_int_range("loot", 25, 65) * floor_number
 			_grant_loot(rolled, gold_gain)
+			_complete_tutorial("looting")
+			_trigger_tutorial("inventory_pause")
 			if EventBus != null: EventBus.sfx_requested.emit("chest_open")
 			return true
 		"crate", "urn":
@@ -571,22 +679,27 @@ func _on_interactable_triggered(inter: InteractableObject, _actor: Node3D) -> bo
 			if rng.next_float("loot") < 0.35:
 				potion = LootGenerator.make_base_item_instance(DataLoader.get_item_def("health_potion"), "pot_%d" % rng.next_int_range("loot", 1000, 99999))
 			_grant_loot(potion, gold_gain)
+			_complete_tutorial("looting")
 			if EventBus != null: EventBus.sfx_requested.emit("chest_open")
 			return true
 		"corpse":
 			_grant_loot(inter.payload.get("item", {}), int(inter.payload.get("gold", 0)))
+			_complete_tutorial("looting")
+			_trigger_tutorial("inventory_pause")
 			if EventBus != null: EventBus.sfx_requested.emit("chest_open")
 			return true
 		"lever":
 			dungeon_builder.disarm_traps()
+			_complete_tutorial("looting")
 			if EventBus != null:
 				EventBus.sfx_requested.emit("door_seal")
 				EventBus.dungeon_ai_announcement.emit("TRAPS DISARMED", "Floor spike grates retracted safely.", "info")
 			return true
 		"vendor":
-			_open_exclusive_menu("vendor")
+			open_exclusive_menu("vendor")
 			return true
 		"quest_board":
+			_complete_tutorial("safe_room")
 			if not quest_bounty_claimed:
 				quest_bounty_claimed = true
 				player.gold += 35
@@ -600,6 +713,7 @@ func _on_interactable_triggered(inter: InteractableObject, _actor: Node3D) -> bo
 			return true
 		"stairs":
 			# D-008: Descend directly with zero preview of the next floor!
+			_complete_tutorial("stairs_descent")
 			call_deferred("enter_floor", floor_number + 1, true)
 			return true
 	return false
@@ -626,7 +740,8 @@ func _spawn_floor_enemies(enemies_pack: Dictionary) -> void:
 			continue
 		var enemy := EnemyActor.new()
 		enemies_root.add_child(enemy)
-		var wpos := current_layout.tile_to_world(sp["tile"]) + Vector3(0.0, 0.1, 0.0)
+		var y_off := 0.45 if bool(edef.get("is_boss", false)) else 0.1
+		var wpos := current_layout.tile_to_world(sp["tile"]) + Vector3(0.0, y_off, 0.0)
 		enemy.setup(edef, scaling, floor_number, int(sp["room_id"]), wpos, current_layout, player, rng, {
 			"attack_player": func(_e: EnemyActor, dmg: float, _dir: Vector3) -> void: player.take_damage(dmg),
 			"shoot_projectile": func(_e: EnemyActor, origin: Vector3, vel: Vector3, dmg: float) -> void:
@@ -650,8 +765,14 @@ func _on_player_died() -> void:
 
 func _on_level_up(new_level: int) -> void:
 	_announce_ai("level_up", {"level": new_level}, "info")
+	_trigger_tutorial("inventory_pause")
 	if EventBus != null:
 		EventBus.sfx_requested.emit("level_up")
+
+
+func _on_prompt_changed(prompt: String) -> void:
+	if not prompt.is_empty():
+		_trigger_tutorial("looting")
 
 
 func _on_save_and_quit() -> void:
@@ -660,25 +781,25 @@ func _on_save_and_quit() -> void:
 		get_tree().quit()
 
 
-func _open_exclusive_menu(menu_name: String) -> void:
-	inventory_menu.visible = false
-	vendor_menu.visible = false
-	pause_menu.visible = false
-	debug_overlay.visible = false
-	set_menu_pause(true, menu_name)
-	match menu_name:
-		"inventory": inventory_menu.open_menu()
-		"vendor": vendor_menu.open_menu()
-		"pause": pause_menu.open_menu()
-		"console": debug_overlay.open_console()
+func _trigger_tutorial(topic_id: String) -> void:
+	if tutorial_sys == null:
+		return
+	var shown := tutorial_sys.trigger_hint(topic_id)
+	if not shown.is_empty():
+		_sync_tutorial_hud()
 
 
-func _close_all_menus() -> void:
-	inventory_menu.visible = false
-	vendor_menu.visible = false
-	pause_menu.visible = false
-	debug_overlay.visible = false
-	set_menu_pause(false, "")
+func _complete_tutorial(topic_id: String) -> void:
+	if tutorial_sys == null:
+		return
+	if tutorial_sys.complete_hint(topic_id):
+		_sync_tutorial_hud()
+
+
+func _sync_tutorial_hud() -> void:
+	if hud == null or tutorial_sys == null:
+		return
+	hud.update_tutorial_hint(tutorial_sys.get_active_hint())
 
 
 func _update_hud_navigation() -> void:
@@ -687,14 +808,23 @@ func _update_hud_navigation() -> void:
 	var compass_cfg: Dictionary = DataLoader.get_world()["compass"]
 	var newly := CompassSystem.update_discoveries(current_layout.landmarks, player.global_position, compass_cfg)
 	for lm in newly:
+		if str(lm.get("kind", "")) == "stairs":
+			_trigger_tutorial("stairs_descent")
 		if EventBus != null:
 			EventBus.dungeon_ai_announcement.emit("LANDMARK DISCOVERED: %s" % str(lm["label"]).to_upper(), "Marked on your compass bar.", "info")
 	var fwd := player.get_forward_vector()
-	var cardinals := CompassSystem.get_cardinal_markers(fwd, compass_cfg)
 	var markers := CompassSystem.compute_visible_markers(current_layout.landmarks, player.global_position, fwd, compass_cfg)
-	hud.update_compass(cardinals, markers)
+	var yaw_rad := wrapf(-player.rotation.y, 0.0, TAU)
+	hud.update_compass(yaw_rad, markers)
 	var fcfg := DataLoader.get_floor_config(floor_number)
 	hud.update_clock(floor_number, str(fcfg.get("name", "Dungeon")), floor_timer.get_formatted_clock())
+
+	# Boss Health Bar visibility when Boss Arena is engaged
+	if boss_actor != null and is_instance_valid(boss_actor) and (dungeon_builder.boss_arena_sealed or boss_actor.state != EnemyActor.AiState.DORMANT):
+		var bname := boss_actor.display_name + (" [ENRAGED]" if boss_actor.enraged else "")
+		hud.update_boss_bar(true, bname, boss_actor.current_health, boss_actor.max_health)
+	else:
+		hud.update_boss_bar(false)
 
 
 func _announce_ai(event_key: String, vars: Dictionary, severity: String = "info", once_only: bool = false) -> void:

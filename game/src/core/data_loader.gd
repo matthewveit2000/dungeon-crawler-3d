@@ -10,6 +10,8 @@ const DATA_FILES := {
 	"enemies": "res://data/enemies.json",
 	"dungeon_ai": "res://data/dungeon_ai.json",
 	"progression": "res://data/progression.json",
+	"tutorials": "res://data/tutorials.json",
+	"setpieces": "res://data/setpieces.json",
 }
 
 var _packs: Dictionary = {}
@@ -87,6 +89,14 @@ func get_dungeon_ai_pack() -> Dictionary:
 
 func get_progression_pack() -> Dictionary:
 	return get_pack("progression")
+
+
+func get_tutorials_pack() -> Dictionary:
+	return get_pack("tutorials")
+
+
+func get_setpieces_pack() -> Dictionary:
+	return get_pack("setpieces")
 
 
 func get_item_def(item_id: String) -> Dictionary:

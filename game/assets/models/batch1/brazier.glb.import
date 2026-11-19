@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://8vsjhyy3o53g"
-path="res://.godot/imported/archway.glb-7f210b393dccbea475a923f0ebe4f032.scn"
+uid="uid://mnwp2m5hh6hj"
+path="res://.godot/imported/brazier.glb-14cfe149f7724c1faaa33c8eea0e3e5b.scn"
 
 [deps]
 
-source_file="res://assets/models/batch1/archway.glb"
-dest_files=["res://.godot/imported/archway.glb-7f210b393dccbea475a923f0ebe4f032.scn"]
+source_file="res://assets/models/batch1/brazier.glb"
+dest_files=["res://.godot/imported/brazier.glb-14cfe149f7724c1faaa33c8eea0e3e5b.scn"]
 
 [params]
 

@@ -1,0 +1,60 @@
+{
+  "default_enabled": true,
+  "auto_dismiss_seconds": 14.0,
+  "topics": [
+    {
+      "id": "movement_camera",
+      "title": "Explore & Perspective",
+      "body": "Move with [WASD], Sprint with [Shift], Jump with [Space]. Tap [V] anytime to switch between 1st-Person and 3rd-Person.",
+      "action_hint": "Move or press [V] to complete"
+    },
+    {
+      "id": "combat_hands",
+      "title": "Left & Right-Hand Combat",
+      "body": "Left Click attacks (hold for heavy Power Attack). Hold Right Click to block with your Shield or cast Left-Hand Spells. Press [1–4] to swap loadouts.",
+      "action_hint": "Attack, block, or swap loadouts [1–4]"
+    },
+    {
+      "id": "archery_aim",
+      "title": "Draw & Fire the Bow",
+      "body": "Hold Left Click to draw your Recurve Bow tight and narrow your aim reticle, then release to loose an arrow.",
+      "action_hint": "Draw and release an arrow"
+    },
+    {
+      "id": "looting",
+      "title": "Interactive World Looting",
+      "body": "Aim at chests, crates, urns, levers, or fallen enemy bodies and press [E] to loot gear and Syndicate Gold.",
+      "action_hint": "Press [E] on any container or corpse"
+    },
+    {
+      "id": "inventory_pause",
+      "title": "Inventory & Tactical Pause",
+      "body": "Press [I] or [Tab] to equip weapons/armor and spend Level-Up Attributes & Perks. Opening menus completely freezes the 5-day collapse timer!",
+      "action_hint": "Open Inventory [I / Tab]"
+    },
+    {
+      "id": "safe_room",
+      "title": "Safe Room Sanctuary",
+      "body": "Enemies cannot enter Safe Rooms and immediately flee. Trade gear with the Vendor [E] or claim a bounty advance at the Quest Board [E].",
+      "action_hint": "Speak with the Vendor or Quest Board [E]"
+    },
+    {
+      "id": "boss_arena",
+      "title": "Sealed Boss Arena & Vault",
+      "body": "Crossing the Boss threshold slams the iron portcullis shut! Defeat the Floor Boss to unlock the exit and claim the adjoining Treasure Vault.",
+      "action_hint": "Defeat the Floor Boss"
+    },
+    {
+      "id": "floor_clock",
+      "title": "5-Day Collapse & Floor Snapshots",
+      "body": "Each floor collapses after 5 in-game days. Collapse or combat death resets you to your Floor-Entry Snapshot (your pre-floor level & gear). Save & Quit anytime via [Esc].",
+      "action_hint": "Got it — dismiss or keep exploring"
+    },
+    {
+      "id": "stairs_descent",
+      "title": "Unknown Descent",
+      "body": "Press [E] on the Hidden Staircase to descend to the next floor. There are no staircase previews — your new Floor-Entry Snapshot locks on arrival!",
+      "action_hint": "Press [E] to descend when ready"
+    }
+  ]
+}

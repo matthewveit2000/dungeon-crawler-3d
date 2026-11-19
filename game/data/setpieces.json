@@ -1,0 +1,65 @@
+{
+  "hybrid_mode": "procedural_plus_handcrafted_setpieces",
+  "setpieces": {
+    "entrance": {
+      "name": "The Arrival Hall",
+      "theme_light_color": "#ffaa5c",
+      "light_energy": 2.4,
+      "props": [
+        { "model": "res://assets/models/batch1/sanctuary_rug.glb", "offset": [0.0, 0.0, 0.0], "rot_y": 0.0, "scale": [1.25, 1.0, 1.45] },
+        { "model": "res://assets/models/batch1/brazier.glb", "offset": [-3.0, 0.0, -2.8], "rot_y": 0.0, "light_color": "#ff9842", "light_energy": 2.8, "light_range": 14.0 },
+        { "model": "res://assets/models/batch1/brazier.glb", "offset": [3.0, 0.0, -2.8], "rot_y": 0.0, "light_color": "#ff9842", "light_energy": 2.8, "light_range": 14.0 },
+        { "model": "res://assets/models/batch1/brazier.glb", "offset": [-3.0, 0.0, 2.8], "rot_y": 0.0, "light_color": "#ff9842", "light_energy": 2.4, "light_range": 13.0 },
+        { "model": "res://assets/models/batch1/brazier.glb", "offset": [3.0, 0.0, 2.8], "rot_y": 0.0, "light_color": "#ff9842", "light_energy": 2.4, "light_range": 13.0 },
+        { "model": "res://assets/models/batch1/barrel.glb", "offset": [-3.6, 0.0, 1.2], "rot_y": 0.4 },
+        { "model": "res://assets/models/batch1/barrel.glb", "offset": [3.6, 0.0, 1.4], "rot_y": -0.6 }
+      ]
+    },
+    "safe_room": {
+      "name": "Syndicate Safe Room Sanctuary",
+      "theme_light_color": "#ffbe73",
+      "ward_accent_color": "#45e6b8",
+      "light_energy": 2.8,
+      "props": [
+        { "model": "res://assets/models/batch1/sanctuary_rug.glb", "offset": [0.0, 0.0, 0.4], "rot_y": 0.0, "scale": [1.5, 1.0, 1.5] },
+        { "model": "res://assets/models/batch1/merchant_stall.glb", "offset": [-2.8, 0.0, -2.4], "rot_y": 0.32, "light_color": "#ffbd66", "light_energy": 3.0, "light_range": 14.0 },
+        { "model": "res://assets/models/batch1/brazier.glb", "offset": [3.0, 0.0, -2.6], "rot_y": 0.0, "light_color": "#ffa84c", "light_energy": 2.6, "light_range": 14.0 },
+        { "model": "res://assets/models/batch1/brazier.glb", "offset": [-3.2, 0.0, 2.6], "rot_y": 0.0, "light_color": "#ffa84c", "light_energy": 2.4, "light_range": 13.0 },
+        { "model": "res://assets/models/batch1/barrel.glb", "offset": [-4.4, 0.0, -1.6], "rot_y": 0.2 },
+        { "model": "res://assets/models/batch1/barrel.glb", "offset": [3.8, 0.0, 2.0], "rot_y": 1.1 }
+      ]
+    },
+    "boss_arena": {
+      "name": "The Iron Warden's Crucible",
+      "theme_light_color": "#ff8f48",
+      "rim_light_color": "#e04838",
+      "light_energy": 3.2,
+      "props": [
+        { "model": "res://assets/models/batch1/boss_dais.glb", "offset": [0.0, 0.0, 0.0], "rot_y": 0.0 },
+        { "model": "res://assets/models/batch1/brazier.glb", "offset": [-4.2, 0.0, -4.2], "rot_y": 0.0, "light_color": "#ff9e4a", "light_energy": 3.6, "light_range": 18.0 },
+        { "model": "res://assets/models/batch1/brazier.glb", "offset": [4.2, 0.0, -4.2], "rot_y": 0.0, "light_color": "#ff9e4a", "light_energy": 3.6, "light_range": 18.0 },
+        { "model": "res://assets/models/batch1/brazier.glb", "offset": [-4.2, 0.0, 4.2], "rot_y": 0.0, "light_color": "#ff8844", "light_energy": 3.4, "light_range": 18.0 },
+        { "model": "res://assets/models/batch1/brazier.glb", "offset": [4.2, 0.0, 4.2], "rot_y": 0.0, "light_color": "#ff8844", "light_energy": 3.4, "light_range": 18.0 }
+      ]
+    },
+    "vault": {
+      "name": "Gilded Sponsor Vault",
+      "theme_light_color": "#ffd26b",
+      "light_energy": 3.2,
+      "props": [
+        { "model": "res://assets/models/batch1/sanctuary_rug.glb", "offset": [0.0, 0.0, 0.0], "rot_y": 0.0, "scale": [1.35, 1.0, 1.4] },
+        { "model": "res://assets/models/batch1/brazier.glb", "offset": [-2.8, 0.0, -2.4], "rot_y": 0.0, "light_color": "#ffcb6b", "light_energy": 3.0, "light_range": 14.0 },
+        { "model": "res://assets/models/batch1/brazier.glb", "offset": [2.8, 0.0, -2.4], "rot_y": 0.0, "light_color": "#ffcb6b", "light_energy": 3.0, "light_range": 14.0 }
+      ]
+    },
+    "stairs": {
+      "name": "The Unknown Descent",
+      "theme_light_color": "#8cb8ff",
+      "light_energy": 2.4,
+      "props": [
+        { "model": "res://assets/models/batch1/brazier.glb", "offset": [-2.8, 0.0, -2.4], "rot_y": 0.0, "light_color": "#ffb05c", "light_energy": 2.6, "light_range": 14.0 },
+        { "model": "res://assets/models/batch1/brazier.glb", "offset": [2.8, 0.0, -2.4], "rot_y": 0.0, "light_color": "#ffb05c", "light_energy": 2.6, "light_range": 14.0 }
+      ]
+    }
+  }
+}

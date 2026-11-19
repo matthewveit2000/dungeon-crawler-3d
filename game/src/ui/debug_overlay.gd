@@ -1,81 +1,83 @@
 class_name DebugOverlay
 extends CanvasLayer
-## In-Game Playtest & Audit Console Overlay (Backtick `).
-## Executes DebugConsole commands so User milestone verification takes seconds.
+## Styled Built-in Playtest & Audit Console Overlay (toggled with ` / ~).
 
-var _executor: Callable = Callable()
-var _on_close_cb: Callable = Callable()
-var _log_box: TextEdit = null
-var _input_line: LineEdit = null
+var _output: RichTextLabel = null
+var _input: LineEdit = null
+var _exec_cb: Callable = Callable()
 
 
-func setup(executor: Callable, on_close: Callable) -> void:
-	_executor = executor
-	_on_close_cb = on_close
-	layer = 20
+var _close_cb: Callable = Callable()
+
+
+func _ready() -> void:
+	layer = 30
 	visible = false
 	_build_ui()
 
 
+func setup(exec_cb: Callable, close_cb: Callable = Callable()) -> void:
+	_exec_cb = exec_cb
+	_close_cb = close_cb
+
+
 func open_console() -> void:
 	visible = true
-	if _input_line != null:
-		_input_line.grab_focus()
+	if _input != null:
+		_input.grab_focus()
 
 
 func close_console() -> void:
 	visible = false
-	if _on_close_cb.is_valid():
-		_on_close_cb.call()
 
 
-func _submit(text: String) -> void:
-	var cmd := text.strip_edges()
-	if cmd.is_empty():
-		return
-	_input_line.clear()
-	_append_log("> " + cmd)
-	if _executor.is_valid():
-		var out := str(_executor.call(cmd))
-		if not out.is_empty():
-			_append_log(out)
+func toggle_console() -> bool:
+	visible = not visible
+	if visible and _input != null:
+		_input.grab_focus()
+	return visible
 
 
-func _append_log(line: String) -> void:
-	if _log_box != null:
-		_log_box.text += line + "\n"
-		_log_box.scroll_vertical = _log_box.get_line_count()
+func append_line(text: String) -> void:
+	if _output != null:
+		_output.append_text(text + "\n")
 
 
 func _build_ui() -> void:
 	var panel := PanelContainer.new()
-	panel.anchor_left = 0.05
-	panel.anchor_right = 0.95
-	panel.anchor_top = 0.04
-	panel.anchor_bottom = 0.46
+	panel.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	panel.offset_left = 18
+	panel.offset_right = -18
+	panel.offset_top = -255
+	panel.offset_bottom = -16
+	panel.add_theme_stylebox_override("panel", UiTheme.make_panel_style(Color(0.04, 0.048, 0.068, 0.94), UiTheme.COL_CYAN, 2, 6, 14, 12))
 	add_child(panel)
 
-	var box := VBoxContainer.new()
-	panel.add_child(box)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 6)
+	panel.add_child(v)
 
-	var top := HBoxContainer.new()
-	var title := Label.new()
-	title.text = "PLAYTEST / AUDIT CONSOLE (Type 'help' for shortcuts)"
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var close_btn := Button.new()
-	close_btn.text = "Close [` / Esc]"
-	close_btn.pressed.connect(close_console)
-	top.add_child(title)
-	top.add_child(close_btn)
-	box.add_child(top)
+	var hdr := Label.new()
+	hdr.text = "PLAYTEST AUDIT CONSOLE  •  TYPE 'help' FOR SHORTCUTS  (PRESS ` TO CLOSE)"
+	hdr.add_theme_font_size_override("font_size", 12)
+	hdr.add_theme_color_override("font_color", UiTheme.COL_CYAN)
+	v.add_child(hdr)
 
-	_log_box = TextEdit.new()
-	_log_box.editable = false
-	_log_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_log_box.text = "Audit Console Ready. Type 'help' to see teleport, timer, loot & seed shortcuts.\n"
-	box.add_child(_log_box)
+	_output = RichTextLabel.new()
+	_output.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_output.scroll_following = true
+	_output.add_theme_color_override("default_color", UiTheme.COL_TEXT)
+	_output.append_text("Ready. Try: teleport safe | teleport boss | kill_boss | advance_days 5.1 | spawn_loot sponsored\n")
+	v.add_child(_output)
 
-	_input_line = LineEdit.new()
-	_input_line.placeholder_text = "Enter command (e.g. teleport boss, advance_days 4.9, spawn_loot sponsored)..."
-	_input_line.text_submitted.connect(_submit)
-	box.add_child(_input_line)
+	_input = LineEdit.new()
+	_input.placeholder_text = "Enter command (e.g. teleport boss, spawn_loot sponsored, advance_days 4.9)..."
+	_input.text_submitted.connect(func(cmd: String) -> void:
+		if cmd.strip_edges().is_empty():
+			return
+		append_line("> " + cmd)
+		if _exec_cb.is_valid():
+			append_line(str(_exec_cb.call(cmd)))
+		_input.text = ""
+	)
+	v.add_child(_input)

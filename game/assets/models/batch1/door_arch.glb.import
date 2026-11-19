@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://dbd0lx6fgynle"
-path="res://.godot/imported/goblin_influencer.glb-b4f87b2da0388bd4295af67d16438509.scn"
+uid="uid://cuc042b7u1wcb"
+path="res://.godot/imported/door_arch.glb-8099af482e04db34e1bb4dbb11acdcd2.scn"
 
 [deps]
 
-source_file="res://assets/models/batch3/goblin_influencer.glb"
-dest_files=["res://.godot/imported/goblin_influencer.glb-b4f87b2da0388bd4295af67d16438509.scn"]
+source_file="res://assets/models/batch1/door_arch.glb"
+dest_files=["res://.godot/imported/door_arch.glb-8099af482e04db34e1bb4dbb11acdcd2.scn"]
 
 [params]
 

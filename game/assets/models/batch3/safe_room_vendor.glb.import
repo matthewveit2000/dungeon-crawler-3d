@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://bona0fp5ntqbw"
-path="res://.godot/imported/stairs_down.glb-f8ab61894f35edde11a7761ddd3cebc9.scn"
+uid="uid://bjx0avq4o32rn"
+path="res://.godot/imported/safe_room_vendor.glb-2a9eb95094505fd457c49af7395e7711.scn"
 
 [deps]
 
-source_file="res://assets/models/batch1/stairs_down.glb"
-dest_files=["res://.godot/imported/stairs_down.glb-f8ab61894f35edde11a7761ddd3cebc9.scn"]
+source_file="res://assets/models/batch3/safe_room_vendor.glb"
+dest_files=["res://.godot/imported/safe_room_vendor.glb-2a9eb95094505fd457c49af7395e7711.scn"]
 
 [params]
 

@@ -16,6 +16,8 @@ REQUIRED_FILES = [
     "enemies.json",
     "dungeon_ai.json",
     "progression.json",
+    "tutorials.json",
+    "setpieces.json",
 ]
 
 
@@ -145,6 +147,25 @@ def main() -> int:
         if skill not in xp_per_use or xp_per_use[skill] <= 0:
             errors.append(f"progression.json: skill '{skill}' missing positive xp_gain_per_use")
 
+    # 7. Validate tutorials.json (D-030)
+    tut_topics = packs["tutorials.json"].get("topics", [])
+    if len(tut_topics) < 6:
+        errors.append("tutorials.json: D-030 requires at least 6 contextual tutorial topics")
+    tut_ids: set[str] = set()
+    for t in tut_topics:
+        tid = t.get("id", "")
+        if not tid or tid in tut_ids:
+            errors.append(f"tutorials.json: missing or duplicate topic id '{tid}'")
+        tut_ids.add(tid)
+        if not t.get("title") or not t.get("body"):
+            errors.append(f"tutorials.json: topic '{tid}' requires title and body")
+
+    # 8. Validate setpieces.json (D-029)
+    setpieces = packs["setpieces.json"].get("setpieces", {})
+    for req_sp in ["entrance", "safe_room", "boss_arena", "vault", "stairs"]:
+        if req_sp not in setpieces or not setpieces[req_sp].get("props"):
+            errors.append(f"setpieces.json: D-029 requires handcrafted setpiece props for '{req_sp}'")
+
     if errors:
         for e in errors:
             print(f"[ERROR] {e}", file=sys.stderr)
@@ -153,7 +174,8 @@ def main() -> int:
     print(
         f"[validate-data] OK: {len(REQUIRED_FILES)} packs, "
         f"{len(item_ids)} items, {len(enemy_ids)} enemies ({len(boss_ids)} boss), "
-        f"{len(rarity_ids)} rarities, {len(ai_events)} Dungeon AI event pools."
+        f"{len(rarity_ids)} rarities, {len(ai_events)} Dungeon AI pools, "
+        f"{len(tut_ids)} tutorial topics, {len(setpieces)} handcrafted setpieces."
     )
     return 0
 

@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://ci6l0bih5l1uw"
-path="res://.godot/imported/vendor_npc.glb-4f365db57fd7bf8480a6a8b20618fa04.scn"
+uid="uid://bejxuufeh4a6i"
+path="res://.godot/imported/boss_dais.glb-bb6a6bd63d9eb1581c5add5ffbbdfd60.scn"
 
 [deps]
 
-source_file="res://assets/models/batch3/vendor_npc.glb"
-dest_files=["res://.godot/imported/vendor_npc.glb-4f365db57fd7bf8480a6a8b20618fa04.scn"]
+source_file="res://assets/models/batch1/boss_dais.glb"
+dest_files=["res://.godot/imported/boss_dais.glb-bb6a6bd63d9eb1581c5add5ffbbdfd60.scn"]
 
 [params]
 

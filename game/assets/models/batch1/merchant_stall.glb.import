@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://chtshqn1arm6c"
-path="res://.godot/imported/war_axe.glb-99cb4d9d21cb33fd52e3d207113232ec.scn"
+uid="uid://ix87wpg0dk54"
+path="res://.godot/imported/merchant_stall.glb-bf8cfc551e714c4ee460ce18ae3db2c7.scn"
 
 [deps]
 
-source_file="res://assets/models/batch2/war_axe.glb"
-dest_files=["res://.godot/imported/war_axe.glb-99cb4d9d21cb33fd52e3d207113232ec.scn"]
+source_file="res://assets/models/batch1/merchant_stall.glb"
+dest_files=["res://.godot/imported/merchant_stall.glb-bf8cfc551e714c4ee460ce18ae3db2c7.scn"]
 
 [params]
 

@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://kuse1d2qnbcp"
-path="res://.godot/imported/kite_shield.glb-6eeb7e29e6f5f86edb8c02b86fa00295.scn"
+uid="uid://bgeqst3h4myhy"
+path="res://.godot/imported/wall_banner.glb-1a198405feb756e6ac1415d257f1d09b.scn"
 
 [deps]
 
-source_file="res://assets/models/batch2/kite_shield.glb"
-dest_files=["res://.godot/imported/kite_shield.glb-6eeb7e29e6f5f86edb8c02b86fa00295.scn"]
+source_file="res://assets/models/batch1/wall_banner.glb"
+dest_files=["res://.godot/imported/wall_banner.glb-1a198405feb756e6ac1415d257f1d09b.scn"]
 
 [params]
 

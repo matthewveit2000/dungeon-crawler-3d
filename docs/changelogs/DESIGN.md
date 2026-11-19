@@ -22,3 +22,13 @@ Detailed record of gameplay systems, rules, tuning, and DCC flavor implemented f
 - **Hybrid Progression, Loot & DCC Tone (`D-019`, `D-020`, `D-023`):**
   - Implemented XP/Level-Up Attributes + Perks alongside Skyrim use-to-improve weapon/magic/block proficiencies.
   - Implemented Skyrim equipment slots, 5 rarity tiers (`common` → `sponsored`), Safe Room Vendor trading, and snarky Dungeon AI popup banners.
+
+## 2026-11-18 — Hybrid Handcrafted Setpieces, Low-Friction Tutorial Mode & QoL Polish (`D-028`, `D-029`, `D-030`)
+
+- **Hybrid Procedural + Handcrafted Rooms (`D-029`):**
+  - Authored `game/data/setpieces.json` defining 5 handcrafted room archetypes (Entrance Arrival Hall, Warm Safe Room Sanctuary, Iron Warden Boss Crucible, Gilded Treasure Vault, Hidden Stairwell) stitched into procedural layouts on every seed.
+- **Low-Friction Toggleable Tutorial Mode (`D-030`):**
+  - Authored `game/data/tutorials.json` (9 contextual first-encounter topics) + `TutorialSystem` + non-blocking bottom-right HUD card with automatic completion as you perform each mechanic, `[H]` instant hide, Pause Menu ON/OFF toggle, and Reset Tutorials option (persisted across Save-and-Quit).
+- **Skyrim Combat Feel & QoL Overhaul:**
+  - Shrunk resting shield footprint to ~11% lower-left corner, added smooth alternating diagonal melee combos + power cleave + shield block raise + bow draw FOV zoom + 3rd-person wall-collision camera pullback + enemy telegraph wind-up & hit-flash reactions.
+  - Replaced plain Godot default UI controls with obsidian-glass & antique-gold dark-fantasy HUD, Inventory, Vendor, Pause, and Audit Console themes (`UiTheme`).

@@ -67,7 +67,7 @@
       "gold_max": 35,
       "loot_drop_chance": 0.72,
       "spawn_weight": 20.0,
-      "model": "res://assets/models/batch3/goblin_influencer.glb",
+      "model": "res://assets/models/batch3/goblin_streamer.glb",
       "radius": 0.42,
       "height": 1.35
     },
