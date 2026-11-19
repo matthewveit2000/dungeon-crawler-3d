@@ -36,6 +36,10 @@ var _flicker_lights: Array[Dictionary] = []
 var _managed_lights: Array[OmniLight3D] = []
 var _light_focus: Node3D = null
 var _gate_targets: Dictionary = {}
+var _gate_vels: Dictionary = {}
+var _beacon_crystal: Node3D = null
+var _beacon_base_y: float = 1.58
+var vendor_visual: CharacterVisual = null
 var _flicker_time: float = 0.0
 var _budget_timer: float = 0.0
 var _static_world: StaticBody3D = null
@@ -98,13 +102,43 @@ func _process(delta: float) -> void:
 			var t := _flicker_time
 			var wave := sin(t * 7.3 + ph) * 0.06 + sin(t * 13.1 + ph * 1.7) * 0.04 + sin(t * 23.7 + ph * 0.6) * 0.025
 			light.light_energy = base_e * (1.0 + wave)
+	# Floating sanctuary ward crystal gently hovers and rotates inside its bronze cradle
+	if _beacon_crystal != null and is_instance_valid(_beacon_crystal):
+		_beacon_crystal.position.y = _beacon_base_y + sin(_flicker_time * 1.8) * 0.055
+		_beacon_crystal.rotation.y = fmod(_beacon_crystal.rotation.y + delta * 0.55, TAU)
+	# Safe Room merchant greets nearby players with his expressive talk animation
+	if vendor_visual != null and is_instance_valid(vendor_visual) and _light_focus != null and is_instance_valid(_light_focus):
+		var vdist := vendor_visual.global_position.distance_to(_light_focus.global_position)
+		vendor_visual.play_state("talk" if vdist <= 4.8 else "idle", 0.35)
+	# Physics-driven gates: heavy gravity slam + metallic bounce on close; weighted winch ease on open
 	for gate in _gate_targets.keys():
 		if is_instance_valid(gate):
 			var visual := (gate as Node3D).get_node_or_null("GateVisual") as Node3D
 			if visual != null:
 				var target_y: float = float(_gate_targets[gate])
-				var speed := 4.0 if target_y > visual.position.y else 11.0
-				visual.position.y = move_toward(visual.position.y, target_y, delta * speed)
+				var vel: float = float(_gate_vels.get(gate, 0.0))
+				var diff := target_y - visual.position.y
+				if target_y <= 0.05:
+					# Slamming down under gravity with a small damped iron floor bounce
+					if absf(diff) > 0.002 or absf(vel) > 0.05:
+						vel -= 28.0 * delta
+						visual.position.y += vel * delta
+						if visual.position.y <= target_y:
+							visual.position.y = target_y
+							if absf(vel) > 1.8:
+								vel = -vel * 0.22
+							else:
+								vel = 0.0
+				else:
+					# Heavy iron chain winch raising smoothly with inertia ramp & ease-out
+					if absf(diff) > 0.003:
+						var desired_spd := clampf(diff * 2.6, 0.4, 3.8)
+						vel = move_toward(vel, desired_spd, delta * 9.0)
+						visual.position.y = minf(target_y, visual.position.y + vel * delta)
+					else:
+						visual.position.y = target_y
+						vel = 0.0
+				_gate_vels[gate] = vel
 
 
 # ---------------------------------------------------------------------------
@@ -628,6 +662,9 @@ func _build_safe_room_interactables(center_w: Vector3, ward_color: Color, intera
 	var beacon := ModelLoader.instantiate_model(PROPS + "safe_beacon.glb", Vector3(1.0, 2.0, 1.0))
 	beacon.position = center_w + Vector3(0.3, 0.0, -3.1)
 	_world_root.add_child(beacon)
+	_beacon_crystal = beacon.find_child("Crystal*", true, false) as Node3D
+	if _beacon_crystal != null:
+		_beacon_base_y = _beacon_crystal.position.y
 	spawned_setpiece_props += 1
 	var aura := VfxFactory.make_magic_aura(ward_color, 0.35, 40)
 	aura.position = beacon.position + Vector3(0, 1.6, 0)
@@ -650,6 +687,7 @@ func _build_safe_room_interactables(center_w: Vector3, ward_color: Color, intera
 	npc.position = Vector3(0.0, 0.0, -0.95)
 	vendor.add_child(npc)
 	npc.play_state("idle")
+	vendor_visual = npc
 	var socket := stall.find_child("LanternSocket*", true, false) as Node3D
 	if socket != null:
 		var ll := _add_light(vendor, Basis(Vector3.UP, PI) * socket.position + Vector3(0, -0.05, 0), Color(1.0, 0.72, 0.4), 1.1, 6.0, true)
@@ -719,7 +757,7 @@ func disarm_traps() -> void:
 		if is_instance_valid(tn):
 			var tw := tn.create_tween() if tn.is_inside_tree() else null
 			if tw != null:
-				tw.tween_property(tn, "position:y", tn.position.y - 0.36, 0.5).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+				tw.tween_property(tn, "position:y", tn.position.y - 0.36, 0.42).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
 			else:
 				tn.position.y -= 0.36
 
@@ -741,10 +779,13 @@ func clear_floor() -> void:
 	environment_node = null
 	boss_gate_node = null
 	vault_gate_node = null
+	_beacon_crystal = null
+	vendor_visual = null
 	_trap_nodes.clear()
 	_flicker_lights.clear()
 	_managed_lights.clear()
 	_gate_targets.clear()
+	_gate_vels.clear()
 
 
 func _set_gate_closed(gate: StaticBody3D, closed: bool, instant: bool) -> void:
@@ -752,6 +793,7 @@ func _set_gate_closed(gate: StaticBody3D, closed: bool, instant: bool) -> void:
 	var col := gate.get_node_or_null("GateCollider") as CollisionShape3D
 	var target_y := 0.0 if closed else 3.9
 	_gate_targets[gate] = target_y
+	_gate_vels[gate] = 0.0
 	if visual != null and instant:
 		visual.position.y = target_y
 	if col != null:

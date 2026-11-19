@@ -53,3 +53,15 @@ See [`docs/TESTING_STRATEGY.md`](../TESTING_STRATEGY.md) and [`docs/DECISION_LOG
 - `scripts/validate-assets.py` now opens every character `.glb` and requires its clips to be exactly the character's own tracks with no `.NNN`-suffixed names; `test_each_character_plays_its_own_clips` checks the same at runtime (and that the two-handed draugr and Iron Warden use their 40-frame attack, not the player's 28-frame one). Both would have caught the shared-clip export bug.
 - Totals: 12 test scripts, 59 tests, 5,724 assertions — all green.
 - Showcase clips: `QA_ONLY=clips` (optionally `QA_CLIPS=bow,spell,...`) records corridor walk, bow, spell, battleaxe, third-person and boss clips to `art/visual_qa/clips/`; run with `--fixed-fps 20` so animation advances exactly one simulation step per frame.
+
+## 2026-11-19 — Dedicated Animation Review Harness & Regression Tests (`D-037`)
+
+- **Full Animation Review Capture Suite (`scripts/record-anim-review.sh`, `scripts/make-contact-sheet.py`, `game/scenes/anim_review.tscn`, `game/src/tools/anim_review_capture.gd`):**
+  - Captures deterministic fixed-FPS MP4 video clips of all 12 animation suites (`fp_sword_shield`, `fp_battleaxe`, `fp_bow`, `fp_spell_dual`, `tp_gameplay`, `char_crawler`, `char_draugr`, `char_bone_archer`, `char_goblin_streamer`, `char_iron_warden`, `char_vendor`, `world_props`) with automatic headless Godot `--import` before capture and timestamped contact-sheet generation for frame-by-frame physics/timing audit.
+- **New Automated Regression Tests (`game/tests/test_ui_and_visuals.gd`):**
+  - `test_character_visual_preserves_oneshot_speed_and_crawler_clips` — verifies `crawler` exposes `attack_2h` & `bow_shoot`, `play_state()` does not stomp active one-shot `speed_scale`, and loop speed restores cleanly on finish.
+  - `test_lever_handle_pivots_independently_and_beacon_exposes_crystal` — verifies `lever.glb` rotates only its `Handle` child while keeping the pedestal stationary, and `safe_beacon.glb` exposes its separate `Crystal` child.
+  - `test_power_attack_charge_continuity_and_bow_sightline_alignment` — verifies releasing a charged power attack continues smoothly from the raised pose without snapping back to rest, and verifies the first-person nocked arrow aims straight along the camera sightline both at rest (`dot > 0.85`) and at full draw (`dot > 0.94`).
+  - Export-time corpse ground-contact assertion inside `art/blender/dclib/char_anims.py` (`hips`, `chest`, `head` `z >= 0.04m` at final death frame).
+- **Totals:** 12 test scripts, **62/62 passing tests**, **5,742 assertions** — all 5 automated layers green.
+

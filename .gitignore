@@ -23,4 +23,6 @@ __pycache__/
 .gut_editor_shortcuts.cfg
 tmp/
 art/visual_qa/
+art/anim_review/
+
 

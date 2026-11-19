@@ -61,3 +61,14 @@ Every screenshot and the 40-frame combat clip from the full Forward+ capture wer
 - **Reproducible builds:** `build_characters.py` seeded each body's UV offset / weathering with Python's `hash(name)`, which is salted per process, so every rebuild produced slightly different characters; it now uses `zlib.crc32`. The gear preview sheet camera was pulled back so the widest weapon row is fully in frame.
 - **UI kit:** vital bar split into `bar_back` (trough, under the fill) and `bar_frame` (border, over it) — the old frame's dark interior was dimming every bar; new `map_paper.webp` vellum with a faint survey grid replaces the handwriting-ruled parchment behind the map.
 
+## 2026-11-19 — Biomechanical Skeletal Animation & Prop Rig Overhaul (`D-037`)
+
+- **World-Space 2-Bone Soft-IK Animation Engine (`art/blender/dclib/rig.py`, `art/blender/dclib/char_anims.py`):**
+  - Added exact world-space rotation/translation helpers (`set_bone_world_rot`, `set_bone_world_delta`), analytical 2-bone soft-IK solver (`solve_2bone_ik`), flat-floor foot orienter (`orient_foot_world`), grip-socket arm solver (`grip_rest_local_matrix`, `orient_hand_for_grip`), head look-at, and hemisphere-continuous 30 FPS quaternion action sampler (`make_sampled_action`).
+  - Re-authored every single animation clip across all 6 characters (`crawler`, `draugr`, `bone_archer`, `goblin_streamer`, `iron_warden`, `vendor`): grounded asymmetric `idle`/`idle_combat`, zero-slip constant-velocity stance `walk`/`run`, kinetic-chain 1H & 2H `attack` (both hands locked onto the lower + upper battleaxe leather wraps), distinct Iron Warden vertical overhead `slam` and living furnace-rage `roar`, sideways vertical-bow `shoot`/`draw_hold`/`bow_shoot`, rim-peeking `block`, straight-forward `cast`, expressive open-handed Merchant `talk`, grounded knee-absorbing `hit`, and smooth gravity-accelerated `death` collapses that rest flush on top of the flagstones (`z >= 0.04m` asserted at export).
+  - Added `attack_2h` and `bow_shoot` clips to `crawler.glb` (12 clips total) and aligned `GripR` (`Rx(90°) @ Rz(-90°)`) in `art/blender/build_characters.py` so blade/axe cutting edges lead cleanly in the strike plane.
+- **Pivoted Prop Sub-Meshes (`art/blender/build_props.py`):**
+  - Separated `lever.glb`'s moving iron arm into a pivoted child `Handle` at fulcrum `(0, 0, 0.58)` so the stone pedestal stays planted when thrown, and separated `safe_beacon.glb`'s `Crystal` child at `(0, 0, 1.58)` for floating/rotation.
+- **Preview Updated:** Regenerated [`art/previews/batch3_characters.png`](../../art/previews/batch3_characters.png) showcasing the new natural stances.
+
+

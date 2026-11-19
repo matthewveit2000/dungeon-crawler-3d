@@ -44,14 +44,26 @@ var _move_blend: float = 0.0
 var _sprint_blend: float = 0.0
 var _block_blend: float = 0.0
 var _draw_blend: float = 0.0
+var _bow_reach_blend: float = 0.0
+var _bow_twang_t: float = 0.0
+var _bow_nock_slide: float = 1.0
+var _equip_raise: float = 0.0
 var _look_sway: Vector2 = Vector2.ZERO
+var _cam_swing_rot: Vector3 = Vector3.ZERO
 
 var _right_swing_t: float = 0.0
-var _right_swing_dur: float = 0.34
+var _right_swing_dur: float = 0.44
 var _right_swing_power: bool = false
 var _right_combo_step: int = 0
+var _swing_start_pos: Vector3 = Vector3.ZERO
+var _swing_start_quat: Quaternion = Quaternion.IDENTITY
+var _swing_was_charged: bool = false
+var _last_r_pos: Vector3 = Vector3(0.30, -0.32, -0.52)
+var _last_r_quat: Quaternion = Quaternion.IDENTITY
+
 var _left_action_t: float = 0.0
-var _left_action_dur: float = 0.30
+var _left_action_dur: float = 0.38
+var _left_combo_step: int = 0
 var _bow_release_recoil: float = 0.0
 var _camera_kick: float = 0.0
 var _slash_vfx_timer: float = 0.0
@@ -68,6 +80,14 @@ var _fp_spell_node: Node3D = null
 var _slash_arc_mesh: MeshInstance3D = null
 var tp_mesh: Node3D = null
 var tp_visual: CharacterVisual = null
+var _tp_bow_node: Node3D = null
+var _tp_string_top: Node3D = null
+var _tp_string_bot: Node3D = null
+var _tp_string_tip_top: Vector3 = Vector3.ZERO
+var _tp_string_tip_bot: Vector3 = Vector3.ZERO
+var _tp_string_rest_z: float = 0.0
+var _tp_nocked_arrow: Node3D = null
+var _tp_grip_r: Node3D = null
 var _bow_node: Node3D = null
 var _string_top: Node3D = null
 var _string_bot: Node3D = null
@@ -79,12 +99,12 @@ var _spell_light: OmniLight3D = null
 var _offhand_axe: bool = false
 var _trail: MeshInstance3D = null
 var _trail_pts: Array = []
-const TRAIL_LIFE := 0.09
+const TRAIL_LIFE := 0.095
 const TWO_HAND_LEFT_ROLL := -40.0
 ## Two-handed carry: haft held across the body at chest height, fist low-centre, head to the right
-const TWO_HAND_POS := Vector3(0.06, -0.3, -0.5)
-const TWO_HAND_GRIP := Vector3(0.75, 0.55, -0.35)
-const TWO_HAND_FOREARM := Vector3(0.35, -0.45, 0.82)
+const TWO_HAND_POS := Vector3(0.05, -0.32, -0.54)
+const TWO_HAND_GRIP := Vector3(0.68, 0.56, -0.47)
+const TWO_HAND_FOREARM := Vector3(0.38, -0.46, 0.80)
 var _blade_tip: Node3D = null
 var _blade_base: Node3D = null
 var _hitstop: float = 0.0
@@ -595,15 +615,17 @@ func refresh_hand_visuals() -> void:
 			fp_right_anchor.add_child(_arm("fp_arm_grip_r"))
 			if not is_bow:
 				var w_model := ModelLoader.instantiate_model(str(rh.get("model", "")), Vector3(0.05, 0.9, 0.05))
+				if is_two_hand:
+					w_model.position.y = -0.22
 				_disable_shadows(w_model)
 				_fp_right_weapon_holder.add_child(w_model)
-				var tip_len := 0.95 if is_two_hand else 0.9
+				var tip_len := 0.78 if is_two_hand else 0.9
 				_blade_base = Node3D.new()
 				# Streak only along the outer part of the blade / the axe head, so it reads as a glint, not a wedge
-				_blade_base.position = Vector3(0, 1.0 if is_two_hand else 0.68, 0)
+				_blade_base.position = Vector3(0, 0.72 if is_two_hand else 0.68, 0)
 				_fp_right_weapon_holder.add_child(_blade_base)
 				_blade_tip = Node3D.new()
-				_blade_tip.position = Vector3(0, tip_len + (0.12 if is_two_hand else 0.0), 0)
+				_blade_tip.position = Vector3(0, tip_len + (0.14 if is_two_hand else 0.0), 0)
 				_fp_right_weapon_holder.add_child(_blade_tip)
 				if is_two_hand:
 					_offhand_axe = true
@@ -650,6 +672,10 @@ func refresh_hand_visuals() -> void:
 			_disable_shadows(lw)
 			_fp_left_weapon_holder.add_child(lw)
 
+	_equip_raise = 1.0
+	_bow_reach_blend = 0.0
+	_bow_twang_t = 0.0
+	_bow_nock_slide = 1.0
 	_refresh_tp_weapons()
 	_update_procedural_animations(0.016, 0.0, false)
 
@@ -680,8 +706,12 @@ func _attach_spell_fx(holder: Node3D, spell: Dictionary) -> void:
 	_fp_spell_node = fx
 
 
-## Third-person: weapons follow the animated crawler's hand sockets.
+## Third-person: weapons follow the animated crawler's hand sockets (with proper shield & bow alignment).
 func _refresh_tp_weapons() -> void:
+	_tp_bow_node = null
+	_tp_string_top = null
+	_tp_string_bot = null
+	_tp_nocked_arrow = null
 	if tp_visual == null or tp_visual.model == null:
 		return
 	for grip_name in ["GripR", "GripL"]:
@@ -694,6 +724,7 @@ func _refresh_tp_weapons() -> void:
 	var lh: Dictionary = equipment.get("left_hand", {})
 	var gr := tp_visual.model.find_child("GripR*", true, false) as Node3D
 	var gl := tp_visual.model.find_child("GripL*", true, false) as Node3D
+	_tp_grip_r = gr
 	var is_bow := str(rh.get("weapon_type", "")) == "archery"
 	if gr != null and not rh.is_empty() and str(rh.get("category", "")) != "spell" and not is_bow:
 		gr.add_child(ModelLoader.instantiate_model(str(rh.get("model", "")), Vector3(0.05, 0.9, 0.05)))
@@ -701,12 +732,27 @@ func _refresh_tp_weapons() -> void:
 		if is_bow:
 			var b := ModelLoader.instantiate_model(str(rh.get("model", "")), Vector3(0.05, 1.4, 0.1))
 			gl.add_child(b)
+			_tp_bow_node = b
+			_tp_string_top = b.find_child("StringTop*", true, false) as Node3D
+			_tp_string_bot = b.find_child("StringBottom*", true, false) as Node3D
+			if _tp_string_top != null and _tp_string_bot != null:
+				_tp_string_tip_top = _tp_string_top.position
+				_tp_string_tip_bot = _tp_string_bot.position
+				_tp_string_rest_z = _tp_string_tip_top.z
+			_tp_nocked_arrow = ModelLoader.instantiate_model(GEAR_DIR + "arrow.glb", Vector3(0.02, 0.7, 0.02))
+			_tp_nocked_arrow.visible = false
+			b.add_child(_tp_nocked_arrow)
 		elif not lh.is_empty() and str(lh.get("category", "")) == "shield":
 			var sh := ModelLoader.instantiate_model(str(lh.get("model", "")), Vector3(0.8, 0.8, 0.1))
-			sh.rotation_degrees = Vector3(90.0, 0.0, 0.0)
+			# Shield grip bar stays vertical along GripL +Y while painted face points out from outer hand (+X)
+			sh.rotation_degrees = Vector3(0.0, 90.0, 0.0)
 			gl.add_child(sh)
 		elif not lh.is_empty() and str(lh.get("category", "")) == "spell":
 			gl.add_child(VfxFactory.make_glow(Color.html(str(lh.get("color", "#ff6a22"))), 0.3, 1.6))
+		elif not lh.is_empty() and str(lh.get("category", "")) == "weapon":
+			var lw := ModelLoader.instantiate_model(str(lh.get("model", "")), Vector3(0.05, 0.9, 0.05))
+			lw.rotation_degrees = Vector3(0.0, 90.0, 0.0)
+			gl.add_child(lw)
 
 
 ## Called by GameMain when a melee swing connects: brief hit-stop + camera punch for weight.
@@ -730,19 +776,28 @@ func _update_procedural_animations(delta: float, move_amount: float, is_sprintin
 		_hitstop = maxf(0.0, _hitstop - dt)
 		act_dt = dt * 0.08
 	_move_blend = lerpf(_move_blend, clampf(move_amount, 0.0, 1.0), clampf(dt * 10.0, 0.0, 1.0))
-	_sprint_blend = lerpf(_sprint_blend, 1.0 if is_sprinting else 0.0, clampf(dt * 9.0, 0.0, 1.0))
-	_block_blend = lerpf(_block_blend, 1.0 if is_blocking else 0.0, clampf(dt * 14.0, 0.0, 1.0))
+	_sprint_blend = lerpf(_sprint_blend, 1.0 if is_sprinting else 0.0, clampf(dt * 8.5, 0.0, 1.0))
+	_block_blend = lerpf(_block_blend, 1.0 if is_blocking else 0.0, clampf(dt * 13.0, 0.0, 1.0))
+	_equip_raise = maxf(0.0, _equip_raise - dt * 3.8)
 	var target_draw := CombatMath.compute_bow_draw_ratio(bow_draw_time, player_cfg) if is_bow_drawing else 0.0
-	_draw_blend = lerpf(_draw_blend, target_draw, clampf(dt * 12.0, 0.0, 1.0))
-	_look_sway = _look_sway.lerp(Vector2.ZERO, clampf(dt * 9.0, 0.0, 1.0))
-	_bow_release_recoil = maxf(0.0, _bow_release_recoil - dt * 5.0)
-	_camera_kick = maxf(0.0, _camera_kick - dt * 4.5)
+	if is_bow_drawing:
+		_draw_blend = lerpf(_draw_blend, target_draw, clampf(dt * 14.0, 0.0, 1.0))
+	else:
+		# Snap draw blend rapidly to 0 on release so string releases crisply rather than oozing forward
+		_draw_blend = lerpf(_draw_blend, 0.0, clampf(dt * 32.0, 0.0, 1.0))
+	var target_reach := 1.0 if (is_bow_drawing or is_right_holding) else 0.0
+	_bow_reach_blend = lerpf(_bow_reach_blend, target_reach, clampf(dt * (12.0 if target_reach > 0.5 else 7.5), 0.0, 1.0))
+	_bow_twang_t = maxf(0.0, _bow_twang_t - dt)
+	_bow_release_recoil = maxf(0.0, _bow_release_recoil - dt * 3.4)
+	if _bow_release_recoil < 0.35:
+		_bow_nock_slide = minf(1.0, _bow_nock_slide + dt * 4.5)
+	_look_sway = _look_sway.lerp(Vector2.ZERO, clampf(dt * 8.5, 0.0, 1.0))
+	_camera_kick = maxf(0.0, _camera_kick - dt * 4.2)
 	_shake = maxf(0.0, _shake - dt * 3.2)
 	_shake_phase += dt * 47.0
-	if _move_blend > 0.04:
-		_walk_bob_phase += dt * lerpf(7.6, 11.6, _sprint_blend)
-	else:
-		_walk_bob_phase = lerpf(_walk_bob_phase, 0.0, clampf(dt * 4.0, 0.0, 1.0))
+	if _move_blend > 0.02:
+		# Wrap modulo TAU; never spin phase backwards when stopping (amplitude fades smoothly via _move_blend)
+		_walk_bob_phase = fmod(_walk_bob_phase + dt * lerpf(7.8, 12.2, _sprint_blend), TAU)
 	if _right_swing_t > 0.0:
 		_right_swing_t = maxf(0.0, _right_swing_t - act_dt)
 	if _left_action_t > 0.0:
@@ -751,23 +806,10 @@ func _update_procedural_animations(delta: float, move_amount: float, is_sprintin
 		_slash_vfx_timer = maxf(0.0, _slash_vfx_timer - act_dt)
 
 	var bob_k := 1.0
+	var shake_k := 1.0
 	if GameSettings != null:
 		bob_k = float(GameSettings.get_value("gameplay", "head_bob"))
-	if camera_mode == "first_person":
-		var target_fov := _base_fov() + (_sprint_blend * 5.0) - (_draw_blend * 14.0)
-		camera.fov = lerpf(camera.fov, target_fov, clampf(dt * 10.0, 0.0, 1.0))
-		var head_bob_y := sin(_walk_bob_phase * 2.0) * 0.03 * _move_blend * (1.0 + _sprint_blend * 0.5) * bob_k
-		var head_bob_x := cos(_walk_bob_phase) * 0.016 * _move_blend * bob_k
-		var sh := Vector3(sin(_shake_phase * 1.3), sin(_shake_phase * 1.7 + 1.0), 0.0) * _shake * 0.035
-		camera.position = Vector3(head_bob_x, head_bob_y, 0.0) + sh
-		camera.rotation_degrees = Vector3(_camera_kick * 1.6 + sh.y * 30.0, sh.x * 20.0, -head_bob_x * 22.0 + sin(_shake_phase) * _shake * 1.5)
-
-	var breathe_x := sin(_anim_time * 1.3) * 0.005
-	var breathe_y := sin(_anim_time * 2.6) * 0.007
-	var walk_x := cos(_walk_bob_phase) * 0.02 * _move_blend * bob_k
-	var walk_y := absf(sin(_walk_bob_phase)) * -0.026 * _move_blend * bob_k
-	fp_rig.position = Vector3(breathe_x + walk_x + _look_sway.x, breathe_y + walk_y + _look_sway.y - _sprint_blend * 0.035, 0.0)
-	fp_rig.rotation_degrees = Vector3(_look_sway.y * 40.0, _look_sway.x * 50.0, -_look_sway.x * 30.0)
+		shake_k = float(GameSettings.get_value("gameplay", "camera_shake"))
 
 	var rh: Dictionary = equipment.get("right_hand", {})
 	var lh: Dictionary = equipment.get("left_hand", {})
@@ -775,170 +817,325 @@ func _update_procedural_animations(delta: float, move_amount: float, is_sprintin
 	var is_two_hand := bool(rh.get("two_handed", false)) and not is_bow
 	var r_spell := str(rh.get("category", "")) == "spell"
 
+	# Subtle organic breathing (asymmetric inhale/exhale) + smooth figure-8 pendulum stride bob
+	var br_wave := sin(_anim_time * 1.45) + 0.25 * sin(_anim_time * 2.9 - 0.55)
+	var breathe_x := cos(_anim_time * 0.72) * 0.004
+	var breathe_y := br_wave * 0.0065
+	var walk_x := cos(_walk_bob_phase) * 0.018 * _move_blend * (1.0 + _sprint_blend * 0.65) * bob_k
+	# Smooth double-frequency vertical pendulum lagged slightly behind head bob (no sharp abs(sin) cusp!)
+	var walk_y := (-cos(_walk_bob_phase * 2.0 - 0.35) - 0.15) * 0.014 * _move_blend * (1.0 + _sprint_blend * 0.7) * bob_k
+	var equip_drop := ease(_equip_raise, 2.2) * 0.26
+	fp_rig.position = Vector3(breathe_x + walk_x + _look_sway.x, breathe_y + walk_y + _look_sway.y - _sprint_blend * 0.03 - equip_drop, 0.0)
+	fp_rig.rotation_degrees = Vector3(_look_sway.y * 38.0 - ease(_equip_raise, 2.0) * 16.0, _look_sway.x * 46.0, -_look_sway.x * 28.0 - walk_x * 45.0)
+
 	# --- RIGHT HAND rest pose -------------------------------------------------------
 	var r_pos := Vector3(0.30, -0.32, -0.52)
-	var r_rot := Vector3(-20.0, -8.0, 16.0)
+	var r_quat := Basis.from_euler(Vector3(-20.0, -8.0, 16.0) * (PI / 180.0)).get_rotation_quaternion()
 	if is_two_hand:
-		# Haft carried diagonally across the body, head high on the right
 		r_pos = TWO_HAND_POS
-		r_rot = _hand_basis(TWO_HAND_GRIP, TWO_HAND_FOREARM).get_euler() * (180.0 / PI)
+		r_quat = _hand_basis(TWO_HAND_GRIP, TWO_HAND_FOREARM).get_rotation_quaternion()
 	elif is_bow:
-		# Empty drawing hand rests low on the right, forearm running down out of frame
-		r_pos = Vector3(0.3, -0.44, -0.46)
-		r_rot = _hand_basis(Vector3(-0.35, 0.45, -0.82), Vector3(0.25, -0.75, 0.6)).get_euler() * (180.0 / PI)
+		# Out-of-frame resting draw hand shares exact forearm hemisphere (pointing outward-right & downward)
+		# so raising onto the string NEVER brings the vambrace elbow cop into the camera view!
+		r_pos = Vector3(0.42, -0.54, -0.34)
+		r_quat = _hand_basis(Vector3(0.0, 0.96, -0.28), Vector3(0.84, -0.40, 0.36)).get_rotation_quaternion()
 	elif r_spell:
-		r_pos = Vector3(0.28, -0.3, -0.5)
-		r_rot = Vector3(-10.0, 10.0, 0.0)
+		r_pos = Vector3(0.28, -0.30, -0.50)
+		r_quat = Basis.from_euler(Vector3(-10.0, 10.0, 0.0) * (PI / 180.0)).get_rotation_quaternion()
 
-	if is_right_holding and not is_bow and str(rh.get("category", "")) == "weapon":
+	# Sprinting rhythmic weapon pump (when not swinging or bow-drawing)
+	if _sprint_blend > 0.01 and _right_swing_t <= 0.0 and not is_bow:
+		var sp_pump := sin(_walk_bob_phase) * _sprint_blend * bob_k
+		var sp_pos := Vector3(-0.04 + sp_pump * 0.025, -0.09 + cos(_walk_bob_phase * 2.0) * 0.012 * _sprint_blend * bob_k, 0.05 - sp_pump * 0.02)
+		var sp_q := Basis.from_euler(Vector3(-20.0 + sp_pump * 6.0, 16.0, 18.0) * (PI / 180.0)).get_rotation_quaternion()
+		r_pos += sp_pos * _sprint_blend
+		r_quat = r_quat.slerp(r_quat * sp_q, _sprint_blend)
+
+	# Power-attack wind-up charge hold (smoothly lifts weapon into high ready cleave!)
+	if is_right_holding and not is_bow and str(rh.get("category", "")) == "weapon" and _right_swing_t <= 0.0:
 		var charge := clampf(right_attack_hold / float(player_cfg["combat"]["power_attack_hold_sec"]), 0.0, 1.0)
-		var ce := ease(charge, 0.6)
-		r_pos += Vector3(0.06, 0.16, 0.12) * ce
-		r_rot += Vector3(30.0, -16.0, -24.0) * ce
-		r_pos += Vector3(sin(_anim_time * 40.0), cos(_anim_time * 37.0), 0) * 0.002 * ce
+		var ce := ease(charge, -1.6)
+		var chg_key: Array
+		if is_two_hand:
+			# Lift heavy battleaxe high-right pitched slightly forward while keeping forearms tucked low off bottom edge!
+			chg_key = _swing_key(Vector3(0.18, -0.18, -0.50), Vector3(-0.16, 0.78, -0.60), Vector3(0.24, -0.78, 0.58))
+		else:
+			# Raise longsword high right-back coiled for an explosive power cleave
+			chg_key = _swing_key(Vector3(0.36, -0.04, -0.40), Vector3(-0.32, 0.86, 0.39), Vector3(0.46, -0.68, 0.57))
+		r_pos = r_pos.lerp(chg_key[0] as Vector3, ce)
+		r_quat = r_quat.slerp(chg_key[1] as Quaternion, ce)
+		# Subtle muscular tension tremor near full charge
+		var trem := maxf(0.0, charge - 0.55) / 0.45
+		r_pos += Vector3(sin(_anim_time * 36.0), cos(_anim_time * 43.0), 0.0) * 0.0022 * trem
 
+	# Track live pose right before swing evaluation so releasing a charge never snaps back to rest!
+	if _right_swing_t <= 0.0:
+		_last_r_pos = r_pos
+		_last_r_quat = r_quat
+
+	var target_cam_swing := Vector3.ZERO
 	if _right_swing_t > 0.0:
 		var u := 1.0 - (_right_swing_t / maxf(0.01, _right_swing_dur))
-		var sp := Vector3.ZERO
-		var sr := Vector3.ZERO
 		if r_spell:
-			var pulse := sin(u * PI)
-			sp = Vector3(-0.06, 0.04, -0.22) * pulse
-			sr = Vector3(-20.0, 10.0, 0.0) * pulse
+			# 3-phase spell cast: 0..0.24 gather back -> 0.24..0.48 crisp palm thrust -> 0.48..1.0 recover
+			var rest_k := [r_pos, r_quat]
+			var gather_q := Basis.from_euler(Vector3(8.0, 22.0, -10.0) * (PI / 180.0)).get_rotation_quaternion()
+			var thrust_q := Basis.from_euler(Vector3(-28.0, 4.0, 8.0) * (PI / 180.0)).get_rotation_quaternion()
+			var recoil_q := Basis.from_euler(Vector3(-18.0, 8.0, 4.0) * (PI / 180.0)).get_rotation_quaternion()
+			var keys := [
+				rest_k,
+				[r_pos + Vector3(0.07, -0.05, 0.10), gather_q],
+				[r_pos + Vector3(-0.10, 0.06, -0.24), thrust_q],
+				[r_pos + Vector3(-0.07, 0.09, -0.18), recoil_q],
+				rest_k,
+			]
+			var spose := _swing_pose(u, keys, [0.0, 0.24, 0.46, 0.62, 1.0], [-1.6, 2.0, 0.45, -1.8])
+			r_pos = spose[0] as Vector3
+			r_quat = spose[1] as Quaternion
 		else:
-			# Weapon swings are keyed as fist poses (position + grip + forearm direction) so the elbow always
-			# trails the hand and the blade leads the cut; the swing starts and ends on the current rest pose
-			var rest_key := [r_pos, Basis.from_euler(r_rot * (PI / 180.0)).get_rotation_quaternion()]
+			var rest_key := [r_pos, r_quat]
+			var start_key := [_swing_start_pos, _swing_start_quat]
 			var keys: Array = []
 			var times: Array = []
 			var curves: Array = []
-			if _right_swing_power or is_two_hand:
-				# Overhead cleave: big anticipation, fast chop, heavy follow-through
-				keys = [rest_key,
-					_swing_key(Vector3(0.22, 0.0, -0.3), Vector3(-0.1, 0.55, 0.83), Vector3(0.25, -0.95, -0.2)),
-					_swing_key(Vector3(0.0, -0.32, -0.62), Vector3(-0.1, -0.35, -0.93), Vector3(0.35, -0.45, 0.82)),
-					rest_key]
-				times = [0.0, 0.3, 0.52, 1.0]
-				curves = [-1.8, 0.35, -2.0]
+			if _right_swing_power:
+				# Power Attack Overhead Cleave: if already charged, strikes straight FROM raised charge pose!
+				var high_key: Array = _swing_key(Vector3(0.18, -0.16, -0.50), Vector3(-0.16, 0.78, -0.60), Vector3(0.24, -0.78, 0.58)) if is_two_hand \
+					else _swing_key(Vector3(0.24, 0.05, -0.36), Vector3(-0.20, 0.86, 0.46), Vector3(0.30, -0.78, 0.54))
+				var mid_cut: Array = _swing_key(Vector3(0.04, -0.18, -0.62), Vector3(-0.18, 0.12, -0.97), Vector3(0.32, -0.42, 0.85))
+				var follow_key: Array = _swing_key(Vector3(-0.14, -0.44, -0.52), Vector3(-0.28, -0.62, -0.73), Vector3(0.45, -0.22, 0.86))
+				if _swing_was_charged:
+					keys = [start_key, high_key, mid_cut, follow_key, rest_key]
+					times = [0.0, 0.12, 0.34, 0.54, 1.0]
+					curves = [0.5, 2.2, 0.42, -1.9]
+				else:
+					keys = [start_key, high_key, mid_cut, follow_key, rest_key]
+					times = [0.0, 0.26, 0.46, 0.64, 1.0]
+					curves = [-1.6, 2.2, 0.42, -1.9]
+				target_cam_swing = Vector3(sin(u * PI) * -2.6, 0.0, sin(u * PI) * 1.4)
+			elif is_two_hand and _right_combo_step % 2 == 0:
+				# 2H Battleaxe Light #1: Heavy diagonal right-high to left-low cleave right across crosshair
+				keys = [
+					start_key,
+					_swing_key(Vector3(0.28, -0.10, -0.52), Vector3(0.32, 0.74, -0.58), Vector3(0.42, -0.62, 0.66)),
+					_swing_key(Vector3(0.04, -0.22, -0.62), Vector3(-0.82, 0.18, -0.54), Vector3(0.48, -0.42, 0.77)),
+					_swing_key(Vector3(-0.22, -0.40, -0.52), Vector3(-0.70, -0.56, -0.44), Vector3(0.68, -0.18, 0.71)),
+					rest_key,
+				]
+				times = [0.0, 0.24, 0.46, 0.64, 1.0]
+				curves = [-1.6, 2.1, 0.42, -1.9]
+				target_cam_swing = Vector3(-0.9 * sin(u * PI), 1.8 * sin(u * PI), 1.6 * sin(u * PI))
+			elif is_two_hand:
+				# 2H Battleaxe Light #2: Heavy rising cross-cleave left-low to right-high (bearded head arcs across screen!)
+				keys = [
+					start_key,
+					_swing_key(Vector3(-0.24, -0.34, -0.52), Vector3(-0.78, -0.16, -0.60), Vector3(0.58, -0.45, 0.68)),
+					_swing_key(Vector3(0.04, -0.20, -0.64), Vector3(0.84, 0.20, -0.50), Vector3(0.24, -0.54, 0.80)),
+					_swing_key(Vector3(0.26, -0.12, -0.54), Vector3(0.72, 0.46, -0.52), Vector3(0.04, -0.68, 0.73)),
+					rest_key,
+				]
+				times = [0.0, 0.24, 0.46, 0.64, 1.0]
+				curves = [-1.6, 2.1, 0.42, -1.9]
+				target_cam_swing = Vector3(0.7 * sin(u * PI), -1.8 * sin(u * PI), -1.5 * sin(u * PI))
 			elif _right_combo_step % 2 == 0:
-				# Forehand diagonal cut: right-high to left-low across the view
-				keys = [rest_key,
-					_swing_key(Vector3(0.34, -0.08, -0.45), Vector3(-0.25, 0.9, 0.35), Vector3(0.55, -0.6, 0.58)),
-					_swing_key(Vector3(0.08, -0.22, -0.58), Vector3(-0.92, 0.05, -0.38), Vector3(0.6, -0.35, 0.72)),
-					_swing_key(Vector3(-0.24, -0.38, -0.5), Vector3(-0.55, -0.6, 0.25), Vector3(0.82, -0.05, 0.57)),
-					rest_key]
-				times = [0.0, 0.24, 0.4, 0.5, 1.0]
-				curves = [-1.6, 0.4, 0.6, -1.8]
+				# 1H Forehand Diagonal Slash: right-high -> crisp cut across center -> left-low follow-through
+				keys = [
+					start_key,
+					_swing_key(Vector3(0.36, -0.06, -0.44), Vector3(-0.18, 0.90, 0.39), Vector3(0.50, -0.62, 0.60)),
+					_swing_key(Vector3(0.06, -0.20, -0.60), Vector3(-0.88, 0.14, -0.45), Vector3(0.56, -0.38, 0.73)),
+					_swing_key(Vector3(-0.22, -0.38, -0.50), Vector3(-0.62, -0.58, 0.12), Vector3(0.76, -0.10, 0.64)),
+					rest_key,
+				]
+				times = [0.0, 0.22, 0.44, 0.60, 1.0]
+				curves = [-1.5, 2.0, 0.42, -1.8]
+				target_cam_swing = Vector3(-0.5 * sin(u * PI), 1.3 * sin(u * PI), 1.1 * sin(u * PI))
 			else:
-				# Backhand riposte: left to right, rising
-				keys = [rest_key,
-					_swing_key(Vector3(-0.18, -0.34, -0.46), Vector3(-0.75, 0.35, 0.55), Vector3(0.65, -0.55, 0.52)),
-					_swing_key(Vector3(0.1, -0.2, -0.6), Vector3(0.9, 0.25, -0.35), Vector3(0.1, -0.6, 0.79)),
-					_swing_key(Vector3(0.36, -0.1, -0.42), Vector3(0.55, 0.6, 0.58), Vector3(-0.15, -0.8, 0.58)),
-					rest_key]
-				times = [0.0, 0.26, 0.4, 0.52, 1.0]
-				curves = [-1.6, 0.4, 0.6, -1.8]
+				# 1H Backhand Riposte: coiled left-low -> rising whip across center -> high-right flourish
+				keys = [
+					start_key,
+					_swing_key(Vector3(-0.16, -0.34, -0.46), Vector3(-0.74, 0.32, 0.59), Vector3(0.62, -0.52, 0.58)),
+					_swing_key(Vector3(0.08, -0.19, -0.60), Vector3(0.88, 0.26, -0.39), Vector3(0.14, -0.58, 0.80)),
+					_swing_key(Vector3(0.36, -0.08, -0.42), Vector3(0.58, 0.62, 0.53), Vector3(-0.10, -0.78, 0.62)),
+					rest_key,
+				]
+				times = [0.0, 0.22, 0.44, 0.60, 1.0]
+				curves = [-1.5, 2.0, 0.42, -1.8]
+				target_cam_swing = Vector3(0.4 * sin(u * PI), -1.3 * sin(u * PI), -1.1 * sin(u * PI))
 			var pose := _swing_pose(u, keys, times, curves)
-			sp = (pose[0] as Vector3) - r_pos
-			sr = Basis(pose[1] as Quaternion).get_euler() * (180.0 / PI) - r_rot
-		r_pos += sp
-		r_rot += sr
+			r_pos = pose[0] as Vector3
+			r_quat = pose[1] as Quaternion
 
-	r_pos += Vector3(-0.05, -0.1, 0.06) * _sprint_blend
-	r_rot += Vector3(-22.0, 14.0, 20.0) * _sprint_blend
-	r_pos.y += sin(_walk_bob_phase + 0.6) * 0.008 * _move_blend * bob_k
+	r_pos.y += sin(_walk_bob_phase + 0.6) * 0.006 * _move_blend * bob_k
 
 	# --- LEFT HAND ------------------------------------------------------------------
 	var l_pos := Vector3(-0.36, -0.38, -0.56)
-	var l_rot := Vector3(-6.0, 22.0, -6.0)
-	var l_basis := Basis.IDENTITY
+	var l_quat := Basis.from_euler(Vector3(-6.0, 22.0, -6.0) * (PI / 180.0)).get_rotation_quaternion()
 	var lcat := str(lh.get("category", ""))
 	if is_bow:
-		# Bow arm extended forward-left: the bow stands canted in the fist while the forearm runs back
-		# toward the left shoulder; drawing straightens the bow and brings it toward the centre line
-		var recoil := Vector3(0.0, 0.015, 0.05) * _bow_release_recoil
-		l_pos = Vector3(-0.32, -0.3, -0.7).lerp(Vector3(-0.21, -0.17, -0.76), _draw_blend) + recoil
-		var rest_b := _hand_basis(Vector3(0.45, 0.89, -0.1), Vector3(-0.2, -0.45, 0.87))
-		var draw_b := _hand_basis(Vector3(0.17, 0.985, 0.0), Vector3(-0.25, -0.3, 0.92))
-		l_basis = Basis(rest_b.get_rotation_quaternion().slerp(draw_b.get_rotation_quaternion(), _draw_blend))
+		# Bow arm: relaxed canted carry -> smoothly steadies near center-left sightline on draw; damped recoil on loose
+		var rec_k := ease(_bow_release_recoil, 0.5)
+		var recoil_pos := Vector3(-0.015, 0.022, 0.055) * rec_k
+		var draw_e := ease(_draw_blend, 0.75)
+		var aim_e := ease(maxf(_draw_blend, _bow_reach_blend * 0.65), -1.4)
+		l_pos = Vector3(-0.30, -0.28, -0.68).lerp(Vector3(-0.12, -0.14, -0.74), aim_e) + recoil_pos
+		if _sprint_blend > 0.01 and _draw_blend < 0.05:
+			l_pos += Vector3(0.08, -0.10, 0.06) * _sprint_blend
+		var rest_b := _hand_basis(Vector3(0.42, 0.90, -0.10), Vector3(-0.32, -0.46, 0.83))
+		var draw_b := _hand_basis(Vector3(0.14, 0.988, 0.0), Vector3(-0.44, -0.42, 0.79))
+		var rec_b := _hand_basis(Vector3(0.22, 0.96, 0.16), Vector3(-0.44, -0.45, 0.78))
+		l_quat = rest_b.get_rotation_quaternion().slerp(draw_b.get_rotation_quaternion(), aim_e)
+		if rec_k > 0.01:
+			l_quat = l_quat.slerp(rec_b.get_rotation_quaternion(), rec_k * 0.55)
+		# Subtle full-draw bow tension breathing
+		if draw_e > 0.7:
+			l_pos += Vector3(sin(_anim_time * 2.1), cos(_anim_time * 1.7), 0.0) * 0.0025 * (draw_e - 0.7) / 0.3
 	elif _offhand_axe:
 		pass
 	elif lcat == "shield":
-		# Rest: tucked edge-on in the lower-left corner. Block: raised across the left of centre.
-		var rest_p := Vector3(-0.5, -0.44, -0.62)
-		var rest_r := Vector3(-8.0, 58.0, -14.0)
-		var blk_p := Vector3(-0.24, -0.28, -0.56)
-		var blk_r := Vector3(0.0, 20.0, -6.0)
+		# Rest: compact edge-on lower-left. Block: decisive raise across left-of-center; impact shove-back on hit.
+		var rest_p := Vector3(-0.50, -0.44, -0.62)
+		var rest_q := Basis.from_euler(Vector3(-8.0, 58.0, -14.0) * (PI / 180.0)).get_rotation_quaternion()
+		var blk_p := Vector3(-0.24, -0.27, -0.56)
+		var blk_q := Basis.from_euler(Vector3(2.0, 18.0, -6.0) * (PI / 180.0)).get_rotation_quaternion()
 		var be := ease(_block_blend, -1.6)
 		l_pos = rest_p.lerp(blk_p, be)
-		l_rot = rest_r.lerp(blk_r, be)
+		l_quat = rest_q.slerp(blk_q, be)
+		if _sprint_blend > 0.01 and _block_blend < 0.2:
+			l_pos += Vector3(0.06, -0.06, 0.05) * _sprint_blend
 		if _left_action_t > 0.0:
-			var imp := sin((_left_action_t / maxf(0.01, _left_action_dur)) * PI)
-			l_pos += Vector3(0.0, -0.025, 0.1) * imp
-			l_rot += Vector3(12.0, 8.0, 0.0) * imp
+			var bu := 1.0 - (_left_action_t / maxf(0.01, _left_action_dur))
+			# Fast knockback shock -> damped spring settle back into guard
+			var imp := sin(minf(1.0, bu * 2.2) * PI * 0.5) * exp(-bu * 3.8)
+			l_pos += Vector3(-0.025, -0.035, 0.13) * imp
+			var imp_q := Basis.from_euler(Vector3(16.0, 12.0, -8.0) * imp * (PI / 180.0)).get_rotation_quaternion()
+			l_quat = l_quat * imp_q
 	elif lcat == "spell":
-		l_pos = Vector3(-0.3, -0.3, -0.5)
-		l_rot = Vector3(-8.0, -10.0, 0.0)
+		l_pos = Vector3(-0.30, -0.30, -0.50)
+		l_quat = Basis.from_euler(Vector3(-8.0, -10.0, 0.0) * (PI / 180.0)).get_rotation_quaternion()
 		if _left_action_t > 0.0:
+			# 3-phase left-hand spell cast: gather -> crisp forward thrust & palm flick -> settle
 			var u2 := 1.0 - (_left_action_t / maxf(0.01, _left_action_dur))
-			var pulse := sin(u2 * PI)
-			l_pos += Vector3(0.12, 0.06, -0.26) * pulse
-			l_rot += Vector3(-16.0, -14.0, 8.0) * pulse
+			var rest_lk := [l_pos, l_quat]
+			var gather_lq := Basis.from_euler(Vector3(10.0, -24.0, 10.0) * (PI / 180.0)).get_rotation_quaternion()
+			var thrust_lq := Basis.from_euler(Vector3(-26.0, -4.0, -8.0) * (PI / 180.0)).get_rotation_quaternion()
+			var recoil_lq := Basis.from_euler(Vector3(-16.0, -8.0, -4.0) * (PI / 180.0)).get_rotation_quaternion()
+			var lkeys := [
+				rest_lk,
+				[l_pos + Vector3(-0.06, -0.05, 0.10), gather_lq],
+				[l_pos + Vector3(0.11, 0.06, -0.25), thrust_lq],
+				[l_pos + Vector3(0.08, 0.09, -0.19), recoil_lq],
+				rest_lk,
+			]
+			var lpose := _swing_pose(u2, lkeys, [0.0, 0.24, 0.46, 0.62, 1.0], [-1.6, 2.0, 0.45, -1.8])
+			l_pos = lpose[0] as Vector3
+			l_quat = lpose[1] as Quaternion
 	elif not lh.is_empty():
+		# Dual-wield left-hand weapon: mirrored _hand_basis keys so left elbow ALWAYS trails cleanly off bottom-left!
 		l_pos = Vector3(-0.32, -0.32, -0.52)
-		l_rot = Vector3(-18.0, 10.0, -16.0)
+		l_quat = _hand_basis(Vector3(0.14, 0.90, -0.40), Vector3(-0.42, -0.52, 0.74)).get_rotation_quaternion()
 		if _left_action_t > 0.0:
 			var u3 := 1.0 - (_left_action_t / maxf(0.01, _left_action_dur))
-			var pulse3 := sin(u3 * PI)
-			l_pos += Vector3(0.32, 0.04, -0.24) * pulse3
-			l_rot += Vector3(-52.0, -48.0, -34.0) * pulse3
-	l_pos += Vector3(0.03, -0.08, 0.05) * _sprint_blend
-	l_pos.y += sin(_walk_bob_phase + 2.2) * 0.008 * _move_blend * bob_k
+			var rest_dw := [l_pos, l_quat]
+			var dw_keys: Array
+			if _left_combo_step % 2 == 0:
+				# Left-high to right-low diagonal forehand cut
+				dw_keys = [
+					rest_dw,
+					_swing_key(Vector3(-0.36, -0.08, -0.44), Vector3(0.20, 0.90, 0.38), Vector3(-0.50, -0.60, 0.62)),
+					_swing_key(Vector3(-0.06, -0.20, -0.60), Vector3(0.88, 0.14, -0.45), Vector3(-0.56, -0.38, 0.73)),
+					_swing_key(Vector3(0.20, -0.38, -0.50), Vector3(0.62, -0.56, 0.15), Vector3(-0.76, -0.12, 0.64)),
+					rest_dw,
+				]
+				target_cam_swing += Vector3(-0.4 * sin(u3 * PI), -1.2 * sin(u3 * PI), -1.0 * sin(u3 * PI))
+			else:
+				# Right-low to left-high rising left-hand riposte (sweeps prominently across center crosshair)
+				dw_keys = [
+					rest_dw,
+					_swing_key(Vector3(0.16, -0.28, -0.48), Vector3(0.74, 0.36, 0.56), Vector3(-0.62, -0.52, 0.58)),
+					_swing_key(Vector3(-0.06, -0.13, -0.58), Vector3(-0.88, 0.28, -0.38), Vector3(-0.18, -0.58, 0.79)),
+					_swing_key(Vector3(-0.34, -0.06, -0.44), Vector3(-0.58, 0.62, 0.53), Vector3(0.06, -0.78, 0.62)),
+					rest_dw,
+				]
+				target_cam_swing += Vector3(0.4 * sin(u3 * PI), 1.2 * sin(u3 * PI), 1.0 * sin(u3 * PI))
+			var dw_pose := _swing_pose(u3, dw_keys, [0.0, 0.22, 0.44, 0.60, 1.0], [-1.5, 2.0, 0.42, -1.8])
+			l_pos = dw_pose[0] as Vector3
+			l_quat = dw_pose[1] as Quaternion
 
-	fp_right_anchor.position = r_pos
-	fp_right_anchor.rotation_degrees = r_rot
+	l_pos.y += sin(_walk_bob_phase + 2.2) * 0.006 * _move_blend * bob_k
+
+	# Apply camera bob, shake & subtle melee swing coupling in first-person
+	_cam_swing_rot = _cam_swing_rot.lerp(target_cam_swing * shake_k, clampf(dt * 14.0, 0.0, 1.0))
+	if camera_mode == "first_person":
+		var target_fov := _base_fov() + (_sprint_blend * 5.0) - (_draw_blend * 14.0)
+		camera.fov = lerpf(camera.fov, target_fov, clampf(dt * 10.0, 0.0, 1.0))
+		var head_bob_y := sin(_walk_bob_phase * 2.0) * 0.028 * _move_blend * (1.0 + _sprint_blend * 0.5) * bob_k
+		var head_bob_x := cos(_walk_bob_phase) * 0.015 * _move_blend * bob_k
+		var sh := Vector3(sin(_shake_phase * 1.3), sin(_shake_phase * 1.7 + 1.0), 0.0) * _shake * 0.035
+		camera.position = Vector3(head_bob_x, head_bob_y, 0.0) + sh
+		camera.rotation_degrees = Vector3(
+			_camera_kick * 1.6 + sh.y * 30.0 + _cam_swing_rot.x,
+			sh.x * 20.0 + _cam_swing_rot.y,
+			-head_bob_x * 20.0 + sin(_shake_phase) * _shake * 1.5 + _cam_swing_rot.z
+		)
+
+	fp_right_anchor.transform = Transform3D(Basis(r_quat), r_pos)
 	if _offhand_axe:
-		# Left hand takes the lower wrap of the haft (below the right hand), rolled around the haft so
-		# its forearm leaves the frame to the lower left instead of crossing the view
+		# Left hand tracks the lower grip wrap of the battleaxe haft cleanly throughout idle, walk, and cleave
 		var hold := fp_right_anchor.transform * Transform3D(Basis(Vector3.UP, deg_to_rad(TWO_HAND_LEFT_ROLL)), Vector3(0.0, -0.17, 0.0))
 		fp_left_anchor.transform = hold
-	elif is_bow:
-		fp_left_anchor.transform = Transform3D(l_basis, l_pos)
 	else:
-		fp_left_anchor.position = l_pos
-		fp_left_anchor.rotation_degrees = l_rot
+		fp_left_anchor.transform = Transform3D(Basis(l_quat), l_pos)
 
-	# --- Bowstring pull, nocked arrow & drawing hand ---------------------------------
+	# --- Bowstring pull (with taut release twang!), sightline-aligned arrow & clean drawing hand ----
 	if is_bow and _bow_node != null:
 		var bow_to_anchor := _fp_left_weapon_holder.transform * _bow_node.transform
 		var bow_to_cam := fp_left_anchor.transform * bow_to_anchor
-		var rest_nock_cam := bow_to_cam * Vector3(0.0, 0.0, _string_rest_z)
-		# Full draw anchors the nock low-right in front of the face, so neither the string nor the arrow passes through the lens
-		var cheek := Vector3(0.12, -0.2, -0.36)
-		var nock_cam := rest_nock_cam.lerp(cheek, ease(_draw_blend, 0.8))
+		# Rest nocking point sits level with the inner arrow rest (-0.026, +0.055) so the arrow points DEAD STRAIGHT!
+		var rest_nock_cam := bow_to_cam * Vector3(-0.026, 0.055, _string_rest_z)
+		# Pull straight back beneath player's right eye so arrow aligns straight down the crosshair!
+		var cheek := Vector3(-0.08, -0.09, -0.30)
+		var nock_cam := rest_nock_cam.lerp(cheek, ease(_draw_blend, 0.82))
+		# Taut bowstring spring twang right after firing!
+		if _bow_twang_t > 0.0 and _draw_blend < 0.08:
+			var tw_u := 0.32 - _bow_twang_t
+			var vib := sin(tw_u * 75.0) * exp(-tw_u * 13.0) * 0.038
+			nock_cam += (bow_to_cam.basis * Vector3(0.0, 0.0, -vib))
 		var nock_local := bow_to_cam.affine_inverse() * nock_cam
 		if _string_top != null and _string_bot != null:
 			_aim_segment(_string_top, _string_tip_top, nock_local)
 			_aim_segment(_string_bot, _string_tip_bot, nock_local)
 		if _fp_nocked_arrow != null:
-			_fp_nocked_arrow.visible = _bow_release_recoil <= 0.15
-			var rest_pt := bow_to_cam * Vector3(0.024, 0.055, 0.0)
-			var dir := (rest_pt - nock_cam).normalized()
-			var mid_cam := nock_cam + dir * 0.36
-			var anchor_inv := fp_left_anchor.transform.affine_inverse()
-			var y_axis := anchor_inv.basis * dir
-			var x_axis := y_axis.cross(Vector3.UP).normalized()
-			if x_axis.length() < 0.1:
-				x_axis = Vector3.RIGHT
-			var z_axis := x_axis.cross(y_axis).normalized()
-			_fp_nocked_arrow.transform = Transform3D(Basis(x_axis, y_axis, z_axis), anchor_inv * mid_cam)
-		# Drawing hand hooks the string (fingers curled across it, toward the bow) with the forearm
-		# running back-right toward the raised elbow, off the edge of the screen
-		var pull := clampf(_draw_blend * 1.4 + (0.3 if is_right_holding else 0.0), 0.0, 1.0)
-		fp_right_anchor.position = r_pos.lerp(nock_cam + Vector3(0.025, -0.01, 0.02), pull)
-		var rest_q := Basis.from_euler(r_rot * (PI / 180.0)).get_rotation_quaternion()
-		var hook_q := _hand_basis(Vector3(-0.95, 0.05, -0.3), Vector3(0.45, 0.15, 0.88)).get_rotation_quaternion()
-		fp_right_anchor.basis = Basis(rest_q.slerp(hook_q, pull))
+			var show_arrow := _bow_release_recoil <= 0.35
+			_fp_nocked_arrow.visible = show_arrow
+			if show_arrow:
+				# Bow is rotated Y=180 so inner (right/+X) arrow rest sits at local (-0.026, 0.055, 0.0)
+				var rest_pt := bow_to_cam * Vector3(-0.026, 0.055, 0.0)
+				var dir := (rest_pt - nock_cam).normalized()
+				# Smooth slide-in from lower right when re-nocking a fresh arrow
+				var slide := 1.0 - ease(_bow_nock_slide, 0.5)
+				var mid_cam := nock_cam + dir * (0.36 - slide * 0.16) + Vector3(0.06, -0.08, 0.04) * slide
+				var anchor_inv := fp_left_anchor.transform.affine_inverse()
+				var y_axis := anchor_inv.basis * dir
+				var x_axis := y_axis.cross(Vector3.UP).normalized()
+				if x_axis.length() < 0.1:
+					x_axis = Vector3.RIGHT
+				var z_axis := x_axis.cross(y_axis).normalized()
+				_fp_nocked_arrow.transform = Transform3D(Basis(x_axis, y_axis, z_axis), anchor_inv * mid_cam)
+		# Drawing hand: glides in smoothly with draw_blend so ONLY gloved fingers pinch string & nock
+		# while the vambrace/elbow stays cleanly off the bottom-right corner at every frame!
+		var hook_q := _hand_basis(Vector3(0.0, 0.96, -0.28), Vector3(0.84, -0.40, 0.36)).get_rotation_quaternion()
+		var loose_pos := cheek + Vector3(0.14, -0.04, 0.14)
+		var loose_q := _hand_basis(Vector3(0.08, 0.94, -0.32), Vector3(0.86, -0.38, 0.34)).get_rotation_quaternion()
+		if _bow_release_recoil > 0.08 and not is_bow_drawing:
+			# Natural archery back-tension release follow-through, then smooth lower out of frame
+			var rk := ease(clampf((_bow_release_recoil - 0.08) / 0.92, 0.0, 1.0), 0.65)
+			fp_right_anchor.position = r_pos.lerp(loose_pos, rk)
+			fp_right_anchor.basis = Basis(r_quat.slerp(loose_q, rk))
+		else:
+			var draw_reach := ease(clampf(_draw_blend * 1.65, 0.0, 1.0), -1.3)
+			var hand_on_string := nock_cam + Vector3(0.048, -0.022, 0.020)
+			fp_right_anchor.position = r_pos.lerp(hand_on_string, draw_reach)
+			fp_right_anchor.basis = Basis(r_quat.slerp(hook_q, draw_reach))
 
 	# --- Spell glow breathing --------------------------------------------------------
 	if _spell_fx != null and is_instance_valid(_spell_fx):
@@ -954,14 +1151,46 @@ func _update_procedural_animations(delta: float, move_amount: float, is_sprintin
 	# --- 3RD-PERSON SKELETAL ANIMATION -----------------------------------------------
 	if tp_visual != null and tp_visual.visible:
 		_tp_action_lock = maxf(0.0, _tp_action_lock - dt)
-		var st := "idle"
-		if _move_blend > 0.15:
-			st = "run" if _sprint_blend > 0.5 else "walk"
-		elif is_blocking:
+		var horiz_spd := Vector2(velocity.x, velocity.z).length()
+		var armed := not rh.is_empty() or not lh.is_empty()
+		var st := "idle_combat" if (armed and tp_visual.has_anim("idle_combat")) else "idle"
+		var play_spd := 1.0
+		if is_blocking and horiz_spd < 2.2:
 			st = "block"
-		elif is_bow_drawing:
+		elif is_bow_drawing and horiz_spd < 2.2:
 			st = "draw_hold"
-		tp_visual.play_state(st, 0.18, 1.0 if st != "walk" else clampf(0.8 + _move_blend * 0.4, 0.8, 1.3))
+		elif _move_blend > 0.12:
+			# Calibrate walk/run switch & speed to true stride velocity (zero foot sliding!)
+			var use_run := _sprint_blend > 0.35 or horiz_spd > 4.2
+			st = "run" if use_run else "walk"
+			play_spd = clampf(horiz_spd / (3.4 if use_run else 1.85), 0.75, 1.65)
+		tp_visual.play_state(st, 0.18, play_spd)
+		_update_tp_bowstring()
+
+
+func _update_tp_bowstring() -> void:
+	if _tp_bow_node == null or not is_instance_valid(_tp_bow_node):
+		return
+	var drawing := is_bow_drawing and (tp_visual.state == "draw_hold" or _draw_blend > 0.1)
+	var nock_local := Vector3(0.0, 0.0, _tp_string_rest_z)
+	if drawing and _tp_grip_r != null and is_instance_valid(_tp_grip_r):
+		var p_local := _tp_bow_node.to_local(_tp_grip_r.global_position)
+		var pull_z := clampf(p_local.z, _tp_string_rest_z - 0.52, _tp_string_rest_z)
+		nock_local = Vector3(clampf(p_local.x, -0.04, 0.04), clampf(p_local.y, -0.05, 0.08), pull_z)
+	if _tp_string_top != null and _tp_string_bot != null:
+		_aim_segment(_tp_string_top, _tp_string_tip_top, nock_local)
+		_aim_segment(_tp_string_bot, _tp_string_tip_bot, nock_local)
+	if _tp_nocked_arrow != null:
+		_tp_nocked_arrow.visible = drawing
+		if drawing:
+			var rest_pt := Vector3(0.024, 0.055, 0.0)
+			var dir := (rest_pt - nock_local).normalized()
+			var y_ax := dir
+			var x_ax := y_ax.cross(Vector3.UP).normalized()
+			if x_ax.length() < 0.1:
+				x_ax = Vector3.RIGHT
+			var z_ax := x_ax.cross(y_ax).normalized()
+			_tp_nocked_arrow.transform = Transform3D(Basis(x_ax, y_ax, z_ax), nock_local + dir * 0.36)
 
 
 ## Orientation for a first-person fist from where its grip axis (through the fist) and its forearm (toward
@@ -1023,7 +1252,8 @@ func _update_blade_trail() -> void:
 	if swinging:
 		var inv := camera.global_transform.affine_inverse()
 		var u := 1.0 - (_right_swing_t / maxf(0.01, _right_swing_dur))
-		if u > 0.24 and u < 0.6:
+		var u0 := 0.12 if _swing_was_charged else 0.22
+		if u > u0 and u < 0.64:
 			_trail_pts.push_front([inv * _blade_base.global_position, inv * _blade_tip.global_position, _anim_time])
 	# Keep only the last ~90 ms of blade path so the streak has the same length at any frame rate
 	while not _trail_pts.is_empty() and (_anim_time - float(_trail_pts.back()[2]) > TRAIL_LIFE or _trail_pts.size() > 12):
@@ -1086,20 +1316,29 @@ func _perform_melee_attack(weapon: Dictionary, is_right: bool, is_power: bool) -
 
 	var eq_totals := LootGenerator.aggregate_equipment_stats(equipment)
 	var cd := float(weapon.get("cooldown_sec", 0.55)) * (1.0 - float(eq_totals["cooldown_reduction"]))
+	var is_two_hand := bool(weapon.get("two_handed", false))
 	if tp_visual != null and tp_visual.visible:
-		tp_visual.play_action("attack", 0.08, 1.15 if not is_power else 0.95)
+		var tp_clip := "attack_2h" if (is_two_hand and tp_visual.has_anim("attack_2h")) else "attack"
+		tp_visual.play_action(tp_clip, 0.08, 1.15 if not is_power else 0.92)
 	if is_right:
 		_right_cooldown = cd
 		_right_swing_power = is_power
-		_right_swing_dur = 0.5 if (is_power or bool(weapon.get("two_handed", false))) else 0.36
+		_swing_was_charged = is_power
+		_swing_start_pos = _last_r_pos
+		_swing_start_quat = _last_r_quat
+		if is_power:
+			_right_swing_dur = 0.68 if is_two_hand else 0.60
+		else:
+			_right_swing_dur = 0.58 if is_two_hand else 0.44
 		_right_swing_t = _right_swing_dur
 		_right_combo_step = (_right_combo_step + 1) % 2
-		_slash_vfx_timer = 0.14
+		_slash_vfx_timer = 0.16
 		_camera_kick = 0.55 if is_power else 0.22
 	else:
 		_left_cooldown = cd
-		_left_action_dur = 0.30
+		_left_action_dur = 0.42
 		_left_action_t = _left_action_dur
+		_left_combo_step = (_left_combo_step + 1) % 2
 
 	if EventBus != null:
 		EventBus.sfx_requested.emit("sword_swing")
@@ -1132,7 +1371,12 @@ func _fire_bow(bow: Dictionary, hold_sec: float) -> void:
 	stamina = maxf(0.0, stamina - float(bow.get("stamina_cost", 10.0)))
 	_stamina_regen_delay = float(player_cfg["stats"]["regen_delay_after_spend_sec"])
 	_bow_release_recoil = 1.0
+	_bow_twang_t = 0.32
+	_bow_nock_slide = 0.0
+	_draw_blend = 0.0
 	_camera_kick = 0.32
+	if tp_visual != null and tp_visual.visible and tp_visual.has_anim("bow_shoot"):
+		tp_visual.play_action("bow_shoot", 0.05, 1.0)
 
 	var ccfg: Dictionary = player_cfg["combat"]
 	var speed := lerpf(float(ccfg["bow_arrow_speed_min"]), float(ccfg["bow_arrow_speed_max"]), ratio)
@@ -1174,17 +1418,18 @@ func _cast_spell(spell: Dictionary, is_right: bool) -> void:
 	var cd := float(spell.get("cooldown_sec", 0.55)) * (1.0 - float(eq_totals["cooldown_reduction"]))
 	if is_right:
 		_right_cooldown = cd
-		_right_swing_dur = 0.28
+		_right_swing_dur = 0.38
 		_right_swing_t = _right_swing_dur
 		_right_swing_power = false
+		_swing_was_charged = false
 	else:
 		_left_cooldown = cd
-		_left_action_dur = 0.28
+		_left_action_dur = 0.38
 		_left_action_t = _left_action_dur
 	_camera_kick = 0.24
 
 	if tp_visual != null and tp_visual.visible:
-		tp_visual.play_action("cast", 0.08, 1.3)
+		tp_visual.play_action("cast", 0.08, 1.15)
 	var kind := str(spell.get("spell_kind", "projectile"))
 	var skill_name := str(spell.get("weapon_type", "destruction"))
 	var prog_bonuses := progression.get_derived_bonuses() if progression != null else {}

@@ -57,6 +57,16 @@ var _lag_ratio: float = 1.0
 var _bar_visible_t: float = 0.0
 var _boss_ember_light: OmniLight3D = null
 var _height: float = 1.85
+var _bow_node: Node3D = null
+var _string_top: Node3D = null
+var _string_bot: Node3D = null
+var _string_tip_top: Vector3 = Vector3.ZERO
+var _string_tip_bot: Vector3 = Vector3.ZERO
+var _string_rest_z: float = 0.0
+var _nocked_arrow: Node3D = null
+var _grip_r_node: Node3D = null
+var _stride_walk_mps: float = 1.65
+var _stride_run_mps: float = 4.2
 
 var _layout: DungeonGenerator.FloorLayout = null
 var _player_ref: Node3D = null
@@ -127,6 +137,12 @@ func setup(
 
 	var radius := float(enemy_def.get("radius", 0.5))
 	_height = float(enemy_def.get("height", 1.85))
+	# Natural clip stride velocity matching char_anims.py (4*stride_half / clip_duration)
+	var leg_len := _height * 0.48
+	var g_mult := 1.08 if archetype == "charger" else 1.0
+	_stride_walk_mps = maxf(0.8, (4.0 * 0.30 * leg_len * g_mult) / (32.0 / 30.0))
+	_stride_run_mps = maxf(1.5, (4.0 * 0.48 * leg_len * g_mult) / (20.0 / 30.0))
+
 	var col := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
 	cap.radius = radius
@@ -139,6 +155,7 @@ func setup(
 	var kind := str(vdef.get("kind", str(enemy_def.get("model", "")).get_file().get_basename()))
 	visual = CharacterVisual.create(kind)
 	add_child(visual)
+	_grip_r_node = visual.model.find_child("GripR*", true, false) as Node3D
 	var weapon_path := str(vdef.get("weapon", ""))
 	if not weapon_path.is_empty():
 		var w := ModelLoader.instantiate_model(weapon_path, Vector3(0.1, 0.8, 0.1))
@@ -149,6 +166,17 @@ func setup(
 			grip.add_child(w)
 		else:
 			visual.attach_to_bone("hand_" + str(vdef.get("weapon_hand", "r")), w)
+		if archetype == "ranged":
+			_bow_node = w
+			_string_top = w.find_child("StringTop*", true, false) as Node3D
+			_string_bot = w.find_child("StringBottom*", true, false) as Node3D
+			if _string_top != null and _string_bot != null:
+				_string_tip_top = _string_top.position
+				_string_tip_bot = _string_bot.position
+				_string_rest_z = _string_tip_top.z
+			_nocked_arrow = ModelLoader.instantiate_model("res://assets/models/gear/arrow.glb", Vector3(0.02, 0.7, 0.02))
+			_nocked_arrow.visible = false
+			w.add_child(_nocked_arrow)
 	if archetype == "ranged":
 		_attack_clip = "shoot"
 	elif is_boss:
@@ -415,19 +443,61 @@ func detach_visual() -> Node3D:
 func _update_animation(delta: float, horiz_speed: float) -> void:
 	if visual == null:
 		return
-	var speed_ratio := horiz_speed / maxf(0.5, move_speed)
 	var target := "idle"
 	if state == AiState.ATTACK or (state == AiState.CHASE and horiz_speed < 0.2):
 		target = "idle_combat"
-	if horiz_speed > 0.25:
-		target = "run" if speed_ratio > 1.15 or (enraged and is_boss) or archetype == "charger" else "walk"
-	var play_speed := clampf(speed_ratio * (0.75 if target == "run" else 1.1), 0.6, 1.6) if target in ["walk", "run"] else 1.0
-	visual.play_state(target if visual.has_anim(target) else "idle", 0.2, play_speed)
+	if horiz_speed > 0.22:
+		var use_run := horiz_speed > _stride_walk_mps * 1.45 or (enraged and is_boss) or archetype == "charger"
+		target = "run" if use_run else "walk"
+	var play_speed := 1.0
+	if target == "walk":
+		play_speed = clampf(horiz_speed / maxf(0.5, _stride_walk_mps), 0.65, 1.55)
+	elif target == "run":
+		play_speed = clampf(horiz_speed / maxf(0.8, _stride_run_mps), 0.70, 1.55)
+	visual.play_state(target if visual.has_anim(target) else "idle", 0.22, play_speed)
 	if visual.oneshot.is_empty():
 		_attack_anim_started = false if _attack_timer > _impact_time else _attack_anim_started
 	if _boss_ember_light != null:
 		var base_e := 2.6 if enraged else 1.4
 		_boss_ember_light.light_energy = base_e + sin(_anim_time * 5.2) * 0.3
+	if _bow_node != null and is_instance_valid(_bow_node):
+		_update_archer_bowstring()
+
+
+func _update_archer_bowstring() -> void:
+	var drawing := visual != null and visual.oneshot == "shoot" and visual.action_progress() >= (9.0 / 46.0) and visual.action_progress() < (32.0 / 46.0)
+	var nock_local := Vector3(0.0, 0.0, _string_rest_z)
+	if drawing and _grip_r_node != null and is_instance_valid(_grip_r_node):
+		var p_local := _bow_node.to_local(_grip_r_node.global_position)
+		# Clamp nock neatly along the string's draw axis (-Z in Godot bow space)
+		var pull_z := clampf(p_local.z, _string_rest_z - 0.52, _string_rest_z)
+		nock_local = Vector3(clampf(p_local.x, -0.04, 0.04), clampf(p_local.y, -0.05, 0.08), pull_z)
+	if _string_top != null and _string_bot != null:
+		_aim_bow_seg(_string_top, _string_tip_top, nock_local)
+		_aim_bow_seg(_string_bot, _string_tip_bot, nock_local)
+	if _nocked_arrow != null:
+		_nocked_arrow.visible = drawing
+		if drawing:
+			var rest_pt := Vector3(0.024, 0.055, 0.0)
+			var dir := (rest_pt - nock_local).normalized()
+			var y_ax := dir
+			var x_ax := y_ax.cross(Vector3.UP).normalized()
+			if x_ax.length() < 0.1:
+				x_ax = Vector3.RIGHT
+			var z_ax := x_ax.cross(y_ax).normalized()
+			_nocked_arrow.transform = Transform3D(Basis(x_ax, y_ax, z_ax), nock_local + dir * 0.36)
+
+
+static func _aim_bow_seg(seg: Node3D, tip: Vector3, target: Vector3) -> void:
+	var d := target - tip
+	var ln := d.length()
+	if ln < 0.0005:
+		return
+	var y := d / ln
+	var x := Vector3.RIGHT if absf(y.dot(Vector3.RIGHT)) < 0.9 else Vector3.FORWARD
+	var z := x.cross(y).normalized()
+	x = y.cross(z).normalized()
+	seg.transform = Transform3D(Basis(x, y * ln, z), tip)
 
 
 func _perform_attack(flat_dir: Vector3) -> void:
