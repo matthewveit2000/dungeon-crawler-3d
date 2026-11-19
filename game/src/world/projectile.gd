@@ -3,7 +3,7 @@ extends Area3D
 ## 3D Projectile for Archery Arrows and Destruction Spells (Firebolt AoE & Chain Spark).
 
 var velocity: Vector3 = Vector3.ZERO
-var gravity: float = 0.0
+var projectile_gravity: float = 0.0
 var damage: float = 15.0
 var crit_chance: float = 0.08
 var crit_multiplier: float = 1.65
@@ -19,7 +19,7 @@ var _expired: bool = false
 
 func setup(params: Dictionary, hit_callback: Callable) -> void:
 	velocity = params.get("velocity", Vector3.FORWARD * 25.0)
-	gravity = float(params.get("gravity", 0.0))
+	projectile_gravity = float(params.get("gravity", 0.0))
 	damage = float(params.get("damage", 15.0))
 	crit_chance = float(params.get("crit_chance", 0.08))
 	crit_multiplier = float(params.get("crit_multiplier", 1.65))
@@ -71,7 +71,7 @@ func _physics_process(delta: float) -> void:
 	if lifetime <= 0.0:
 		_expire()
 		return
-	velocity.y -= gravity * delta
+	velocity.y -= projectile_gravity * delta
 	global_position += velocity * delta
 	if velocity.length_squared() > 0.05:
 		look_at(global_position + velocity.normalized(), Vector3.UP)

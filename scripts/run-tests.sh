@@ -20,21 +20,40 @@ if [[ ! -x "${GODOT_BIN}" ]]; then
   fi
 fi
 
-echo "=== [1/4] Validating Tier 3 JSON Data Packs ==="
+echo "=== [1/5] Validating Tier 3 JSON Data Packs ==="
 python3 "${REPO_ROOT}/scripts/validate-data.py"
 
-echo "=== [2/4] Running Repo & Architecture Hygiene Checks ==="
+echo "=== [2/5] Running Repo & Architecture Hygiene Checks ==="
 python3 "${REPO_ROOT}/scripts/check-repo-hygiene.py"
 
 if [[ -f "${REPO_ROOT}/scripts/validate-assets.py" && -f "${REPO_ROOT}/art/manifest.json" ]]; then
-  echo "=== [3/4] Validating Blender .glb Assets & Previews ==="
+  echo "=== [3/5] Validating Blender .glb Assets & Previews ==="
   python3 "${REPO_ROOT}/scripts/validate-assets.py"
 else
-  echo "=== [3/4] Asset manifest not present yet (skipping until Phase 2) ==="
+  echo "=== [3/5] Asset manifest not present yet (skipping until Phase 2) ==="
 fi
 
-echo "=== [4/4] Running Godot 4 Headless Import & Full GUT Test Suite ==="
+echo "=== [4/5] Running Godot 4 Headless Import & Main Scene Boot Smoke Check ==="
 "${GODOT_BIN}" --headless --path "${REPO_ROOT}/game" --import --quit >/dev/null 2>&1 || true
-"${GODOT_BIN}" --headless --path "${REPO_ROOT}/game" -s addons/gut/gut_cmdln.gd -gexit
+BOOT_OUT="$("${GODOT_BIN}" --headless --path "${REPO_ROOT}/game" --quit-after 20 res://scenes/main.tscn 2>&1)"
+echo "${BOOT_OUT}"
+if echo "${BOOT_OUT}" | grep -E "SCRIPT ERROR|Parse Error|Compile Error|^ERROR:" >/dev/null; then
+  echo "[run-tests] FAIL: Godot reported errors while booting res://scenes/main.tscn!" >&2
+  exit 1
+fi
+echo "[boot-smoke] OK: res://scenes/main.tscn booted headlessly for 20 frames with zero errors."
+
+echo "=== [5/5] Running Full GUT Unit & Headless 3D Integration Test Suite ==="
+GUT_LOG="$(mktemp)"
+trap 'rm -f "${GUT_LOG}"' EXIT
+"${GODOT_BIN}" --headless --path "${REPO_ROOT}/game" -s addons/gut/gut_cmdln.gd -gexit 2>&1 | tee "${GUT_LOG}"
+GUT_EXIT="${PIPESTATUS[0]}"
+if [[ "${GUT_EXIT}" -ne 0 ]]; then
+  exit "${GUT_EXIT}"
+fi
+if grep -E "SCRIPT ERROR|Parse Error|Compile Error|Failed to load script|Ignoring script" "${GUT_LOG}" >/dev/null; then
+  echo "[run-tests] FAIL: GUT reported script parse/load errors or ignored a test file!" >&2
+  exit 1
+fi
 
 echo "=== ALL AUTOMATED CHECKS PASSED ==="

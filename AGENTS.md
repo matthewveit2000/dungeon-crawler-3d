@@ -67,8 +67,11 @@ Because this repository must be seamlessly usable by **any AI tool** across sess
 2. `docs/ROLES_AND_GOVERNANCE.md`
 3. `docs/VISION_AND_CONSTRAINTS.md`
 4. `docs/GAME_DESIGN.md`
-5. `docs/TESTING_STRATEGY.md`
-6. `docs/ROADMAP.md`
-7. `docs/DECISION_LOG.md`
-8. `docs/ALIGNMENT_LOG.md`
-9. `CHANGELOG.md`
+5. `docs/ARCHITECTURE.md`
+6. `docs/ART_PIPELINE.md`
+7. `docs/TESTING_STRATEGY.md`
+8. `docs/PLAYTEST_GUIDE.md`
+9. `docs/ROADMAP.md`
+10. `docs/DECISION_LOG.md`
+11. `docs/ALIGNMENT_LOG.md`
+12. `CHANGELOG.md` and `docs/changelogs/`

@@ -9,6 +9,7 @@ const HELP_TEXT := """Available Playtest / Audit Commands:
   advance_days <float>        Fast-forward the 5-day floor clock (e.g. advance_days 4.9)
   collapse                    Trigger immediate floor collapse reset
   kill_player                 Trigger combat-death floor-entry snapshot reset
+  kill_boss                   Defeat the Floor Boss immediately (unlocks Treasure Vault)
   spawn_loot [rarity]         Grant rolled gear (common/uncommon/rare/epic/sponsored)
   add_gold <amount>           Add gold to inventory
   add_xp <amount>             Grant character XP

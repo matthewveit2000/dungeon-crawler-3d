@@ -31,12 +31,31 @@ This repository is structured to work seamlessly with **any AI coding tool** (An
 | [`docs/VISION_AND_CONSTRAINTS.md`](docs/VISION_AND_CONSTRAINTS.md) | North star, goals, constraints, and open alignment topics |
 | [`docs/ROLES_AND_GOVERNANCE.md`](docs/ROLES_AND_GOVERNANCE.md) | Division of labor, decision authority, and communication rules |
 | [`docs/GAME_DESIGN.md`](docs/GAME_DESIGN.md) | Complete Game Design Document (Skyrim feel + DCC loop) |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Three-tier Godot 4 + JSON + Blender architecture & scene tree |
+| [`docs/ART_PIPELINE.md`](docs/ART_PIPELINE.md) | Blender 4.5.9 LTS stylized 3D pipeline & asset inventory (29 models) |
+| [`docs/PLAYTEST_GUIDE.md`](docs/PLAYTEST_GUIDE.md) | Plain-English launch, Skyrim controls, playtest tour & Audit Console |
 | [`docs/TESTING_STRATEGY.md`](docs/TESTING_STRATEGY.md) | Automated testing architecture for Godot 4, Blender, and CI |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Phased milestone roadmap (`v0.1` Vertical Slice → `v1.0`) |
 | [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md) | Permanent record of every locked-in design and technical decision |
 | [`docs/ALIGNMENT_LOG.md`](docs/ALIGNMENT_LOG.md) | Q&A alignment rounds and agreed outcomes |
 | [`CHANGELOG.md`](CHANGELOG.md) | Root changelog tracking every meaningful change to the repo |
-| [`docs/changelogs/README.md`](docs/changelogs/README.md) | Changelog conventions for code, design, art, and documentation |
+| [`docs/changelogs/README.md`](docs/changelogs/README.md) | Domain changelogs for design, architecture, art, and testing |
+
+---
+
+## Quick Start (Play & Automated Tests)
+
+- **Play the Game:** Open `game/project.godot` in **Godot 4.7.2-stable** and press **F5** (see [`docs/PLAYTEST_GUIDE.md`](docs/PLAYTEST_GUIDE.md) for controls & built-in `` ` `` Playtest Console shortcuts).
+- **Run All Automated Checks Locally:**
+  ```bash
+  ./scripts/setup-tools.sh --godot-only
+  ./scripts/run-tests.sh
+  ```
+- **Regenerate All 29 Blender `.glb` Models & Studio Previews:**
+  ```bash
+  ./scripts/setup-tools.sh
+  ./.tools/bin/blender --background --python art/blender/build_all.py
+  ```
 
 ---
 
