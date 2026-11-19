@@ -30,6 +30,9 @@ This repository is structured to work seamlessly with **any AI coding tool** (An
 | [`.github/copilot-instructions.md`](.github/copilot-instructions.md) | GitHub Copilot entry point (references `AGENTS.md`) |
 | [`docs/VISION_AND_CONSTRAINTS.md`](docs/VISION_AND_CONSTRAINTS.md) | North star, goals, constraints, and open alignment topics |
 | [`docs/ROLES_AND_GOVERNANCE.md`](docs/ROLES_AND_GOVERNANCE.md) | Division of labor, decision authority, and communication rules |
+| [`docs/GAME_DESIGN.md`](docs/GAME_DESIGN.md) | Complete Game Design Document (Skyrim feel + DCC loop) |
+| [`docs/TESTING_STRATEGY.md`](docs/TESTING_STRATEGY.md) | Automated testing architecture for Godot 4, Blender, and CI |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Phased milestone roadmap (`v0.1` Vertical Slice → `v1.0`) |
 | [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md) | Permanent record of every locked-in design and technical decision |
 | [`docs/ALIGNMENT_LOG.md`](docs/ALIGNMENT_LOG.md) | Q&A alignment rounds and agreed outcomes |
 | [`CHANGELOG.md`](CHANGELOG.md) | Root changelog tracking every meaningful change to the repo |

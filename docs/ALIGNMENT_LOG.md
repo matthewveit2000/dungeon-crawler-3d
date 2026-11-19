@@ -54,13 +54,21 @@ This document records each Q&A alignment round between the Project Owner (User) 
 
 ---
 
-## Round 4 — Platform, Engine, Visual Style & First Playable Milestone (`In Progress`)
+## Round 4 — Platform, Engine, Visual Style & First Playable Milestone (Completed: 2026-11-18)
 
-**Goal:** Align on target platform/engine direction, 3D Blender art style, audio approach, and scope of the first playable vertical slice.
-
-*(Awaiting user answers.)*
+**Agreed Outcomes (logged in `D-024` through `D-027`):**
+- **Engine & Platform:** Desktop app (Windows / Mac / Linux) via **Godot 4** (MIT, free & open source), with optional Web export later.
+- **3D Visual Style:** **Clean Stylized Dark Fantasy** in Blender — clean readable silhouettes with smooth shading, bevels, and procedural/painted textures, retaining flexibility to push surface/texture richness higher over time.
+- **Audio & Dungeon AI:** Procedural/synthesized open-source SFX & dungeon ambience + punchy on-screen Dungeon AI text popups/banners (optional open-source TTS voice later).
+- **v0.1 Vertical Slice:** One complete playable floor — modular 3D Nordic-ruin labyrinth, 1st/3rd-person Skyrim movement & combat (sword, shield, spell, bow), 2–3 enemies, interactive looting, 1 Safe Room + Vendor, 1 sealed Boss Arena + Vault, 5-day timer + floor-entry reset, and hidden staircase to Floor 2.
 
 ---
 
-## Upcoming Rounds
-- **Round 5:** Final Review of Master Blueprint, Automated Testing Plan & Phased Roadmap
+## Round 5 — Final Blueprint & Roadmap Sign-Off (`Awaiting Approval`)
+
+**Deliverables prepared for User sign-off:**
+- [`docs/GAME_DESIGN.md`](GAME_DESIGN.md)
+- [`docs/TESTING_STRATEGY.md`](TESTING_STRATEGY.md)
+- [`docs/ROADMAP.md`](ROADMAP.md)
+
+*(No game code or assets will be built until the User signs off on the Master Blueprint & Roadmap.)*

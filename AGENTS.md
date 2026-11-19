@@ -65,6 +65,9 @@ Because this repository must be seamlessly usable by **any AI tool** across sess
 1. `AGENTS.md` (this file)
 2. `docs/ROLES_AND_GOVERNANCE.md`
 3. `docs/VISION_AND_CONSTRAINTS.md`
-4. `docs/DECISION_LOG.md`
-5. `docs/ALIGNMENT_LOG.md`
-6. `CHANGELOG.md`
+4. `docs/GAME_DESIGN.md`
+5. `docs/TESTING_STRATEGY.md`
+6. `docs/ROADMAP.md`
+7. `docs/DECISION_LOG.md`
+8. `docs/ALIGNMENT_LOG.md`
+9. `CHANGELOG.md`
