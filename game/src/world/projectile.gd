@@ -15,6 +15,8 @@ var sponsored_effects: Array = []
 var lifetime: float = 4.5
 var _hit_callback: Callable = Callable()
 var _expired: bool = false
+var _kind: String = "arrow"
+var _color: Color = Color(1.0, 0.5, 0.2)
 
 
 func setup(params: Dictionary, hit_callback: Callable) -> void:
@@ -37,28 +39,27 @@ func setup(params: Dictionary, hit_callback: Callable) -> void:
 	add_child(shape)
 
 	var kind := str(params.get("kind", "arrow"))
+	_kind = kind
 	if kind == "arrow":
-		var mesh_node := ModelLoader.instantiate_model("res://assets/models/batch2/arrow.glb", Vector3(0.08, 0.08, 0.8), Color(0.65, 0.5, 0.35))
-		mesh_node.rotation_degrees = Vector3(90.0, 0.0, 0.0)
+		var mesh_node := ModelLoader.instantiate_model("res://assets/models/gear/arrow.glb", Vector3(0.03, 0.75, 0.03), Color(0.65, 0.5, 0.35))
+		# arrow model points +Y; projectile looks down -Z
+		mesh_node.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
 		add_child(mesh_node)
 	else:
-		var mi := MeshInstance3D.new()
-		var sm := SphereMesh.new()
-		sm.radius = 0.20
-		sm.height = 0.40
-		var mat := StandardMaterial3D.new()
-		var col := Color.html(str(params.get("color", "#ff6a22")))
-		mat.albedo_color = col
-		mat.emission_enabled = true
-		mat.emission = col
-		mat.emission_energy_multiplier = 3.5
-		sm.material = mat
-		mi.mesh = sm
-		add_child(mi)
+		_color = Color.html(str(params.get("color", "#ff6a22")))
+		add_child(VfxFactory.make_glow(_color.lightened(0.45), 0.26, 2.6))
+		add_child(VfxFactory.make_glow(_color, 0.75, 1.1))
+		var aura := VfxFactory.make_magic_aura(_color, 0.12, 30)
+		aura.local_coords = false
+		add_child(aura)
+		var fire := VfxFactory.make_fire(0.35, false)
+		fire.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
+		add_child(fire)
 		var light := OmniLight3D.new()
-		light.light_color = col
-		light.light_energy = 2.0
-		light.omni_range = 6.0
+		light.light_color = _color
+		light.light_energy = 2.2
+		light.omni_range = 7.0
+		light.shadow_enabled = false
 		add_child(light)
 
 	body_entered.connect(_on_body_entered)
@@ -86,6 +87,10 @@ func _on_body_entered(body: Node3D) -> void:
 		return
 	if _hit_callback.is_valid():
 		_hit_callback.call(self, body, global_position)
+	if is_inside_tree() and get_parent() != null:
+		var burst := VfxFactory.make_impact_burst(_color if _kind != "arrow" else Color(1.0, 0.8, 0.5), 26 if _kind != "arrow" else 12, 4.0)
+		get_parent().add_child(burst)
+		burst.global_position = global_position
 	_expire()
 
 

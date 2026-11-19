@@ -1,19 +1,29 @@
 class_name VendorMenu
-extends CanvasLayer
-## Styled Safe Room Merchant Trading Menu (pauses 5-day floor timer while open — D-016).
+extends MenuScreen
+## Safe Room merchant trading screen: merchant stock and your pack as icon grids, detail card with
+## price and comparison vs. equipped gear, Buy / Sell actions, and a one-click "Sell all Common" QoL.
 
-var _gold_lbl: Label = null
-var _stock_box: VBoxContainer = null
-var _bag_box: VBoxContainer = null
-var _status_lbl: Label = null
 var _player: PlayerController = null
 var _vendor: VendorSystem = null
 var _close_cb: Callable = Callable()
+var _gold_lbl: Label = null
+var _stock_grid: GridContainer = null
+var _bag_grid: GridContainer = null
+var _detail: VBoxContainer = null
+var _action_row: HBoxContainer = null
+var _status_lbl: Label = null
+var _sel_side: String = ""
+var _sel_idx: int = -1
+
+const GREETINGS := [
+	"\"Coin first, questions never. The Syndicate takes its cut either way.\"",
+	"\"Everything here is guaranteed authentic, crawler. Mostly.\"",
+	"\"Sanctuary rates apply. Monsters pay double.\"",
+]
 
 
 func _ready() -> void:
-	layer = 22
-	visible = false
+	build_base(20, true)
 	_build_ui()
 
 
@@ -24,178 +34,200 @@ func setup(p_player: PlayerController, p_vendor: VendorSystem, close_cb: Callabl
 
 
 func open_menu() -> void:
+	_sel_side = ""
+	_sel_idx = -1
+	_status_lbl.text = GREETINGS[Time.get_ticks_msec() % GREETINGS.size()] if is_inside_tree() else GREETINGS[0]
 	refresh()
-	visible = true
+	show_animated()
 
 
 func close_menu() -> void:
-	visible = false
+	hide_now()
+
+
+func _grid_panel(parent: Control, title: String, subtitle: String) -> GridContainer:
+	var pc := PanelContainer.new()
+	pc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pc.add_theme_stylebox_override("panel", UiTheme.panel_style("frame"))
+	parent.add_child(pc)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 8)
+	pc.add_child(v)
+	v.add_child(UiTheme.heading(title, 22))
+	v.add_child(UiTheme.label(subtitle, 15, UiTheme.COL_MUTED, UiTheme.font_ui()))
+	var sc := ScrollContainer.new()
+	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	v.add_child(sc)
+	var g := GridContainer.new()
+	g.columns = 4
+	g.add_theme_constant_override("h_separation", 8)
+	g.add_theme_constant_override("v_separation", 8)
+	sc.add_child(g)
+	return g
 
 
 func _build_ui() -> void:
-	var root := Control.new()
-	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(root)
-
-	var dim := ColorRect.new()
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.color = Color(0.015, 0.02, 0.035, 0.74)
-	root.add_child(dim)
-
-	var frame := PanelContainer.new()
-	frame.set_anchors_preset(Control.PRESET_CENTER)
-	frame.offset_left = -520
-	frame.offset_right = 520
-	frame.offset_top = -300
-	frame.offset_bottom = 300
-	frame.add_theme_stylebox_override("panel", UiTheme.make_panel_style(UiTheme.COL_BG_DEEP, UiTheme.COL_GOLD, 2, 8, 22, 18))
-	root.add_child(frame)
-
-	var main_v := VBoxContainer.new()
-	main_v.add_theme_constant_override("separation", 12)
-	frame.add_child(main_v)
-
-	var hdr := HBoxContainer.new()
-	hdr.add_theme_constant_override("separation", 12)
-	main_v.add_child(hdr)
-
-	var title := Label.new()
-	title.text = "SAFE ROOM MERCHANT  •  SYNDICATE EXCHANGE"
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title.add_theme_font_size_override("font_size", 19)
-	title.add_theme_color_override("font_color", UiTheme.COL_GOLD_BRIGHT)
-	hdr.add_child(title)
-
-	var gold_pill := PanelContainer.new()
-	gold_pill.add_theme_stylebox_override("panel", UiTheme.make_panel_style(Color(0.16, 0.13, 0.06, 0.94), UiTheme.COL_GOLD_BRIGHT, 1, 10, 14, 4))
-	_gold_lbl = Label.new()
-	_gold_lbl.add_theme_font_size_override("font_size", 13)
-	_gold_lbl.add_theme_color_override("font_color", UiTheme.COL_GOLD_BRIGHT)
-	gold_pill.add_child(_gold_lbl)
-	hdr.add_child(gold_pill)
-
-	var close_btn := Button.new()
-	close_btn.text = "Leave Stall [Esc]"
-	UiTheme.style_button(close_btn, UiTheme.COL_GOLD, 13)
-	close_btn.pressed.connect(func() -> void:
+	var margin := MarginContainer.new()
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", 40)
+	margin.add_theme_constant_override("margin_right", 40)
+	margin.add_theme_constant_override("margin_top", 28)
+	margin.add_theme_constant_override("margin_bottom", 24)
+	root.add_child(margin)
+	var outer := VBoxContainer.new()
+	outer.add_theme_constant_override("separation", 10)
+	margin.add_child(outer)
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 16)
+	outer.add_child(header)
+	header.add_child(UiTheme.label("SANCTUARY MERCHANT", 32, UiTheme.COL_GOLD_BRIGHT, UiTheme.font_title()))
+	var sp := Control.new()
+	sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(sp)
+	header.add_child(UiTheme.icon_rect(UiTheme.tex("icon_coin"), 24, UiTheme.COL_GOLD))
+	_gold_lbl = UiTheme.label("", 24, UiTheme.COL_GOLD, UiTheme.font_ui_bold())
+	header.add_child(_gold_lbl)
+	var close := UiTheme.button("Leave  [Esc]", 150, 17)
+	close.pressed.connect(func() -> void:
 		if _close_cb.is_valid():
 			_close_cb.call()
 	)
-	hdr.add_child(close_btn)
-
-	_status_lbl = Label.new()
-	_status_lbl.text = "\"Browse all you like, crawler — monsters can't touch you in here, and the clock is paused.\""
-	_status_lbl.add_theme_font_size_override("font_size", 12)
-	_status_lbl.add_theme_color_override("font_color", Color(0.54, 0.92, 0.78))
-	main_v.add_child(_status_lbl)
-
-	var cols := HBoxContainer.new()
-	cols.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	cols.add_theme_constant_override("separation", 16)
-	main_v.add_child(cols)
-
-	_stock_box = _make_col(cols, "Merchant Wares (Buy)")
-	_bag_box = _make_col(cols, "Your Backpack (Sell)")
-
-
-func _make_col(parent: Control, heading: String) -> VBoxContainer:
-	var panel := PanelContainer.new()
-	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	panel.add_theme_stylebox_override("panel", UiTheme.make_panel_style(UiTheme.COL_BG_PANEL, UiTheme.COL_GOLD_DIM, 1, 6, 12, 10))
-	parent.add_child(panel)
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 8)
-	panel.add_child(v)
-	v.add_child(UiTheme.make_section_header(heading, 14))
-	var sc := ScrollContainer.new()
-	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	v.add_child(sc)
-	var content := VBoxContainer.new()
-	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	content.add_theme_constant_override("separation", 6)
-	sc.add_child(content)
-	return content
+	header.add_child(close)
+	_status_lbl = UiTheme.body("", 19, UiTheme.COL_MUTED, true)
+	outer.add_child(_status_lbl)
+	outer.add_child(UiTheme.divider())
+	var row := HBoxContainer.new()
+	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	row.add_theme_constant_override("separation", 14)
+	outer.add_child(row)
+	_stock_grid = _grid_panel(row, "For Sale", "Click an item to inspect  ·  Double-click to buy")
+	var mid := PanelContainer.new()
+	mid.custom_minimum_size.x = 400
+	mid.add_theme_stylebox_override("panel", UiTheme.panel_style("frame"))
+	row.add_child(mid)
+	var mv := VBoxContainer.new()
+	mv.add_theme_constant_override("separation", 10)
+	mid.add_child(mv)
+	var ds := ScrollContainer.new()
+	ds.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	ds.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	mv.add_child(ds)
+	_detail = VBoxContainer.new()
+	_detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ds.add_child(_detail)
+	_action_row = HBoxContainer.new()
+	_action_row.add_theme_constant_override("separation", 8)
+	mv.add_child(_action_row)
+	_bag_grid = _grid_panel(row, "Your Pack", "Click an item to inspect  ·  Double-click to sell")
+	var foot := HBoxContainer.new()
+	outer.add_child(foot)
+	var junk := UiTheme.button("Sell All Common Items", 280, 17)
+	junk.tooltip_text = "Sells every unequipped Common-rarity weapon and armor piece (never consumables)."
+	junk.pressed.connect(_sell_commons)
+	foot.add_child(junk)
 
 
 func refresh() -> void:
 	if _player == null or _vendor == null:
 		return
-	_gold_lbl.text = "✦ %d Gold" % _player.gold
-	for box in [_stock_box, _bag_box]:
-		for c in box.get_children():
+	_gold_lbl.text = "%d" % _player.gold
+	for g in [_stock_grid, _bag_grid]:
+		for c in g.get_children():
 			c.queue_free()
-
 	for i in range(_vendor.stock.size()):
-		var item: Dictionary = _vendor.stock[i]
-		var price := _vendor.get_buy_price(item)
-		var rarity := str(item.get("rarity", "common"))
-		var card := PanelContainer.new()
-		card.add_theme_stylebox_override("panel", UiTheme.make_panel_style(UiTheme.COL_BG_CARD, UiTheme.rarity_color(rarity), 1, 5, 10, 7))
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
-		card.add_child(row)
-
-		var info := VBoxContainer.new()
-		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var nm := Label.new()
-		nm.text = str(item.get("name", "Item"))
-		nm.add_theme_font_size_override("font_size", 13)
-		nm.add_theme_color_override("font_color", UiTheme.rarity_color(rarity))
-		info.add_child(nm)
-		var sub := Label.new()
-		sub.text = "[%s]  %s" % [rarity.to_upper(), str(item.get("slot", "")).replace("_", " ").capitalize()]
-		sub.add_theme_font_size_override("font_size", 11)
-		sub.add_theme_color_override("font_color", UiTheme.COL_MUTED)
-		info.add_child(sub)
-		row.add_child(info)
-
-		var btn := Button.new()
-		btn.text = "Buy • %dg" % price
-		btn.disabled = _player.gold < price
-		UiTheme.style_button(btn, UiTheme.COL_GOLD if _player.gold >= price else UiTheme.COL_MUTED, 12)
-		var idx_cap: int = i
-		btn.pressed.connect(func() -> void:
-			var res := _vendor.buy_item(idx_cap, _player.gold, _player.inventory)
-			if bool(res["ok"]):
-				_player.gold = int(res["gold"])
-				_player.emit_stats()
-				_status_lbl.text = "Purchased %s!" % str(res["item"]["name"])
-			else:
-				_status_lbl.text = str(res["reason"])
-			refresh()
-		)
-		row.add_child(btn)
-		_stock_box.add_child(card)
-
+		_stock_grid.add_child(_slot("stock", i, _vendor.stock[i], _vendor.get_buy_price(_vendor.stock[i])))
 	for i in range(_player.inventory.size()):
-		var item: Dictionary = _player.inventory[i]
-		var price := _vendor.get_sell_price(item)
-		var rarity := str(item.get("rarity", "common"))
-		var card := PanelContainer.new()
-		card.add_theme_stylebox_override("panel", UiTheme.make_panel_style(UiTheme.COL_BG_CARD, UiTheme.rarity_color(rarity), 1, 5, 10, 7))
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
-		card.add_child(row)
+		_bag_grid.add_child(_slot("bag", i, _player.inventory[i], _vendor.get_sell_price(_player.inventory[i])))
+	if _vendor.stock.is_empty():
+		_stock_grid.add_child(UiTheme.body("Sold out.", 17, UiTheme.COL_MUTED, true))
+	if _player.inventory.is_empty():
+		_bag_grid.add_child(UiTheme.body("Your pack is empty.", 17, UiTheme.COL_MUTED, true))
+	_refresh_detail()
 
-		var nm := Label.new()
-		nm.text = str(item.get("name", "Item"))
-		nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		nm.add_theme_font_size_override("font_size", 13)
-		nm.add_theme_color_override("font_color", UiTheme.rarity_color(rarity))
-		row.add_child(nm)
 
-		var btn := Button.new()
-		btn.text = "Sell • +%dg" % price
-		UiTheme.style_button(btn, UiTheme.COL_EMERALD, 12)
-		var idx_cap: int = i
-		btn.pressed.connect(func() -> void:
-			var res := _vendor.sell_item(idx_cap, _player.gold, _player.inventory)
+func _slot(side: String, idx: int, item: Dictionary, price: int) -> Control:
+	var w := UiTheme.item_slot(item, 76, "%dg" % price)
+	w.mouse_filter = Control.MOUSE_FILTER_STOP
+	w.tooltip_text = "%s\n%s gold" % [str(item.get("name", "")), price]
+	if side == "stock" and price > _player.gold:
+		w.modulate = Color(0.6, 0.55, 0.5)
+	if side == _sel_side and idx == _sel_idx:
+		w.modulate = Color(1.25, 1.18, 1.0)
+	w.gui_input.connect(func(ev: InputEvent) -> void:
+		if ev is InputEventMouseButton and ev.pressed:
+			var mb := ev as InputEventMouseButton
+			if mb.double_click:
+				_transact(side, idx)
+			elif mb.button_index == MOUSE_BUTTON_LEFT:
+				_sel_side = side
+				_sel_idx = idx
+				refresh()
+	)
+	return w
+
+
+func _refresh_detail() -> void:
+	for c in _detail.get_children():
+		c.queue_free()
+	for c in _action_row.get_children():
+		c.queue_free()
+	var item: Dictionary = {}
+	var price := 0
+	if _sel_side == "stock" and _sel_idx >= 0 and _sel_idx < _vendor.stock.size():
+		item = _vendor.stock[_sel_idx]
+		price = _vendor.get_buy_price(item)
+	elif _sel_side == "bag" and _sel_idx >= 0 and _sel_idx < _player.inventory.size():
+		item = _player.inventory[_sel_idx]
+		price = _vendor.get_sell_price(item)
+	var slot := ItemInfo.slot_for(item) if not item.is_empty() else ""
+	var compare: Dictionary = _player.equipment.get(slot, {}) if not slot.is_empty() else {}
+	var price_txt := ""
+	if not item.is_empty():
+		price_txt = ("Price %d gold" % price) if _sel_side == "stock" else ("Sells for %d gold" % price)
+	_detail.add_child(ItemInfo.build_card(item, compare, price_txt))
+	if item.is_empty():
+		return
+	var b := UiTheme.button(("Buy for %d" % price) if _sel_side == "stock" else ("Sell for %d" % price), 0, 18)
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	b.disabled = _sel_side == "stock" and price > _player.gold
+	b.pressed.connect(func() -> void: _transact(_sel_side, _sel_idx))
+	_action_row.add_child(b)
+
+
+func _transact(side: String, idx: int) -> void:
+	if side == "stock":
+		var res := _vendor.buy_item(idx, _player.gold, _player.inventory)
+		if bool(res["ok"]):
+			_player.gold = int(res["gold"])
+			_status_lbl.text = "Purchased %s." % str(res["item"]["name"])
+			if EventBus != null:
+				EventBus.sfx_requested.emit("chest_open")
+		else:
+			_status_lbl.text = str(res.get("reason", "You can't afford that."))
+	else:
+		var res2 := _vendor.sell_item(idx, _player.gold, _player.inventory)
+		if bool(res2["ok"]):
+			_player.gold = int(res2["gold"])
+			_status_lbl.text = "Sold for %d gold." % int(res2.get("payout", 0))
+	_player.emit_stats()
+	_sel_side = ""
+	_sel_idx = -1
+	refresh()
+
+
+func _sell_commons() -> void:
+	var total := 0
+	var i := _player.inventory.size() - 1
+	while i >= 0:
+		var it: Dictionary = _player.inventory[i]
+		var cat := str(it.get("category", ""))
+		if str(it.get("rarity", "common")) == "common" and cat in ["weapon", "armor", "shield", "accessory"]:
+			var res := _vendor.sell_item(i, _player.gold, _player.inventory)
 			if bool(res["ok"]):
 				_player.gold = int(res["gold"])
-				_player.emit_stats()
-				_status_lbl.text = "Sold item for +%dg!" % int(res["gained"])
-			refresh()
-		)
-		row.add_child(btn)
-		_bag_box.add_child(card)
+				total += int(res.get("payout", 0))
+		i -= 1
+	_status_lbl.text = ("Sold common gear for %d gold." % total) if total > 0 else "No common gear to sell."
+	_player.emit_stats()
+	refresh()

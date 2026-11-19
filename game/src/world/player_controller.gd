@@ -67,6 +67,24 @@ var _fp_nocked_arrow: Node3D = null
 var _fp_spell_node: Node3D = null
 var _slash_arc_mesh: MeshInstance3D = null
 var tp_mesh: Node3D = null
+var tp_visual: CharacterVisual = null
+var _bow_node: Node3D = null
+var _string_top: Node3D = null
+var _string_bot: Node3D = null
+var _string_tip_top: Vector3 = Vector3.ZERO
+var _string_tip_bot: Vector3 = Vector3.ZERO
+var _string_rest_z: float = 0.0
+var _spell_fx: Node3D = null
+var _spell_light: OmniLight3D = null
+var _offhand_axe: bool = false
+var _trail: MeshInstance3D = null
+var _trail_pts: Array = []
+var _blade_tip: Node3D = null
+var _blade_base: Node3D = null
+var _hitstop: float = 0.0
+var _shake: float = 0.0
+var _shake_phase: float = 0.0
+var _tp_action_lock: float = 0.0
 
 var _callbacks: Dictionary = {}
 var _rng: SeededRng = null
@@ -117,21 +135,42 @@ func setup(p_cfg: Dictionary, p_prog: ProgressionSystem, p_rng: SeededRng, callb
 	fp_left_anchor.name = "LeftHandAnchor"
 	fp_rig.add_child(fp_left_anchor)
 
-	# Subtle warm rim fill attached gently to camera so 1st-person steel/wood catches crisp specular highlights
+	# Soft "presence" fill: keeps hands, weapons and nearby stone readable in dark corridors
 	var fp_rim := OmniLight3D.new()
-	fp_rim.position = Vector3(0.0, 0.25, -0.35)
-	fp_rim.light_color = Color(1.0, 0.90, 0.78)
-	fp_rim.light_energy = 0.42
-	fp_rim.omni_range = 2.6
+	fp_rim.name = "PlayerFill"
+	fp_rim.position = Vector3(0.12, 0.22, 0.05)
+	fp_rim.light_color = Color(1.0, 0.86, 0.7)
+	fp_rim.light_energy = 0.35
+	fp_rim.omni_range = 5.0
+	fp_rim.omni_attenuation = 1.6
+	fp_rim.light_specular = 0.25
+	fp_rim.shadow_enabled = false
+	fp_rim.light_volumetric_fog_energy = 0.0
 	camera.add_child(fp_rim)
+
+	_trail = MeshInstance3D.new()
+	_trail.name = "BladeTrail"
+	_trail.mesh = ImmediateMesh.new()
+	_trail.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var tm := StandardMaterial3D.new()
+	tm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	tm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	tm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	tm.vertex_color_use_as_albedo = true
+	tm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	tm.no_depth_test = false
+	_trail.material_override = tm
+	camera.add_child(_trail)
 
 	# Sleek blade-edge golden-steel slash streak (attached dynamically to right weapon holder during swing!)
 	_slash_arc_mesh = null
 
-	# 3rd-person Blender Crawler silhouette (hidden in 1st-person)
-	tp_mesh = ModelLoader.instantiate_model("res://assets/models/batch3/player_crawler.glb", Vector3(0.7, 1.8, 0.5))
-	tp_mesh.rotation.y = PI
-	add_child(tp_mesh)
+	# 3rd-person rigged & animated crawler (hidden in 1st-person)
+	tp_visual = CharacterVisual.create("crawler")
+	tp_visual.rotation.y = PI
+	tp_mesh = tp_visual
+	add_child(tp_visual)
+	tp_visual.play_state("idle", 0.0)
 
 	set_camera_mode(str(cam_cfg.get("default_mode", "first_person")))
 	init_starting_loadout()
@@ -160,7 +199,7 @@ func set_camera_mode(mode: String) -> void:
 	if camera_mode == "first_person":
 		camera.position = Vector3.ZERO
 		camera.rotation = Vector3.ZERO
-		camera.fov = float(cam_cfg["first_person_fov"])
+		camera.fov = _base_fov()
 		fp_rig.visible = true
 		tp_mesh.visible = false
 	else:
@@ -202,9 +241,13 @@ func toggle_camera_mode() -> String:
 func apply_mouse_look(relative: Vector2) -> void:
 	var cam_cfg: Dictionary = player_cfg["camera"]
 	var sens := float(cam_cfg["mouse_sensitivity"])
+	var inv := 1.0
+	if GameSettings != null:
+		sens *= float(GameSettings.get_value("controls", "mouse_sensitivity"))
+		inv = -1.0 if bool(GameSettings.get_value("controls", "invert_y")) else 1.0
 	rotation.y -= relative.x * sens
 	pitch_rad = clampf(
-		pitch_rad - relative.y * sens,
+		pitch_rad - relative.y * sens * inv,
 		deg_to_rad(float(cam_cfg["min_pitch_degrees"])),
 		deg_to_rad(float(cam_cfg["max_pitch_degrees"]))
 	)
@@ -265,6 +308,20 @@ func equip_from_inventory(inv_index: int, preferred_hand: String = "") -> bool:
 			inventory.append(prev_eq[slot])
 
 	equipment = new_eq
+	recalculate_vitals(false)
+	refresh_hand_visuals()
+	if EventBus != null:
+		EventBus.equipment_changed.emit(equipment)
+	return true
+
+
+## Moves an equipped item back into the bag (QoL: lets players strip a slot from the inventory screen).
+func unequip_slot(slot: String) -> bool:
+	if not equipment.has(slot):
+		return false
+	var item: Dictionary = equipment[slot]
+	equipment.erase(slot)
+	inventory.append(item)
 	recalculate_vitals(false)
 	refresh_hand_visuals()
 	if EventBus != null:
@@ -454,6 +511,9 @@ func take_damage(raw_damage: float) -> Dictionary:
 			EventBus.sfx_requested.emit("shield_block")
 	else:
 		_camera_kick = maxf(_camera_kick, 0.85)
+		add_shake(0.5)
+		if tp_visual != null and tp_visual.visible:
+			tp_visual.play_action("hit", 0.05)
 		if EventBus != null:
 			EventBus.sfx_requested.emit("sword_hit")
 		var dmg_cb: Callable = _callbacks.get("player_damaged", Callable())
@@ -468,6 +528,29 @@ func take_damage(raw_damage: float) -> Dictionary:
 	return {"final_damage": dmg, "died": died, "was_blocked": bool(res["was_blocked"])}
 
 
+const GEAR_DIR := "res://assets/models/gear/"
+
+
+func _base_fov() -> float:
+	if GameSettings != null:
+		return float(GameSettings.get_value("graphics", "fov"))
+	return float(player_cfg["camera"]["first_person_fov"])
+
+
+func _arm(model_name: String) -> Node3D:
+	var a := ModelLoader.instantiate_model(GEAR_DIR + model_name + ".glb", Vector3(0.12, 0.12, 0.4))
+	a.name = "Arm"
+	_disable_shadows(a)
+	return a
+
+
+func _disable_shadows(n: Node) -> void:
+	if n is GeometryInstance3D:
+		(n as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for c in n.get_children():
+		_disable_shadows(c)
+
+
 func refresh_hand_visuals() -> void:
 	for anchor in [fp_right_anchor, fp_left_anchor]:
 		if anchor == null:
@@ -479,320 +562,431 @@ func refresh_hand_visuals() -> void:
 	_fp_nocked_arrow = null
 	_fp_spell_node = null
 	_slash_arc_mesh = null
+	_bow_node = null
+	_string_top = null
+	_string_bot = null
+	_spell_fx = null
+	_spell_light = null
+	_blade_tip = null
+	_blade_base = null
+	_offhand_axe = false
+	if fp_right_anchor == null:
+		return
 
 	var rh: Dictionary = equipment.get("right_hand", {})
 	var lh: Dictionary = equipment.get("left_hand", {})
 	var is_bow := str(rh.get("weapon_type", "")) == "archery"
 	var is_two_hand := bool(rh.get("two_handed", false)) and not is_bow
 
-	# --- RIGHT HAND (Armored Forearm + Equipped Weapon / Bow / Spell) ---
+	# --- RIGHT HAND ---
 	if not rh.is_empty():
-		var r_gaunt := ModelLoader.instantiate_model("res://assets/models/batch2/fp_gauntlet_left.glb", Vector3(0.14, 0.14, 0.36))
-		r_gaunt.rotation_degrees = Vector3(8.0, 180.0, -10.0)
-		r_gaunt.position = Vector3(0.03, -0.09, 0.12)
-		r_gaunt.scale = Vector3.ONE * 0.72
-		fp_right_anchor.add_child(r_gaunt)
-
 		_fp_right_weapon_holder = Node3D.new()
 		fp_right_anchor.add_child(_fp_right_weapon_holder)
-
-		if is_bow:
-			# Keep right bow-string hand tucked cleanly at the lower-right edge (never clips near-plane!)
-			r_gaunt.position = Vector3(0.06, -0.14, 0.08)
-			r_gaunt.rotation_degrees = Vector3(-16.0, 174.0, -14.0)
-			r_gaunt.scale = Vector3.ONE * 0.50
-		elif str(rh.get("category", "")) == "spell":
-			var sp := ModelLoader.instantiate_model(str(rh.get("model", "")), Vector3(0.18, 0.18, 0.18))
-			sp.position = Vector3(-0.02, 0.08, -0.10)
-			sp.scale = Vector3.ONE * 0.46
-			_fp_right_weapon_holder.add_child(sp)
-			_fp_spell_node = sp
+		if str(rh.get("category", "")) == "spell":
+			fp_right_anchor.add_child(_arm("fp_arm_open_r"))
+			_attach_spell_fx(_fp_right_weapon_holder, rh)
 		else:
-			var w_model := ModelLoader.instantiate_model(str(rh.get("model", "")), Vector3(0.12, 0.75, 0.12))
-			if is_two_hand:
-				w_model.scale = Vector3.ONE * 0.56
-				w_model.position = Vector3(0.0, 0.0, -0.03)
-				w_model.rotation_degrees = Vector3(-20.0, 10.0, 22.0)
-			else:
-				w_model.scale = Vector3.ONE * 0.62
-				w_model.position = Vector3(0.0, 0.0, -0.02)
-				w_model.rotation_degrees = Vector3(-16.0, 12.0, 14.0)
-			_fp_right_weapon_holder.add_child(w_model)
+			fp_right_anchor.add_child(_arm("fp_arm_grip_r"))
+			if not is_bow:
+				var w_model := ModelLoader.instantiate_model(str(rh.get("model", "")), Vector3(0.05, 0.9, 0.05))
+				_disable_shadows(w_model)
+				_fp_right_weapon_holder.add_child(w_model)
+				var tip_len := 0.95 if is_two_hand else 0.9
+				_blade_base = Node3D.new()
+				_blade_base.position = Vector3(0, 0.62 if is_two_hand else 0.16, 0)
+				_fp_right_weapon_holder.add_child(_blade_base)
+				_blade_tip = Node3D.new()
+				_blade_tip.position = Vector3(0, tip_len + (0.12 if is_two_hand else 0.0), 0)
+				_fp_right_weapon_holder.add_child(_blade_tip)
+				if is_two_hand:
+					_offhand_axe = true
 
-			# Sleek translucent blade-edge motion trail mounted along the sword blade!
-			_slash_arc_mesh = MeshInstance3D.new()
-			var streak := BoxMesh.new()
-			streak.size = Vector3(0.014, 0.64, 0.13)
-			var smat := StandardMaterial3D.new()
-			smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-			smat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-			smat.albedo_color = Color(1.0, 0.88, 0.58, 0.42)
-			smat.emission_enabled = true
-			smat.emission = Color(1.0, 0.78, 0.36)
-			smat.emission_energy_multiplier = 1.6
-			smat.cull_mode = BaseMaterial3D.CULL_DISABLED
-			streak.material = smat
-			_slash_arc_mesh.mesh = streak
-			_slash_arc_mesh.position = Vector3(0.04, 0.44, 0.02)
-			_slash_arc_mesh.rotation_degrees = w_model.rotation_degrees
-			_slash_arc_mesh.visible = false
-			_fp_right_weapon_holder.add_child(_slash_arc_mesh)
-
-	# --- LEFT HAND (Shield / Spell Focus / Offhand Weapon / Bow Grip!) ---
+	# --- LEFT HAND ---
 	if is_bow:
-		# Skyrim Archery: Tuck bow-grip forearm cleanly below the riser so sightline stays crystal clear!
-		var l_gaunt := ModelLoader.instantiate_model("res://assets/models/batch2/fp_gauntlet_right.glb", Vector3(0.14, 0.14, 0.36))
-		l_gaunt.rotation_degrees = Vector3(-26.0, 174.0, 14.0)
-		l_gaunt.position = Vector3(-0.04, -0.22, 0.10)
-		l_gaunt.scale = Vector3.ONE * 0.48
-		fp_left_anchor.add_child(l_gaunt)
-
 		_fp_left_weapon_holder = Node3D.new()
 		fp_left_anchor.add_child(_fp_left_weapon_holder)
-
-		var bow_m := ModelLoader.instantiate_model(str(rh.get("model", "")), Vector3(0.12, 1.0, 0.25))
-		bow_m.scale = Vector3.ONE * 0.56
-		bow_m.rotation_degrees = Vector3(0.0, 180.0, -18.0)
-		bow_m.position = Vector3(0.03, 0.02, -0.05)
-		_fp_left_weapon_holder.add_child(bow_m)
-
-		_fp_nocked_arrow = ModelLoader.instantiate_model("res://assets/models/batch2/arrow.glb", Vector3(0.05, 0.05, 0.7))
-		_fp_nocked_arrow.scale = Vector3.ONE * 0.68
+		fp_left_anchor.add_child(_arm("fp_arm_grip_l"))
+		_bow_node = ModelLoader.instantiate_model(str(rh.get("model", "")), Vector3(0.05, 1.4, 0.1))
+		_bow_node.rotation_degrees = Vector3(0.0, 180.0, 0.0)
+		_disable_shadows(_bow_node)
+		_fp_left_weapon_holder.add_child(_bow_node)
+		_string_top = _bow_node.find_child("StringTop*", true, false) as Node3D
+		_string_bot = _bow_node.find_child("StringBottom*", true, false) as Node3D
+		if _string_top != null and _string_bot != null:
+			_string_tip_top = _string_top.position
+			_string_tip_bot = _string_bot.position
+			_string_rest_z = _string_tip_top.z
+		_fp_nocked_arrow = ModelLoader.instantiate_model(GEAR_DIR + "arrow.glb", Vector3(0.02, 0.7, 0.02))
 		_fp_nocked_arrow.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
-		_fp_nocked_arrow.position = Vector3(0.06, 0.03, -0.02)
-		_fp_left_weapon_holder.add_child(_fp_nocked_arrow)
+		_disable_shadows(_fp_nocked_arrow)
+		fp_left_anchor.add_child(_fp_nocked_arrow)
+	elif _offhand_axe:
+		fp_left_anchor.add_child(_arm("fp_arm_grip_l"))
 	elif not lh.is_empty():
-		var l_gaunt := ModelLoader.instantiate_model("res://assets/models/batch2/fp_gauntlet_right.glb", Vector3(0.14, 0.14, 0.36))
-		l_gaunt.rotation_degrees = Vector3(6.0, 180.0, 10.0)
-		l_gaunt.position = Vector3(-0.02, -0.08, 0.12)
-		l_gaunt.scale = Vector3.ONE * 0.78
-		fp_left_anchor.add_child(l_gaunt)
-
 		_fp_left_weapon_holder = Node3D.new()
 		fp_left_anchor.add_child(_fp_left_weapon_holder)
-
 		var lcat := str(lh.get("category", ""))
 		if lcat == "shield":
-			# Compact Skyrim lower-left shield framing (~11% screen area at rest — NEVER blocks view!)
-			var sh := ModelLoader.instantiate_model(str(lh.get("model", "")), Vector3(0.45, 0.45, 0.1))
-			sh.scale = Vector3.ONE * 0.50
-			sh.position = Vector3(0.02, 0.02, -0.06)
+			fp_left_anchor.add_child(_arm("fp_arm_grip_l"))
+			var sh := ModelLoader.instantiate_model(str(lh.get("model", "")), Vector3(0.8, 0.8, 0.1))
+			sh.rotation_degrees = Vector3(0.0, 180.0, 0.0)
+			_disable_shadows(sh)
 			_fp_left_weapon_holder.add_child(sh)
 		elif lcat == "spell":
-			var orb := ModelLoader.instantiate_model(str(lh.get("model", "")), Vector3(0.18, 0.18, 0.18))
-			orb.scale = Vector3.ONE * 0.44
-			orb.position = Vector3(0.04, 0.09, -0.10)
-			_fp_left_weapon_holder.add_child(orb)
-			_fp_spell_node = orb
-
-			var s_light := OmniLight3D.new()
-			s_light.light_color = Color.html(str(lh.get("color", "#ff6a22")))
-			s_light.light_energy = 1.15
-			s_light.omni_range = 3.2
-			s_light.position = Vector3(0.04, 0.10, -0.12)
-			_fp_left_weapon_holder.add_child(s_light)
+			fp_left_anchor.add_child(_arm("fp_arm_open_l"))
+			_attach_spell_fx(_fp_left_weapon_holder, lh)
 		else:
-			var lw := ModelLoader.instantiate_model(str(lh.get("model", "")), Vector3(0.12, 0.7, 0.12))
-			lw.scale = Vector3.ONE * 0.58
-			lw.rotation_degrees = Vector3(-16.0, -12.0, -14.0)
+			fp_left_anchor.add_child(_arm("fp_arm_grip_l"))
+			var lw := ModelLoader.instantiate_model(str(lh.get("model", "")), Vector3(0.05, 0.9, 0.05))
+			_disable_shadows(lw)
 			_fp_left_weapon_holder.add_child(lw)
 
-	# Snap immediately into clean rest pose on swap
+	_refresh_tp_weapons()
 	_update_procedural_animations(0.016, 0.0, false)
+
+
+func _attach_spell_fx(holder: Node3D, spell: Dictionary) -> void:
+	var col := Color.html(str(spell.get("color", "#ff6a22")))
+	var fx := Node3D.new()
+	fx.name = "SpellFx"
+	fx.position = Vector3(0.0, 0.0, 0.0)
+	holder.add_child(fx)
+	var core := VfxFactory.make_glow(col.lightened(0.35), 0.16, 2.2)
+	fx.add_child(core)
+	var halo := VfxFactory.make_glow(col, 0.42, 1.0)
+	fx.add_child(halo)
+	var aura := VfxFactory.make_magic_aura(col, 0.07, 26)
+	fx.add_child(aura)
+	if str(spell.get("spell_kind", "projectile")) != "heal":
+		var flames := VfxFactory.make_fire(0.22, false)
+		flames.position = Vector3(0, -0.02, 0)
+		fx.add_child(flames)
+	_spell_light = OmniLight3D.new()
+	_spell_light.light_color = col
+	_spell_light.light_energy = 0.9
+	_spell_light.omni_range = 3.6
+	_spell_light.shadow_enabled = false
+	fx.add_child(_spell_light)
+	_spell_fx = fx
+	_fp_spell_node = fx
+
+
+## Third-person: weapons follow the animated crawler's hand sockets.
+func _refresh_tp_weapons() -> void:
+	if tp_visual == null or tp_visual.model == null:
+		return
+	for grip_name in ["GripR", "GripL"]:
+		var g := tp_visual.model.find_child(grip_name + "*", true, false) as Node3D
+		if g == null:
+			continue
+		for c in g.get_children():
+			c.queue_free()
+	var rh: Dictionary = equipment.get("right_hand", {})
+	var lh: Dictionary = equipment.get("left_hand", {})
+	var gr := tp_visual.model.find_child("GripR*", true, false) as Node3D
+	var gl := tp_visual.model.find_child("GripL*", true, false) as Node3D
+	var is_bow := str(rh.get("weapon_type", "")) == "archery"
+	if gr != null and not rh.is_empty() and str(rh.get("category", "")) != "spell" and not is_bow:
+		gr.add_child(ModelLoader.instantiate_model(str(rh.get("model", "")), Vector3(0.05, 0.9, 0.05)))
+	if gl != null:
+		if is_bow:
+			var b := ModelLoader.instantiate_model(str(rh.get("model", "")), Vector3(0.05, 1.4, 0.1))
+			gl.add_child(b)
+		elif not lh.is_empty() and str(lh.get("category", "")) == "shield":
+			var sh := ModelLoader.instantiate_model(str(lh.get("model", "")), Vector3(0.8, 0.8, 0.1))
+			sh.rotation_degrees = Vector3(90.0, 0.0, 0.0)
+			gl.add_child(sh)
+		elif not lh.is_empty() and str(lh.get("category", "")) == "spell":
+			gl.add_child(VfxFactory.make_glow(Color.html(str(lh.get("color", "#ff6a22"))), 0.3, 1.6))
+
+
+## Called by GameMain when a melee swing connects: brief hit-stop + camera punch for weight.
+func on_melee_hit(is_power: bool) -> void:
+	_hitstop = 0.075 if is_power else 0.05
+	add_shake(0.35 if is_power else 0.2)
+
+
+func add_shake(amount: float) -> void:
+	var k := 1.0
+	if GameSettings != null:
+		k = float(GameSettings.get_value("gameplay", "camera_shake"))
+	_shake = maxf(_shake, amount * k)
 
 
 func _update_procedural_animations(delta: float, move_amount: float, is_sprinting: bool) -> void:
 	var dt := maxf(0.001, delta)
+	# Hit-stop: freeze action timers for a few frames when a blow lands (weight & impact)
+	var act_dt := dt
+	if _hitstop > 0.0:
+		_hitstop = maxf(0.0, _hitstop - dt)
+		act_dt = dt * 0.08
 	_move_blend = lerpf(_move_blend, clampf(move_amount, 0.0, 1.0), clampf(dt * 10.0, 0.0, 1.0))
 	_sprint_blend = lerpf(_sprint_blend, 1.0 if is_sprinting else 0.0, clampf(dt * 9.0, 0.0, 1.0))
 	_block_blend = lerpf(_block_blend, 1.0 if is_blocking else 0.0, clampf(dt * 14.0, 0.0, 1.0))
-
 	var target_draw := CombatMath.compute_bow_draw_ratio(bow_draw_time, player_cfg) if is_bow_drawing else 0.0
 	_draw_blend = lerpf(_draw_blend, target_draw, clampf(dt * 12.0, 0.0, 1.0))
-	_look_sway = _look_sway.lerp(Vector2.ZERO, clampf(dt * 10.0, 0.0, 1.0))
+	_look_sway = _look_sway.lerp(Vector2.ZERO, clampf(dt * 9.0, 0.0, 1.0))
 	_bow_release_recoil = maxf(0.0, _bow_release_recoil - dt * 5.0)
 	_camera_kick = maxf(0.0, _camera_kick - dt * 4.5)
-
+	_shake = maxf(0.0, _shake - dt * 3.2)
+	_shake_phase += dt * 47.0
 	if _move_blend > 0.04:
-		var bob_freq := lerpf(7.8, 12.0, _sprint_blend)
-		_walk_bob_phase += dt * bob_freq
+		_walk_bob_phase += dt * lerpf(7.6, 11.6, _sprint_blend)
 	else:
 		_walk_bob_phase = lerpf(_walk_bob_phase, 0.0, clampf(dt * 4.0, 0.0, 1.0))
-
-	# Advance combat action timers
 	if _right_swing_t > 0.0:
-		_right_swing_t = maxf(0.0, _right_swing_t - dt)
+		_right_swing_t = maxf(0.0, _right_swing_t - act_dt)
 	if _left_action_t > 0.0:
-		_left_action_t = maxf(0.0, _left_action_t - dt)
+		_left_action_t = maxf(0.0, _left_action_t - act_dt)
 	if _slash_vfx_timer > 0.0:
-		_slash_vfx_timer = maxf(0.0, _slash_vfx_timer - dt)
-		if _slash_arc_mesh != null and is_instance_valid(_slash_arc_mesh):
-			_slash_arc_mesh.visible = _slash_vfx_timer > 0.0
-			var prog := 1.0 - (_slash_vfx_timer / 0.14)
-			var mat := _slash_arc_mesh.mesh.surface_get_material(0) as StandardMaterial3D
-			if mat != null:
-				mat.albedo_color.a = 0.44 * (1.0 - prog)
-	elif _slash_arc_mesh != null and is_instance_valid(_slash_arc_mesh):
-		_slash_arc_mesh.visible = false
+		_slash_vfx_timer = maxf(0.0, _slash_vfx_timer - act_dt)
 
-	# Smooth camera FOV + subtle sprint/combat bob (1st-person)
-	var cam_cfg: Dictionary = player_cfg["camera"]
+	var bob_k := 1.0
+	if GameSettings != null:
+		bob_k = float(GameSettings.get_value("gameplay", "head_bob"))
 	if camera_mode == "first_person":
-		var base_fov := float(cam_cfg["first_person_fov"])
-		var target_fov := base_fov + (_sprint_blend * 4.5) - (_draw_blend * 13.0)
+		var target_fov := _base_fov() + (_sprint_blend * 5.0) - (_draw_blend * 14.0)
 		camera.fov = lerpf(camera.fov, target_fov, clampf(dt * 10.0, 0.0, 1.0))
-		var head_bob_y := sin(_walk_bob_phase * 2.0) * 0.032 * _move_blend * (1.0 + _sprint_blend * 0.45)
-		var head_bob_x := cos(_walk_bob_phase) * 0.018 * _move_blend
-		camera.position = Vector3(head_bob_x, head_bob_y, 0.0)
-		camera.rotation_degrees = Vector3(_camera_kick * 1.6, 0.0, -head_bob_x * 26.0)
+		var head_bob_y := sin(_walk_bob_phase * 2.0) * 0.03 * _move_blend * (1.0 + _sprint_blend * 0.5) * bob_k
+		var head_bob_x := cos(_walk_bob_phase) * 0.016 * _move_blend * bob_k
+		var sh := Vector3(sin(_shake_phase * 1.3), sin(_shake_phase * 1.7 + 1.0), 0.0) * _shake * 0.035
+		camera.position = Vector3(head_bob_x, head_bob_y, 0.0) + sh
+		camera.rotation_degrees = Vector3(_camera_kick * 1.6 + sh.y * 30.0, sh.x * 20.0, -head_bob_x * 22.0 + sin(_shake_phase) * _shake * 1.5)
 
-	# Breathing & walk sway shared on fp_rig
-	var breathe_x := sin(_anim_time * 1.4) * 0.006
-	var breathe_y := sin(_anim_time * 2.8) * 0.008
-	var walk_x := cos(_walk_bob_phase) * 0.022 * _move_blend
-	var walk_y := absf(sin(_walk_bob_phase)) * -0.028 * _move_blend
-	fp_rig.position = Vector3(breathe_x + walk_x + _look_sway.x, breathe_y + walk_y + _look_sway.y - _sprint_blend * 0.03, 0.0)
+	var breathe_x := sin(_anim_time * 1.3) * 0.005
+	var breathe_y := sin(_anim_time * 2.6) * 0.007
+	var walk_x := cos(_walk_bob_phase) * 0.02 * _move_blend * bob_k
+	var walk_y := absf(sin(_walk_bob_phase)) * -0.026 * _move_blend * bob_k
+	fp_rig.position = Vector3(breathe_x + walk_x + _look_sway.x, breathe_y + walk_y + _look_sway.y - _sprint_blend * 0.035, 0.0)
+	fp_rig.rotation_degrees = Vector3(_look_sway.y * 40.0, _look_sway.x * 50.0, -_look_sway.x * 30.0)
 
 	var rh: Dictionary = equipment.get("right_hand", {})
 	var lh: Dictionary = equipment.get("left_hand", {})
 	var is_bow := str(rh.get("weapon_type", "")) == "archery"
 	var is_two_hand := bool(rh.get("two_handed", false)) and not is_bow
+	var r_spell := str(rh.get("category", "")) == "spell"
 
-	# --- RIGHT HAND POSE & FLUID MULTI-PHASE SWING ---
-	var r_pos := Vector3(0.46, -0.35, -0.60)
-	var r_rot := Vector3(-8.0, -14.0, 10.0)
+	# --- RIGHT HAND rest pose -------------------------------------------------------
+	var r_pos := Vector3(0.30, -0.30, -0.50)
+	var r_rot := Vector3(-22.0, -8.0, 16.0)
 	if is_two_hand:
-		r_pos = Vector3(0.44, -0.38, -0.64)
-		r_rot = Vector3(-10.0, -18.0, 14.0)
+		r_pos = Vector3(0.24, -0.42, -0.46)
+		r_rot = Vector3(-48.0, -26.0, 38.0)
 	elif is_bow:
-		# Subtle lower-right bow-string hand (never clips near-plane or obscures target!)
-		r_pos = Vector3(0.42, -0.46, -0.58).lerp(Vector3(0.34, -0.38, -0.50), _draw_blend)
-		r_rot = Vector3(0.0, -12.0, 8.0).lerp(Vector3(4.0, -18.0, 14.0), _draw_blend)
+		r_pos = Vector3(0.24, -0.34, -0.42)
+		r_rot = Vector3(-60.0, 10.0, 70.0)
+	elif r_spell:
+		r_pos = Vector3(0.28, -0.3, -0.5)
+		r_rot = Vector3(-10.0, 10.0, 0.0)
 
-	# Power attack hold wind-up (raises sword noticeably while charging LMB!)
 	if is_right_holding and not is_bow and str(rh.get("category", "")) == "weapon":
 		var charge := clampf(right_attack_hold / float(player_cfg["combat"]["power_attack_hold_sec"]), 0.0, 1.0)
-		r_pos += Vector3(0.08 * charge, 0.14 * charge, 0.10 * charge)
-		r_rot += Vector3(22.0 * charge, -18.0 * charge, -18.0 * charge)
+		var ce := ease(charge, 0.6)
+		r_pos += Vector3(0.06, 0.16, 0.12) * ce
+		r_rot += Vector3(30.0, -16.0, -24.0) * ce
+		r_pos += Vector3(sin(_anim_time * 40.0), cos(_anim_time * 37.0), 0) * 0.002 * ce
 
-	# Active 3-phase melee slash animation (Wind-up -> Dramatic Cross-Screen Blade Slash -> Smooth Recovery!)
 	if _right_swing_t > 0.0:
 		var u := 1.0 - (_right_swing_t / maxf(0.01, _right_swing_dur))
-		var swing_pos := Vector3.ZERO
-		var swing_rot := Vector3.ZERO
-		if _right_swing_power:
-			# Dramatic overhead Skyrim Power Cleave!
-			if u < 0.24:
-				var k := ease(u / 0.24, -1.8)
-				swing_pos = Vector3(0.04, 0.22, 0.10) * k
-				swing_rot = Vector3(32.0, -14.0, -16.0) * k
-			elif u < 0.56:
-				var k := ease((u - 0.24) / 0.32, 0.45)
-				swing_pos = Vector3(0.04, 0.22, 0.10).lerp(Vector3(-0.34, -0.06, -0.26), k)
-				swing_rot = Vector3(32.0, -14.0, -16.0).lerp(Vector3(-34.0, 44.0, 46.0), k)
-			else:
-				var k := ease((u - 0.56) / 0.44, -1.5)
-				swing_pos = Vector3(-0.34, -0.06, -0.26).lerp(Vector3.ZERO, k)
-				swing_rot = Vector3(-34.0, 44.0, 46.0).lerp(Vector3.ZERO, k)
-		elif _right_combo_step % 2 == 0:
-			# Combo 1: Sweeping Right-to-Left Diagonal Cut (blade slices cleanly across view!)
-			if u < 0.20:
-				var k := ease(u / 0.20, -1.6)
-				swing_pos = Vector3(0.12, 0.06, 0.04) * k
-				swing_rot = Vector3(10.0, -20.0, -22.0) * k
+		var sp := Vector3.ZERO
+		var sr := Vector3.ZERO
+		if r_spell:
+			var pulse := sin(u * PI)
+			sp = Vector3(-0.06, 0.04, -0.22) * pulse
+			sr = Vector3(-20.0, 10.0, 0.0) * pulse
+		elif _right_swing_power or is_two_hand:
+			# Overhead cleave: big anticipation, fast chop, heavy follow-through
+			var p0 := Vector3(0.06, 0.26, 0.14)
+			var r0 := Vector3(52.0, -10.0, -30.0)
+			var p1 := Vector3(-0.30, -0.22, -0.18)
+			var r1 := Vector3(-70.0, 30.0, 40.0)
+			if u < 0.3:
+				var k := ease(u / 0.3, -1.8)
+				sp = p0 * k
+				sr = r0 * k
 			elif u < 0.52:
-				var k := ease((u - 0.20) / 0.32, 0.4)
-				swing_pos = Vector3(0.12, 0.06, 0.04).lerp(Vector3(-0.38, -0.02, -0.22), k)
-				swing_rot = Vector3(10.0, -20.0, -22.0).lerp(Vector3(-22.0, 46.0, 52.0), k)
+				var k := ease((u - 0.3) / 0.22, 0.35)
+				sp = p0.lerp(p1, k)
+				sr = r0.lerp(r1, k)
 			else:
-				var k := ease((u - 0.52) / 0.48, -1.5)
-				swing_pos = Vector3(-0.38, -0.02, -0.22).lerp(Vector3.ZERO, k)
-				swing_rot = Vector3(-22.0, 46.0, 52.0).lerp(Vector3.ZERO, k)
+				var k := ease((u - 0.52) / 0.48, -2.0)
+				sp = p1.lerp(Vector3.ZERO, k)
+				sr = r1.lerp(Vector3.ZERO, k)
+		elif _right_combo_step % 2 == 0:
+			# Forehand diagonal cut: right-high to left-low across the view
+			var p0 := Vector3(0.14, 0.12, 0.06)
+			var r0 := Vector3(18.0, -30.0, -38.0)
+			var p1 := Vector3(-0.36, -0.16, -0.2)
+			var r1 := Vector3(-48.0, 62.0, 72.0)
+			if u < 0.24:
+				var k := ease(u / 0.24, -1.6)
+				sp = p0 * k
+				sr = r0 * k
+			elif u < 0.5:
+				var k := ease((u - 0.24) / 0.26, 0.35)
+				sp = p0.lerp(p1, k)
+				sr = r0.lerp(r1, k)
+			else:
+				var k := ease((u - 0.5) / 0.5, -1.8)
+				sp = p1.lerp(Vector3.ZERO, k)
+				sr = r1.lerp(Vector3.ZERO, k)
 		else:
-			# Combo 2: Crisp Backhand Left-to-Right Riposte
-			if u < 0.22:
-				var k := ease(u / 0.22, -1.6)
-				swing_pos = Vector3(-0.28, 0.02, 0.04) * k
-				swing_rot = Vector3(-8.0, 38.0, 44.0) * k
-			elif u < 0.55:
-				var k := ease((u - 0.22) / 0.33, 0.4)
-				swing_pos = Vector3(-0.28, 0.02, 0.04).lerp(Vector3(0.18, -0.04, -0.22), k)
-				swing_rot = Vector3(-8.0, 38.0, 44.0).lerp(Vector3(-24.0, -34.0, -32.0), k)
+			# Backhand riposte: left to right, rising
+			var p0 := Vector3(-0.32, -0.04, 0.02)
+			var r0 := Vector3(-10.0, 54.0, 64.0)
+			var p1 := Vector3(0.22, 0.1, -0.22)
+			var r1 := Vector3(-30.0, -48.0, -44.0)
+			if u < 0.26:
+				var k := ease(u / 0.26, -1.6)
+				sp = p0 * k
+				sr = r0 * k
+			elif u < 0.52:
+				var k := ease((u - 0.26) / 0.26, 0.35)
+				sp = p0.lerp(p1, k)
+				sr = r0.lerp(r1, k)
 			else:
-				var k := ease((u - 0.55) / 0.45, -1.5)
-				swing_pos = Vector3(0.18, -0.04, -0.22).lerp(Vector3.ZERO, k)
-				swing_rot = Vector3(-24.0, -34.0, -32.0).lerp(Vector3.ZERO, k)
-		r_pos += swing_pos
-		r_rot += swing_rot
+				var k := ease((u - 0.52) / 0.48, -1.8)
+				sp = p1.lerp(Vector3.ZERO, k)
+				sr = r1.lerp(Vector3.ZERO, k)
+		r_pos += sp
+		r_rot += sr
 
-	# Sprint lowered carry posture
-	r_pos += Vector3(-0.04, -0.08, 0.04) * _sprint_blend
-	r_rot += Vector3(-18.0, 12.0, 18.0) * _sprint_blend
+	r_pos += Vector3(-0.05, -0.1, 0.06) * _sprint_blend
+	r_rot += Vector3(-22.0, 14.0, 20.0) * _sprint_blend
+	r_pos.y += sin(_walk_bob_phase + 0.6) * 0.008 * _move_blend * bob_k
+
+	# --- LEFT HAND ------------------------------------------------------------------
+	var l_pos := Vector3(-0.36, -0.38, -0.56)
+	var l_rot := Vector3(-6.0, 22.0, -6.0)
+	var lcat := str(lh.get("category", ""))
+	if is_bow:
+		var recoil := Vector3(0.0, 0.015, 0.05) * _bow_release_recoil
+		l_pos = Vector3(-0.2, -0.26, -0.56).lerp(Vector3(-0.1, -0.12, -0.6), _draw_blend) + recoil
+		l_rot = Vector3(-4.0, 6.0, 26.0).lerp(Vector3(0.0, 0.0, 12.0), _draw_blend)
+	elif _offhand_axe:
+		pass
+	elif lcat == "shield":
+		var rest_p := Vector3(-0.42, -0.42, -0.58)
+		var rest_r := Vector3(-4.0, 34.0, -10.0)
+		var blk_p := Vector3(-0.2, -0.26, -0.46)
+		var blk_r := Vector3(2.0, 8.0, -4.0)
+		var be := ease(_block_blend, -1.6)
+		l_pos = rest_p.lerp(blk_p, be)
+		l_rot = rest_r.lerp(blk_r, be)
+		if _left_action_t > 0.0:
+			var imp := sin((_left_action_t / maxf(0.01, _left_action_dur)) * PI)
+			l_pos += Vector3(0.0, -0.025, 0.1) * imp
+			l_rot += Vector3(12.0, 8.0, 0.0) * imp
+	elif lcat == "spell":
+		l_pos = Vector3(-0.3, -0.3, -0.5)
+		l_rot = Vector3(-8.0, -10.0, 0.0)
+		if _left_action_t > 0.0:
+			var u2 := 1.0 - (_left_action_t / maxf(0.01, _left_action_dur))
+			var pulse := sin(u2 * PI)
+			l_pos += Vector3(0.12, 0.06, -0.26) * pulse
+			l_rot += Vector3(-16.0, -14.0, 8.0) * pulse
+	elif not lh.is_empty():
+		l_pos = Vector3(-0.32, -0.32, -0.52)
+		l_rot = Vector3(-18.0, 10.0, -16.0)
+		if _left_action_t > 0.0:
+			var u3 := 1.0 - (_left_action_t / maxf(0.01, _left_action_dur))
+			var pulse3 := sin(u3 * PI)
+			l_pos += Vector3(0.32, 0.04, -0.24) * pulse3
+			l_rot += Vector3(-52.0, -48.0, -34.0) * pulse3
+	l_pos += Vector3(0.03, -0.08, 0.05) * _sprint_blend
+	l_pos.y += sin(_walk_bob_phase + 2.2) * 0.008 * _move_blend * bob_k
 
 	fp_right_anchor.position = r_pos
 	fp_right_anchor.rotation_degrees = r_rot
-
-	# --- LEFT HAND POSE (Compact Shield / Arcane Orb / Drawn Bow) ---
-	var l_pos := Vector3(-0.56, -0.44, -0.68)
-	var l_rot := Vector3(6.0, 44.0, -8.0)
-	if is_bow:
-		# Bow rests sleekly on left side, centers & tightens cleanly on draw!
-		var recoil := Vector3(0.0, 0.02, 0.06) * _bow_release_recoil
-		l_pos = Vector3(-0.32, -0.16, -0.68).lerp(Vector3(-0.20, -0.10, -0.62), _draw_blend) + recoil
-		l_rot = Vector3(2.0, 10.0, -4.0).lerp(Vector3(0.0, 2.0, -14.0), _draw_blend)
-		if _fp_nocked_arrow != null:
-			_fp_nocked_arrow.visible = (_bow_release_recoil <= 0.15)
-			_fp_nocked_arrow.position = Vector3(0.06, 0.03, -0.04 + _draw_blend * 0.24)
-	elif str(lh.get("category", "")) == "shield":
-		# Rest: sleekly tucked in lower-left edge (~11% screen!). Block: smooth tactical raise!
-		var rest_p := Vector3(-0.58, -0.44, -0.68)
-		var rest_r := Vector3(6.0, 44.0, -8.0)
-		var blk_p := Vector3(-0.26, -0.22, -0.54)
-		var blk_r := Vector3(4.0, 14.0, -4.0)
-		l_pos = rest_p.lerp(blk_p, _block_blend)
-		l_rot = rest_r.lerp(blk_r, _block_blend)
-		# Shield impact recoil when successfully absorbing a hit!
-		if _left_action_t > 0.0:
-			var imp := sin((_left_action_t / maxf(0.01, _left_action_dur)) * PI)
-			l_pos += Vector3(0.0, -0.02, 0.09) * imp
-			l_rot += Vector3(10.0, 6.0, 0.0) * imp
-	elif str(lh.get("category", "")) == "spell":
-		l_pos = Vector3(-0.46, -0.34, -0.60)
-		l_rot = Vector3(4.0, 12.0, -6.0)
-		# Spell cast forward thrust
-		if _left_action_t > 0.0:
-			var u := 1.0 - (_left_action_t / maxf(0.01, _left_action_dur))
-			var pulse := sin(u * PI)
-			l_pos += Vector3(0.10, 0.06, -0.24) * pulse
-			l_rot += Vector3(-22.0, -14.0, 12.0) * pulse
+	if _offhand_axe:
+		# Left hand rides the haft above the right hand
+		var hold := fp_right_anchor.transform * Transform3D(Basis.IDENTITY, Vector3(0.0, 0.42, 0.0))
+		fp_left_anchor.transform = hold
 	else:
-		l_pos = Vector3(-0.46, -0.35, -0.60)
-		l_rot = Vector3(-8.0, 14.0, -10.0)
-		if _left_action_t > 0.0:
-			var u := 1.0 - (_left_action_t / maxf(0.01, _left_action_dur))
-			var pulse := sin(u * PI)
-			l_pos += Vector3(0.32, 0.04, -0.24) * pulse
-			l_rot += Vector3(-52.0, -48.0, -34.0) * pulse
+		fp_left_anchor.position = l_pos
+		fp_left_anchor.rotation_degrees = l_rot
 
-	l_pos += Vector3(0.02, -0.07, 0.04) * _sprint_blend
-	fp_left_anchor.position = l_pos
-	fp_left_anchor.rotation_degrees = l_rot
+	# --- Bowstring pull, nocked arrow & drawing hand ---------------------------------
+	if is_bow and _bow_node != null:
+		var pull := 0.5 * _draw_blend
+		var nock_local := Vector3(0.0, 0.0, _string_rest_z - pull) if _string_top != null else Vector3.ZERO
+		if _string_top != null and _string_bot != null:
+			_aim_segment(_string_top, _string_tip_top, nock_local)
+			_aim_segment(_string_bot, _string_tip_bot, nock_local)
+		var nock_anchor := _fp_left_weapon_holder.transform * (_bow_node.transform * nock_local)
+		if _fp_nocked_arrow != null:
+			_fp_nocked_arrow.visible = _bow_release_recoil <= 0.15
+			_fp_nocked_arrow.position = nock_anchor + Vector3(0.012, 0.012, -0.35)
+		var nock_cam := fp_left_anchor.transform * nock_anchor
+		var drawing_hand := nock_cam + Vector3(0.03, -0.02, 0.05)
+		fp_right_anchor.position = r_pos.lerp(drawing_hand, clampf(_draw_blend * 1.6 + (0.35 if is_right_holding else 0.0), 0.0, 1.0))
+		fp_right_anchor.rotation_degrees = r_rot.lerp(Vector3(-80.0, 0.0, 90.0), _draw_blend)
 
-	# Continuously orbit the compact floating arcane crystal + astrolabe rings!
-	if _fp_spell_node != null and is_instance_valid(_fp_spell_node):
-		_fp_spell_node.rotation.y += dt * 2.2
-		_fp_spell_node.rotation.x = sin(_anim_time * 3.0) * 0.25
-		_fp_spell_node.position.y = 0.09 + sin(_anim_time * 3.8) * 0.018
+	# --- Spell glow breathing --------------------------------------------------------
+	if _spell_fx != null and is_instance_valid(_spell_fx):
+		var cast_pulse := 0.0
+		if _left_action_t > 0.0 or _right_swing_t > 0.0:
+			cast_pulse = 1.0
+		_spell_fx.scale = Vector3.ONE * (1.0 + sin(_anim_time * 5.0) * 0.06 + cast_pulse * 0.35)
+		if _spell_light != null:
+			_spell_light.light_energy = 0.8 + sin(_anim_time * 7.3) * 0.12 + cast_pulse * 1.4
 
-	# --- 3RD-PERSON PROCEDURAL CHARACTER ANIMATION ---
-	if tp_mesh != null and tp_mesh.visible:
-		var stride_bob := absf(sin(_walk_bob_phase)) * 0.075 * _move_blend
-		var stride_sway := sin(_walk_bob_phase) * 4.5 * _move_blend
-		var swing_twist := 0.0
-		if _right_swing_t > 0.0:
-			swing_twist = sin((_right_swing_t / maxf(0.01, _right_swing_dur)) * PI) * 28.0
-		tp_mesh.position.y = stride_bob + sin(_anim_time * 2.0) * 0.012
-		tp_mesh.rotation_degrees = Vector3(_sprint_blend * 9.0, 180.0 + swing_twist, stride_sway)
+	_update_blade_trail()
+
+	# --- 3RD-PERSON SKELETAL ANIMATION -----------------------------------------------
+	if tp_visual != null and tp_visual.visible:
+		_tp_action_lock = maxf(0.0, _tp_action_lock - dt)
+		var st := "idle"
+		if _move_blend > 0.15:
+			st = "run" if _sprint_blend > 0.5 else "walk"
+		elif is_blocking:
+			st = "block"
+		elif is_bow_drawing:
+			st = "draw_hold"
+		tp_visual.play_state(st, 0.18, 1.0 if st != "walk" else clampf(0.8 + _move_blend * 0.4, 0.8, 1.3))
+
+
+func _aim_segment(seg: Node3D, tip: Vector3, target: Vector3) -> void:
+	var d := target - tip
+	var ln := d.length()
+	if ln < 0.0005:
+		return
+	var y := d / ln
+	var x := Vector3.RIGHT if absf(y.dot(Vector3.RIGHT)) < 0.9 else Vector3.FORWARD
+	var z := x.cross(y).normalized()
+	x = y.cross(z).normalized()
+	seg.transform = Transform3D(Basis(x, y * ln, z), tip)
+
+
+func _update_blade_trail() -> void:
+	var im := _trail.mesh as ImmediateMesh
+	if im == null:
+		return
+	im.clear_surfaces()
+	var swinging := _right_swing_t > 0.0 and _blade_tip != null and is_instance_valid(_blade_tip) and camera_mode == "first_person"
+	if swinging:
+		var inv := camera.global_transform.affine_inverse()
+		var u := 1.0 - (_right_swing_t / maxf(0.01, _right_swing_dur))
+		if u > 0.22 and u < 0.62:
+			_trail_pts.push_front([inv * _blade_base.global_position, inv * _blade_tip.global_position])
+	if not swinging or _trail_pts.size() > 9:
+		if not _trail_pts.is_empty():
+			_trail_pts.pop_back()
+	if not swinging and _trail_pts.size() > 0:
+		_trail_pts.pop_back()
+	if _trail_pts.size() < 2:
+		return
+	im.surface_begin(Mesh.PRIMITIVE_TRIANGLE_STRIP)
+	var n := _trail_pts.size()
+	for i in range(n):
+		var a := 1.0 - float(i) / float(n - 1)
+		var c := Color(1.0, 0.86, 0.6, 0.55 * a * a)
+		var pair: Array = _trail_pts[i]
+		im.surface_set_color(Color(c.r, c.g, c.b, c.a * 0.2))
+		im.surface_add_vertex(pair[0])
+		im.surface_set_color(c)
+		im.surface_add_vertex(pair[1])
+	im.surface_end()
 
 
 func emit_stats() -> void:
@@ -811,7 +1005,18 @@ func emit_stats() -> void:
 		"bow_draw_ratio": CombatMath.compute_bow_draw_ratio(bow_draw_time, player_cfg) if is_bow_drawing else 0.0,
 		"right_hand_name": str(equipment.get("right_hand", {}).get("name", "Empty")),
 		"left_hand_name": str(equipment.get("left_hand", {}).get("name", "Empty")),
+		"right_hand_item": equipment.get("right_hand", {}),
+		"left_hand_item": equipment.get("left_hand", {}),
+		"health_potions": _count_health_potions(),
 	})
+
+
+func _count_health_potions() -> int:
+	var n := 0
+	for it in inventory:
+		if float(it.get("heal_health", 0.0)) > 0.0:
+			n += 1
+	return n
 
 
 func _perform_melee_attack(weapon: Dictionary, is_right: bool, is_power: bool) -> void:
@@ -827,10 +1032,12 @@ func _perform_melee_attack(weapon: Dictionary, is_right: bool, is_power: bool) -
 
 	var eq_totals := LootGenerator.aggregate_equipment_stats(equipment)
 	var cd := float(weapon.get("cooldown_sec", 0.55)) * (1.0 - float(eq_totals["cooldown_reduction"]))
+	if tp_visual != null and tp_visual.visible:
+		tp_visual.play_action("attack", 0.08, 1.15 if not is_power else 0.95)
 	if is_right:
 		_right_cooldown = cd
 		_right_swing_power = is_power
-		_right_swing_dur = 0.44 if is_power else 0.34
+		_right_swing_dur = 0.5 if (is_power or bool(weapon.get("two_handed", false))) else 0.36
 		_right_swing_t = _right_swing_dur
 		_right_combo_step = (_right_combo_step + 1) % 2
 		_slash_vfx_timer = 0.14
@@ -922,6 +1129,8 @@ func _cast_spell(spell: Dictionary, is_right: bool) -> void:
 		_left_action_t = _left_action_dur
 	_camera_kick = 0.24
 
+	if tp_visual != null and tp_visual.visible:
+		tp_visual.play_action("cast", 0.08, 1.3)
 	var kind := str(spell.get("spell_kind", "projectile"))
 	var skill_name := str(spell.get("weapon_type", "destruction"))
 	var prog_bonuses := progression.get_derived_bonuses() if progression != null else {}

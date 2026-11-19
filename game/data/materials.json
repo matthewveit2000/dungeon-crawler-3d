@@ -1,0 +1,360 @@
+{
+  "_doc": "Shared PBR material library. Blender exports .glb files whose material NAMES match these keys (no embedded images); Godot's MaterialLibrary swaps in these shared, high-resolution materials at load time. 'tex' points at game/assets/textures/<tex>_{albedo,normal,orm}.webp. 'tile_m' = metres covered by one texture repeat (Blender bakes it into the UVs). uv: box (world-scale box projection), unit (authored 0..1 UVs).",
+  "materials": {
+    "stone_block": {
+      "tex": "stone_block",
+      "tile_m": 1.5,
+      "normal_scale": 1.0,
+      "vertex_color": true
+    },
+    "stone_trim": {
+      "tex": "stone_trim",
+      "tile_m": 1.2,
+      "normal_scale": 0.9,
+      "vertex_color": true
+    },
+    "stone_floor": {
+      "tex": "stone_floor",
+      "tile_m": 1.6,
+      "normal_scale": 1.0,
+      "vertex_color": true
+    },
+    "flagstone": {
+      "tex": "flagstone",
+      "tile_m": 4.0,
+      "normal_scale": 1.0,
+      "vertex_color": true,
+      "parallax": 0.025
+    },
+    "stone_ashlar": {
+      "tex": "stone_ashlar",
+      "tile_m": 3.0,
+      "normal_scale": 1.0,
+      "vertex_color": true
+    },
+    "mortar": {
+      "tex": "mortar",
+      "tile_m": 1.0,
+      "normal_scale": 0.8,
+      "vertex_color": true
+    },
+    "dirt": {
+      "tex": "dirt",
+      "tile_m": 1.5,
+      "normal_scale": 1.0,
+      "vertex_color": true
+    },
+    "rune_stone": {
+      "tex": "rune_stone",
+      "tile_m": 1.5,
+      "normal_scale": 1.0,
+      "vertex_color": true,
+      "emission": "#62d8ff",
+      "emission_energy": 2.6
+    },
+    "rune_stone_red": {
+      "tex": "rune_stone",
+      "tile_m": 1.5,
+      "normal_scale": 1.0,
+      "vertex_color": true,
+      "emission": "#ff4a2a",
+      "emission_energy": 3.0
+    },
+    "wood_oak": {
+      "tex": "wood_oak",
+      "tile_m": 1.2,
+      "normal_scale": 1.0,
+      "vertex_color": true
+    },
+    "wood_dark": {
+      "tex": "wood_dark",
+      "tile_m": 1.2,
+      "normal_scale": 1.0,
+      "vertex_color": true
+    },
+    "wood_rough": {
+      "tex": "wood_rough",
+      "tile_m": 1.2,
+      "normal_scale": 1.1,
+      "vertex_color": true
+    },
+    "wood_beam": {
+      "tex": "wood_beam",
+      "tile_m": 1.0,
+      "normal_scale": 1.0,
+      "vertex_color": true
+    },
+    "iron_dark": {
+      "tex": "iron_dark",
+      "tile_m": 0.7,
+      "normal_scale": 1.0,
+      "vertex_color": true
+    },
+    "steel_blade": {
+      "tex": "steel_blade",
+      "tile_m": 0.5,
+      "normal_scale": 0.6,
+      "vertex_color": false
+    },
+    "steel_armor": {
+      "tex": "steel_armor",
+      "tile_m": 0.6,
+      "normal_scale": 0.8,
+      "vertex_color": true
+    },
+    "gold_antique": {
+      "tex": "gold_antique",
+      "tile_m": 0.45,
+      "normal_scale": 0.7,
+      "vertex_color": true
+    },
+    "bronze": {
+      "tex": "bronze",
+      "tile_m": 0.5,
+      "normal_scale": 0.8,
+      "vertex_color": true
+    },
+    "leather_brown": {
+      "tex": "leather_brown",
+      "tile_m": 0.45,
+      "normal_scale": 1.0,
+      "vertex_color": true
+    },
+    "leather_dark": {
+      "tex": "leather_dark",
+      "tile_m": 0.45,
+      "normal_scale": 1.0,
+      "vertex_color": true
+    },
+    "cloth_crimson": {
+      "tex": "cloth_crimson",
+      "tile_m": 0.7,
+      "normal_scale": 0.8,
+      "vertex_color": true,
+      "double_sided": true
+    },
+    "cloth_linen": {
+      "tex": "cloth_linen",
+      "tile_m": 0.7,
+      "normal_scale": 0.8,
+      "vertex_color": true,
+      "double_sided": true
+    },
+    "cloth_dark": {
+      "tex": "cloth_dark",
+      "tile_m": 0.7,
+      "normal_scale": 0.8,
+      "vertex_color": true,
+      "double_sided": true
+    },
+    "cloth_teal": {
+      "tex": "cloth_teal",
+      "tile_m": 0.7,
+      "normal_scale": 0.8,
+      "vertex_color": true,
+      "double_sided": true
+    },
+    "cloth_burlap": {
+      "tex": "cloth_burlap",
+      "tile_m": 0.6,
+      "normal_scale": 1.0,
+      "vertex_color": true,
+      "double_sided": true
+    },
+    "fur": {
+      "tex": "fur",
+      "tile_m": 0.5,
+      "normal_scale": 1.2,
+      "vertex_color": true
+    },
+    "bone": {
+      "tex": "bone",
+      "tile_m": 0.35,
+      "normal_scale": 0.9,
+      "vertex_color": true
+    },
+    "skin_goblin": {
+      "tex": "skin_goblin",
+      "tile_m": 0.4,
+      "normal_scale": 0.8,
+      "vertex_color": true,
+      "subsurface": 0.25
+    },
+    "skin_draugr": {
+      "tex": "skin_draugr",
+      "tile_m": 0.4,
+      "normal_scale": 1.0,
+      "vertex_color": true
+    },
+    "skin_human": {
+      "tex": "skin_human",
+      "tile_m": 0.4,
+      "normal_scale": 0.6,
+      "vertex_color": true,
+      "subsurface": 0.3
+    },
+    "rope": {
+      "tex": "rope",
+      "tile_m": 0.25,
+      "normal_scale": 1.0,
+      "vertex_color": true
+    },
+    "wax": {
+      "tex": "wax",
+      "tile_m": 0.2,
+      "normal_scale": 0.6,
+      "vertex_color": true,
+      "subsurface": 0.5
+    },
+    "parchment": {
+      "tex": "parchment",
+      "uv": "unit",
+      "normal_scale": 0.6,
+      "vertex_color": true,
+      "double_sided": true
+    },
+    "banner_crimson": {
+      "tex": "banner_crimson",
+      "uv": "unit",
+      "normal_scale": 0.8,
+      "vertex_color": true,
+      "double_sided": true
+    },
+    "rug_crimson": {
+      "tex": "rug_crimson",
+      "uv": "unit",
+      "normal_scale": 0.8,
+      "vertex_color": true
+    },
+    "embers": {
+      "tex": "embers",
+      "tile_m": 0.5,
+      "normal_scale": 1.0,
+      "vertex_color": false,
+      "emission_tex": true,
+      "emission_energy": 1.6
+    },
+    "glass_red": {
+      "color": "#7a0610",
+      "roughness": 0.06,
+      "metallic": 0.0,
+      "alpha": 0.78,
+      "emission": "#ff1f2e",
+      "emission_energy": 0.9
+    },
+    "glass_blue": {
+      "color": "#0b2a7a",
+      "roughness": 0.06,
+      "metallic": 0.0,
+      "alpha": 0.78,
+      "emission": "#2f6dff",
+      "emission_energy": 0.9
+    },
+    "glass_green": {
+      "color": "#0f4a2a",
+      "roughness": 0.08,
+      "metallic": 0.0,
+      "alpha": 0.7
+    },
+    "glass_clear": {
+      "color": "#c8d6dc",
+      "roughness": 0.04,
+      "metallic": 0.0,
+      "alpha": 0.35
+    },
+    "crystal_teal": {
+      "color": "#1c6e66",
+      "roughness": 0.12,
+      "metallic": 0.0,
+      "alpha": 0.85,
+      "emission": "#3fffd4",
+      "emission_energy": 3.2
+    },
+    "crystal_gold": {
+      "color": "#7a5410",
+      "roughness": 0.12,
+      "metallic": 0.2,
+      "emission": "#ffc04a",
+      "emission_energy": 3.0
+    },
+    "glow_eye_blue": {
+      "color": "#4fe8ff",
+      "roughness": 0.3,
+      "unshaded": true,
+      "emission": "#6ff0ff",
+      "emission_energy": 6.0
+    },
+    "glow_eye_red": {
+      "color": "#ff3b1f",
+      "roughness": 0.3,
+      "unshaded": true,
+      "emission": "#ff5a2a",
+      "emission_energy": 6.0
+    },
+    "glow_eye_gold": {
+      "color": "#ffd25a",
+      "roughness": 0.3,
+      "unshaded": true,
+      "emission": "#ffcf5a",
+      "emission_energy": 5.0
+    },
+    "furnace_core": {
+      "color": "#ff5a1a",
+      "roughness": 0.4,
+      "emission": "#ff6a1c",
+      "emission_energy": 7.0
+    },
+    "neon_pink": {
+      "color": "#ff4fd8",
+      "roughness": 0.3,
+      "unshaded": true,
+      "emission": "#ff5ae0",
+      "emission_energy": 5.0
+    },
+    "neon_cyan": {
+      "color": "#4ff6ff",
+      "roughness": 0.3,
+      "unshaded": true,
+      "emission": "#55f2ff",
+      "emission_energy": 4.0
+    },
+    "screen_glow": {
+      "color": "#9fe8ff",
+      "roughness": 0.2,
+      "emission": "#8fe0ff",
+      "emission_energy": 2.5
+    },
+    "flame_glow": {
+      "color": "#ffb04a",
+      "roughness": 1.0,
+      "unshaded": true,
+      "emission": "#ff9a3a",
+      "emission_energy": 4.0
+    },
+    "void_black": {
+      "color": "#020203",
+      "roughness": 1.0,
+      "unshaded": true
+    },
+    "plastic_black": {
+      "color": "#141518",
+      "roughness": 0.35,
+      "metallic": 0.0
+    },
+    "teeth": {
+      "color": "#cbbf9a",
+      "roughness": 0.4,
+      "metallic": 0.0
+    },
+    "eye_white": {
+      "color": "#d8d2c0",
+      "roughness": 0.15,
+      "metallic": 0.0
+    },
+    "pupil_black": {
+      "color": "#0a0705",
+      "roughness": 0.1,
+      "metallic": 0.0
+    }
+  }
+}

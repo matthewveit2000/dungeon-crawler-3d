@@ -74,3 +74,14 @@ Skyrim-inspired **left-hand / right-hand equipping** supporting four classic pla
 - **100% Original Blender 3D Art:** Modular Nordic-ruin dungeon kit (snappable floors, walls, arches, pillars, stairs, doors, torches, chests, props), characters, weapons, and enemies authored in Blender and exported as `.glb`.
 - **Clean Stylized Dark Fantasy:** Crisp silhouettes, smooth-shaded/beveled geometry, atmospheric torchlight and shadows, and procedural/painted textures—built to iterate fast in v0.1 while leaving clean room to increase visual richness over time.
 - **100% Open-Source Audio:** Procedural/synthesized SFX (steel clashes, spells, footsteps, chest latches, dungeon ambience) paired with punchy on-screen Dungeon AI notification banners.
+
+---
+
+## 8. Presentation, UI & Quality of Life (`D-031`–`D-035`)
+
+- **Look:** stylized dark fantasy at an "AA-indie" bar — hand-cut stone architecture, warm torch pools against cool shadow, volumetric haze, detailed props, rigged and animated characters; Low → Ultra graphics presets.
+- **Front end:** title screen over a live 3D hall (Continue with save summary, New Expedition, Settings, Credits, Quit).
+- **HUD:** compass with landmark icons, floor clock, slim vitals that fade when full, contextual crosshair (hit marker, block, bow-draw ring), key-cap interaction prompts, equipped-item icons, Dungeon AI broadcast cards, loot toasts, area titles, level-up banner, boss bar with enrage state, tutorial card.
+- **Menus:** pause (with run status, controls reference and settings), inventory (3D portrait, equipment slots, filter/sort grid, comparisons, unequip, off-hand right-click), Skills & Perks, vendor (comparisons, sell-all-common), dungeon map with fog of war (`M`), death/collapse screen.
+- **Comfort & accessibility:** FOV, render scale/FSR, brightness, audio channels, mouse sensitivity/invert, full key rebinding, head bob & camera shake sliders, damage numbers, enemy health bar mode, crosshair style, HUD opacity, UI scale, colour-blind filters, announcement text, reduced flashing; confirmations before destructive actions.
+

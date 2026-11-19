@@ -12,32 +12,42 @@
 
 | Tier | Location | Responsibility | Rules |
 |---|---|---|---|
-| **Tier 1 — Core Engine Glue** | `game/src/core/` | Seeded PRNG (`SeededRng`), JSON data loader (`DataLoader`), decoupled signal bus (`EventBus`), `.glb` model loader with graceful fallback (`ModelLoader`), procedural audio playback (`AudioManager`). | Zero hardcoded gameplay rules or item stats. Graceful fallback if an asset or audio file is missing. |
+| **Tier 1 — Core Engine Glue** | `game/src/core/` | Seeded PRNG (`SeededRng`), JSON data loader (`DataLoader`), decoupled signal bus (`EventBus`), `.glb` model loader with graceful fallback + MultiMesh mesh access (`ModelLoader`), shared PBR material binding (`MaterialLibrary`), persistent player settings & key rebinding (`GameSettings` autoload), procedural audio playback (`AudioManager`). | Zero hardcoded gameplay rules or item stats. Graceful fallback if an asset or audio file is missing. |
 | **Tier 2 — Pure Gameplay Rules** | `game/src/systems/` | Deterministic procedural dungeon layout (`DungeonGenerator`), Skyrim left/right-hand & armor/crit math (`CombatMath`), rarity & Sponsored/Mythic rolling (`LootGenerator`), hybrid XP + Skyrim use-to-improve (`ProgressionSystem`), 5-day floor clock (`FloorTimer`), Floor-Entry Snapshot & Save-and-Quit persistence (`SnapshotManager`), Vendor economy (`VendorSystem`), Compass projection (`CompassSystem`), Dungeon AI snark (`DungeonAiDirector`), Audit Console parser (`DebugConsole`). | Pure `RefCounted` logic driven exclusively by Tier 3 JSON dictionaries and injected `SeededRng`. No scene-tree assumptions. |
-| **Tier 3 — Pure Data Packs** | `game/data/` | 7 validated JSON packs (`world.json`, `player.json`, `items.json`, `affixes.json`, `enemies.json`, `dungeon_ai.json`, `progression.json`). | All tunable numbers, spawn weights, timers, item stats, and text live here. Validated automatically by `scripts/validate-data.py`. |
-| **3D World & UI Presentation** | `game/src/world/`, `game/src/ui/`, `game/src/main.gd` | 3D modular Nordic-ruin builder (`DungeonBuilder`), Skyrim 1st/3rd-person player (`PlayerController`), 3D enemies & Boss (`EnemyActor`), projectiles (`GameProjectile`), interactables (`InteractableObject`), HUD/menus (`GameHud`, `InventoryMenu`, `VendorMenu`, `PauseMenu`, `DebugOverlay`), and scene coordinator (`GameMain`). | Thin visual/physics adapters delegating all rules and math to Tier 2. |
+| **Tier 3 — Pure Data Packs** | `game/data/` | Validated JSON packs (`world.json`, `player.json`, `items.json`, `affixes.json`, `enemies.json`, `dungeon_ai.json`, `progression.json`, `tutorials.json`, `setpieces.json`) plus `materials.json` (shared PBR material definitions read by Blender and Godot). | All tunable numbers, spawn weights, timers, item stats, text and material parameters live here. Validated by `scripts/validate-data.py` and `scripts/validate-assets.py`. |
+| **3D World & UI Presentation** | `game/src/world/`, `game/src/ui/`, `game/src/main.gd` | Batched, lit and dressed Nordic-ruin builder (`DungeonBuilder`), Skyrim 1st/3rd-person player (`PlayerController`), rigged animated character wrapper (`CharacterVisual`), enemies & Boss (`EnemyActor`), projectiles (`GameProjectile`), interactables with lid/lever animation (`InteractableObject`), effects (`VfxFactory`), UI design system (`UiTheme`, `ItemInfo`, `MenuScreen`), HUD (`GameHud`), menus (`TitleScreen`, `PauseMenu`, `SettingsPanel`, `InventoryMenu`, `VendorMenu`, `MapMenu`, `DeathScreen`, `DebugOverlay`) and scene coordinator (`GameMain`). | Thin visual/physics adapters delegating all rules and math to Tier 2. |
 
 ---
 
-## 2. Runtime Scene Tree (`game/scenes/main.tscn`)
+## 2. Scene Flow & Runtime Scene Tree
+
+`res://scenes/title.tscn` (`TitleScreen`, project main scene: live 3D backdrop + menu) → `res://scenes/main.tscn` (`GameMain`).
+Quit to Title saves and returns; Continue resumes the save, New Expedition deletes it (after confirmation).
 
 ```text
 Main (GameMain — game/src/main.gd)
 ├── DungeonBuilder (game/src/world/dungeon_builder.gd)
-│   └── DungeonGeometry (StaticBody3D walls/floors/ceilings, Blender Batch 1 .glb props,
-│                        torches, Boss Gate, Vault Gate, InteractableObjects, Spike Traps)
-├── Enemies (Node3D container for spawned EnemyActor instances + Floor Boss)
+│   └── DungeonGeometry (WorldEnvironment, WorldColliders, chunked MultiMesh architecture, wall
+│                        ArrayOccluder3D, torches + fire VFX + flickering lights, setpieces, dressing,
+│                        dust/cobwebs, Boss Gate, Vault Gate, InteractableObjects, Spike Traps)
+├── Enemies (EnemyActor instances, each with an animated CharacterVisual + weapon + health bar)
 ├── Projectiles (Node3D container for GameProjectile arrows & spells)
-├── Corpses (Node3D container for lootable InteractableObject enemy corpses)
+├── Corpses (lootable InteractableObjects holding the fallen, animated enemy bodies)
 ├── Player (PlayerController — game/src/world/player_controller.gd)
-│   ├── HeadPivot (First-Person Camera3D + Left/Right-Hand weapon anchors + Interact RayCast3D)
-│   ├── ThirdPersonPivot (SpringArm3D + Over-the-Shoulder Camera3D)
-│   └── ThirdPersonBody (Blender Batch 3 player_crawler.glb, visible in 3rd-person mode)
-├── GameHud (CanvasLayer — top compass bar, 5-day clock, HP/MP/SP bars, reticle, AI banners)
-├── InventoryMenu (CanvasLayer — Skyrim equipment slots, bag, hybrid level/perk/skill panel)
-├── VendorMenu (CanvasLayer — Safe Room buy/sell trading)
-├── PauseMenu (CanvasLayer — Resume, Save & Quit, Reset Floor, Camera Toggle)
+│   ├── HeadPivot (Camera3D + presence fill light + blade-trail mesh + left/right hand anchors
+│   │              holding gloved first-person arms, weapons, bow with live string, spell VFX)
+│   └── CharacterVisual "crawler" (rigged & animated 3rd-person body with weapons in hand sockets)
+├── GameHud (CanvasLayer — compass w/ landmark icons, floor clock, vitals w/ damage trails, crosshair,
+│            interaction prompt, hand icons, AI cards, loot toasts, area titles, boss bar, tutorial card)
+├── InventoryMenu (MenuScreen — 3D portrait, equipment slots, filter/sort bag grid, comparison card,
+│                  Skills & Perks tab)
+├── VendorMenu (MenuScreen — stock/pack grids, comparison card, buy/sell, sell-all-common)
+├── PauseMenu (MenuScreen — resume, settings, controls, tutorial, save, reset floor, quit to title/desktop)
+├── MapMenu (MenuScreen — hand-inked fog-of-war map, landmarks, zoom/pan)
+├── DeathScreen (CanvasLayer — death / floor-collapse title card)
 └── DebugOverlay (CanvasLayer — built-in `~` Audit Console for playtesting shortcuts)
+
+Autoloads: GameSettings (settings + key bindings, applied live), DataLoader, EventBus, AudioManager.
 ```
 
 ---
@@ -70,4 +80,4 @@ Run `./scripts/run-tests.sh` (identical to GitHub Actions CI in `.github/workflo
 2. Multi-AI documentation links & zero unseeded RNG (`scripts/check-repo-hygiene.py`)
 3. Blender `.glb` bounds, transforms & studio PNG previews (`scripts/validate-assets.py`)
 4. Headless `res://scenes/main.tscn` 20-frame boot smoke check with zero script errors
-5. Full GUT unit + 100-seed procedural dungeon + headless 3D gameplay integration suite
+5. Full GUT unit + 100-seed procedural dungeon + headless 3D gameplay integration suite + settings/material/UI/animation presentation suite

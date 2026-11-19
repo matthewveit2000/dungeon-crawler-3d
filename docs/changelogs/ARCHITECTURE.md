@@ -36,3 +36,12 @@ See [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) and [`docs/DECISION_LOG.md`](..
   - Wired `GameMain` (`game/scenes/main.tscn`) connecting procedural 3D Nordic-ruin builder, Skyrim 1st/3rd-person player controller, 3D enemies & Boss Arena, projectiles, interactables, HUD, Inventory, Vendor, Pause, and Audit Console overlays.
 - **Architectural Guardrails:**
   - Enforced zero unseeded randomness across `game/src/` and automated relative markdown link validation via `scripts/check-repo-hygiene.py`.
+
+## 2026-11-19 — Presentation Layer v2 (`D-031`–`D-036`)
+
+- **New Tier 1:** `GameSettings` autoload (persistent settings in `user://settings.cfg`, live application, key rebinding with conflict swap, colour-blind filter layer, audio buses), `MaterialLibrary` (binds shared `ORMMaterial3D`s to `.glb` material names), `ModelLoader.load_mesh` for MultiMesh batching.
+- **World:** `DungeonBuilder` rewritten — chunked MultiMesh architecture, doorway arches at room/corridor junctions, wall occluders (occlusion culling), torch fire VFX and light budget with quality-scaled shadows, seeded room dressing with colliders, dust motes, cobwebs, quality-scaled `build_environment()`. New `VfxFactory`, `CharacterVisual` (rigged character wrapper: cross-faded states, one-shots, bone sockets, hit flash). `EnemyActor` drives skeletal animation with impact-synced attacks and hands its body to the corpse. `InteractableObject` animates chest lids, levers and urns. `PlayerController` gained gloved first-person arms, bowstring deformation, spell VFX, blade trails, hit-stop, camera shake, settings-aware FOV/sensitivity/head-bob and an animated third-person body with weapon sockets.
+- **UI:** new `UiTheme` design system, `MenuScreen` base (blurred backdrop, fades, confirm dialogs), `SettingsPanel`, `ItemInfo`, `TitleScreen` (new main scene `res://scenes/title.tscn`), `MapMenu`, `DeathScreen`; `GameHud`, `PauseMenu`, `InventoryMenu`, `VendorMenu` rewritten.
+- **Data:** `game/data/materials.json`; `items.json` gains `icon`; `enemies.json` gains `visual` (character kind, weapon, hand, scale); `setpieces.json` rewritten for the new props (with colliders & fire scale).
+- **Project:** occlusion culling, soft-shadow quality, MSAA/FXAA, volumetric fog volume and anisotropic filtering settings; texture import presets pinned by `scripts/configure-texture-imports.py`.
+

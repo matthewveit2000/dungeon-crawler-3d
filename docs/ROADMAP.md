@@ -23,6 +23,12 @@
 
 ---
 
+### Visual Overhaul v2 (`D-031`–`D-036`) — `Built — Awaiting User Review`
+
+Requested by the User after reviewing v0.1: every model, texture, animation, HUD element and menu rebuilt to an "AA-indie" bar, plus a quality-of-life suite (title screen, settings & key rebinding, accessibility, map, inventory comparisons). **[USER PLAYTEST + ART REVIEW]** via the PR screenshots and [`docs/PLAYTEST_GUIDE.md`](PLAYTEST_GUIDE.md).
+
+---
+
 ## Future Milestones (High-Level — Refined After `v0.1` Playtest)
 
 - **Milestone 2 (`v0.2` — Multi-Floor Variety & Deep Progression):**

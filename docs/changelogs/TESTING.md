@@ -35,3 +35,11 @@ See [`docs/TESTING_STRATEGY.md`](../TESTING_STRATEGY.md) and [`docs/DECISION_LOG
      - `test_vendor_compass_ai_console.gd` — Vendor buy/sell economy, Compass discovery/bearing math, Dungeon AI banner templates, Audit Console dispatch.
      - `test_headless_gameplay_integration.gd` — Full headless 3D `GameMain` integration suite verifying fresh boot, 1st/3rd-person toggle, menu clock freeze, Safe Room enemy repulsion, Boss Gate seal & Vault unlock, Floor Collapse + Combat Death snapshot resets, Floor 2 descent, Save-and-Quit resume, spells/archery projectiles, melee enemy kills + Skyrim skill use + corpse looting, chest/Quest Board/Vendor interaction, and every Playtest Audit Console command.
 - **Hardened GUT Failure Guard:** Updated `scripts/run-tests.sh` to inspect GUT output and fail the build if any test script encounters a parse/load error or gets silently ignored by GUT.
+
+## 2026-11-19 — Presentation Test Suite & Forward+ Visual QA (`D-036`)
+
+- Added `game/tests/test_settings_and_materials.gd` (settings defaults/set-get, rebinding conflict swap & reset, event serialisation, material library build & name binding) and `game/tests/test_ui_and_visuals.gd` (every menu opens/refreshes/closes with time-pause, unequip & sell-all-common, item comparison/sort/filter, map fog-of-war + save/load, all six characters expose required clips & weapon sockets, enemy corpses keep the animated body, chest lid opens, dungeon is dressed & lit with quality-scaled environment, death screen).
+- `scripts/validate-assets.py` rewritten for the v2 library: GLB integrity, per-category triangle budgets, required animation clips, material/texture existence, item icons, setpiece/weapon references, UI kit and font licences.
+- `scripts/run-visual-qa.sh` captures Vulkan Forward+ by default (Mesa lavapipe when no GPU), supports `QA_ONLY` groups and `RENDER=opengl3`; capture tool rewritten to stage title, all loadouts, third-person, each enemy, corridor, safe room, boss, every menu, death screen and a 40-frame combat clip.
+- Totals: 12 test scripts, 53 tests, 5,600+ assertions — all green.
+

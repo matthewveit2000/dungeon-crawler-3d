@@ -10,7 +10,7 @@ Everything mechanical has already been verified by automated tests, so this play
 1. Download **Godot 4.7.2-stable** (free, open-source, no install needed): <https://godotengine.org/download>
 2. Clone or pull this repository and check out the branch (`feat/v0.1-vertical-slice` before merge, or `main` after merge).
 3. Open Godot → click **Import** → select `game/project.godot`.
-4. Press **F5** (Play) — the game boots straight into **Floor 1: The Nordic Ruin** with zero setup required.
+4. Press **F5** (Play) — the **title screen** opens over a live torch-lit hall. Choose **New Expedition** (or **Continue** to resume a save). Open **Settings** first if you want to pick a graphics preset, field of view, mouse sensitivity or re-bind keys.
 
 *(Optional terminal launch if you have Godot on your PATH: `godot --path game`)*
 
@@ -30,9 +30,12 @@ Everything mechanical has already been verified by automated tests, so this play
 | **1 / 2 / 3 / 4** | Quick Loadouts: `1` Sword + Shield · `2` Two-Handed Greatsword · `3` Sword + Firebolt Spell · `4` Hunting Bow |
 | **E** | Interact / Loot (Chests, Crates, Urns, Enemy Corpses, Trap Levers, Safe Room Vendor, Quest Board, Hidden Staircase) |
 | **Q** | Quick-drink Health Potion |
-| **I** or **Tab** | Open **Inventory, Equipment & Progression Menu** *(pauses the 5-day clock!)* |
+| **I** or **Tab** | Open **Inventory & Character** *(pauses the 5-day clock!)* — click to inspect, double-click to equip/use, right-click to equip off-hand, click an equipped slot to unequip; **Skills & Perks** tab for level-up points |
+| **M** | Open the **Dungeon Map** (explored areas, landmarks; mouse wheel zoom, drag to pan) |
 | **H** | Hide the current Tutorial Mode hint card *(non-blocking, auto-completes as you play)* |
-| **Esc** | Open **Pause Menu** *(Resume, Camera Toggle, **Tutorial Mode ON/OFF & Reset**, Save & Quit, Reset Floor)* |
+| **Esc** | Open **Pause Menu** *(Resume, Settings, Controls, Camera Toggle, Tutorial ON/OFF & Replay, Save, Reset Floor, Save & Quit to Title / Desktop)* |
+
+All keys except Esc can be re-bound in **Settings → Controls**.
 | **`** (Backtick / Tilde) | Toggle the **Playtest Audit Console** (instant shortcuts below) |
 
 ---
@@ -70,6 +73,12 @@ These shortcuts exist so you never have to grind to inspect any feature:
 | `seed [int]` | Prints current seed or regenerates the floor with a specific seed |
 
 ---
+
+## 4b. What Changed in the Visual Overhaul v2
+
+- **New art everywhere:** hand-cut stone halls with arches and coffered vaults, real fire, fog and shadows; detailed props; rigged, animated enemies that wind up, flinch and fall (their bodies stay to be looted); a real bowstring; glowing spell hands.
+- **New menus:** title screen, gilded HUD, tabbed settings, inventory with a 3D portrait and stat comparisons, vendor, hand-inked map, death screen.
+- **Comfort options:** head bob and camera shake sliders, FOV, UI scale, colour-blind filters, reduced flashing, damage numbers on/off, HUD opacity.
 
 ## 5. What Feedback Helps Most Right Now
 

@@ -11,7 +11,7 @@ See [`docs/ART_PIPELINE.md`](../ART_PIPELINE.md) and [`docs/DECISION_LOG.md`](..
   - Created deterministic headless Blender build scripts in `art/blender/` (`common.py`, `build_batch1_dungeon.py`, `build_batch2_gear.py`, `build_batch3_actors.py`, `build_all.py`) exporting 29 `.glb` models and `art/manifest.json`.
 - **Batch 1 — Nordic-Ruin Modular Dungeon Kit (15 `.glb` models):**
   - Modeled 4×4m beveled stone floors, ceilings, ashlar walls, doorway arches, pillars, wall torches, chests, crates, urns, Safe Room rune beacon, Quest Board, Boss Arena portcullis gate, Treasure Vault gate, hidden descending staircase, spike trap grate, and disarm lever.
-  - Rendered Cycles studio preview sheet [`art/previews/batch1_dungeon_kit.png`](../../art/previews/batch1_dungeon_kit.png).
+  - Rendered Cycles studio preview sheet `art/previews/batch1_dungeon_kit.png` (superseded by the v2 overhaul).
 - **Batch 2 — Weapons, Gear & Spell Props (8 `.glb` models):**
   - Modeled Iron Sword, Iron Shield, Steel Greatsword, Hunting Bow, Arrow, Arcane Spell Orb, Health Potion, and Sponsored/Mythic Gauntlets.
   - Visual QA refinement: rebuilt `hunting_bow.glb` as a smooth 10-segment parabolic arc (eliminating limb gaps) and added articulated steel fingers/thumbs to `mythic_gloves.glb`.
@@ -19,7 +19,7 @@ See [`docs/ART_PIPELINE.md`](../ART_PIPELINE.md) and [`docs/DECISION_LOG.md`](..
 - **Batch 3 — Characters, Enemies, Boss & Vendor (6 `.glb` models):**
   - Modeled Player Crawler (3rd-person), Draugr Raider, Bone Archer, Sponsored Goblin Streamer (with glowing neon ring-light halo & camera rig), Iron Warden Floor Boss, and Safe Room Vendor.
   - Visual QA refinement: switched Batch 3 studio preview to a single-row showcase lineup so `draugr_raider.glb` is completely unobstructed beside the towering `iron_warden_boss.glb`.
-  - Rendered Cycles studio preview sheet [`art/previews/batch3_characters_enemies.png`](../../art/previews/batch3_characters_enemies.png).
+  - Rendered Cycles studio preview sheet `art/previews/batch3_characters_enemies.png` (superseded by the v2 overhaul).
 - **Procedural Open-Source Audio (`D-026`):**
   - Added `scripts/generate-sfx.py` generating 12 clean open-source `.wav` SFX & dungeon ambience loops in `game/assets/audio/`.
 
@@ -34,3 +34,19 @@ See [`docs/ART_PIPELINE.md`](../ART_PIPELINE.md) and [`docs/DECISION_LOG.md`](..
   - Refreshed all 3 Cycles studio preview sheets (`art/previews/batch1_dungeon_kit.png`, `batch2_weapons_gear.png`, `batch3_characters_enemies.png`).
 - **Live Player-POV Visual QA Iterations (`D-028`):**
   - Audited 11 live 1280×720 screenshots + 36-frame `combat_motion.mp4` video and fixed OpenGL3 light-slot starvation (adding soft directional sculpt fill + 6-nearest proximity OmniLight manager), compact 1st-person shield framing (~11% screen area), smooth blade-edge slash streak, bow forearm clearance, 3rd-person wall-collision pullback, wall-to-ceiling seam seal, and dark-fantasy UI contrast/legibility.
+
+## 2026-11-19 — Visual Overhaul v2: Procedural High-Detail Art, Rigged Animation, Atmosphere & UI Kit (`D-031`–`D-036`)
+
+Requested by the User: replace blocky/low-poly art, stiff animation and plain menus with work "between AAA and indie" quality.
+
+- **Texture library (`art/pipeline/generate_textures.py`):** 35 tileable 1024² PBR materials (albedo + OpenGL normal + ORM, height for floors/walls, emission for runes/embers) authored from periodic spectral noise, periodic Voronoi, ashlar/plank/flagstone layouts and cavity AO; stored as WebP (≈33 MB total vs 186 MB PNG). Includes unique banner (original crowned-skull sigil) and rug designs. VFX sprites: 8×8 looping flame flipbook, smoke flipbook, embers, glows, dust, cobweb, light shaft.
+- **Shared material library (`game/data/materials.json`, `D-031`):** 55 named materials used identically by Blender previews and Godot (`MaterialLibrary`), with per-material texel density baked into UVs.
+- **Modelling library (`art/blender/dclib/`):** irregular hand-cut stones, lathes, tapered sweeps, voussoir arches, cloth with folds & frayed hems, planks with grain-aligned UVs, ray-cast vertex AO, per-part tint, skin-modifier bodies, rigging and animation DSL.
+- **Kit (12):** three ashlar wall variants with base course & cornice, burial-niche wall, damaged wall with rubble, three flagstone floors, two coffered rib-vault ceilings, drummed column, voussoir doorway arch.
+- **Props (23):** torch sconce & brazier with flame sockets, candle cluster, chest with hinged lid, stave barrel, crate, urn, war banner, tasselled rug, rune boss dais, sanctuary beacon, merchant stall, quest board, portcullis, gilded vault doors, spike trap, lever, rubble & bone piles, sarcophagus, weapon rack, table, descending stairwell.
+- **Gear (22) + icons (18):** fullered longsword, bearded battleaxe, painted round shield, recurve bow with pullable string, arrow, three spell tomes, two potions, helm, cuirass, gauntlets ×2, boots, ring, amulet, ratings cleaver, four gloved first-person arms; inventory icons rendered from the models (`game/assets/icons/`).
+- **Characters (6, rigged & animated, `D-033`):** crawler, draugr, bone archer, goblin streamer, Iron Warden boss, vendor — idle / combat idle / walk / run / attack / hit / death + block, cast, draw, shoot, roar, slam, talk.
+- **UI kit (`art/pipeline/generate_ui.py`, `D-034`):** gilded 9-slice panel frames, chamfered buttons (normal/hover/pressed/disabled), item slots with rarity-tintable borders, vital bar frame & fill, divider, key cap, compass strip, map/HUD icons, crest emblem, cursor, check boxes, slider grabber.
+- **Previews:** [`kit room`](../../art/previews/batch1_kit_room.png), [`props`](../../art/previews/batch1_props.png), [`gear`](../../art/previews/batch2_weapons_gear.png), [`characters`](../../art/previews/batch3_characters.png), [`texture library`](../../art/previews/texture_library.png).
+- **Removed:** the 38 first-pass `batch1/2/3` models, 256² textures and old build scripts (superseded).
+

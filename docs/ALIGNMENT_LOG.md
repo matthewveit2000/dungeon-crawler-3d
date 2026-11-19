@@ -72,3 +72,15 @@ This document records each Q&A alignment round between the Project Owner (User) 
 - [`docs/ROADMAP.md`](ROADMAP.md)
 
 **User Authorization:** Pre-production signed off; AI authorized to exit Pre-Production and build through the `v0.1` Vertical Slice on a feature branch with full automated testing and batched Blender preview renders for User review.
+
+---
+
+## Round 6 — Full Visual, Animation & Menu Redesign (Completed: 2026-11-19)
+
+**User Request:** The User was not satisfied with the existing 3D art, animations and menus and asked for a complete redesign: avoid blocky/low-poly structures, make menus visually appealing, add quality-of-life upgrades, target a quality level "between a AAA game and an indie game", and **complete the entire redesign without asking further questions**, then deliver screenshots. The User delegated the branch/PR decision to the AI and authorised rewriting any code.
+
+**Outcome (logged as `D-031` through `D-036`):**
+- New procedural Blender modelling library and 63 rebuilt models (kit, props, gear, first-person arms, six rigged & animated characters) with a shared high-resolution PBR material library.
+- Forward+ atmospheric rendering (volumetric fog, SSAO/SSIL, AgX, soft torch shadows) with quality presets; batching and occlusion culling.
+- Complete UI redesign (HUD, title screen, pause, settings, inventory, skills & perks, vendor, map, death screen) on a gilded dark-fantasy design system with open fonts, plus a broad QoL suite.
+- No gameplay rules, balance numbers or timing were changed; all existing automated tests still pass and new ones cover the presentation layer.
