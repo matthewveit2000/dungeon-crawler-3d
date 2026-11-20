@@ -162,7 +162,8 @@ func test_chest_lid_opens_when_looted() -> void:
 
 
 func test_dungeon_is_dressed_and_lit() -> void:
-	assert_gt(game.dungeon_builder.torch_count, 10, "Torches line the halls")
+	assert_gt(game.dungeon_builder.torch_count, 60, "Dense torch lines keep the halls well lit")
+	assert_gt(game.dungeon_builder.brazier_count, 6, "Ordinary rooms get corner fire braziers")
 	assert_gt(game.dungeon_builder.spawned_dressing_props, 5, "Rooms receive procedural dressing")
 	assert_not_null(game.dungeon_builder.environment_node, "Environment is built")
 	var env := game.dungeon_builder.environment_node.environment
