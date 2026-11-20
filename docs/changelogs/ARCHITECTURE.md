@@ -71,3 +71,9 @@ See [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) and [`docs/DECISION_LOG.md`](..
 
 - `GameMain.test_*` API + `TestModePanel` (F1), `GameMain.launch_test_mode`, `TEST_SAVE_PATH`; `DungeonGenerator.generate_test_floor`; `DungeonBuilder.spawn_test_object` / `TEST_OBJECTS`; `GameMain.spawn_enemy` shared by floor spawning and Test Mode.
 - `MiniMap` HUD control; `MapMenu` locked on the player (`tile_to_screen`).
+
+## 2026-11-20 — Mastery, Enemy Levels & Bestiary (`D-049`)
+
+- New pure systems: `MasterySystem` (item XP, levels, ability tracks, passive aggregation), `EnemyLevels` (floor bands, level rolls, level scaling), `Bestiary` (tiered knowledge, save/load).
+- New data pack `game/data/mastery.json` (DataLoader `get_mastery_pack`); `items.json` gains `mastery` tracks and `drop_weight`; `enemies.json` gains `level_min/level_max`, `traits`, `lore`, `weakness`, `level_scaling`, `floor_level_band`.
+- `GameMain`: `grant_item_xp`, `chain_lightning`, `_enemy_hit_player` (blocks, shield/armor mastery, enemy traits), bestiary sightings/kills, `world_time_scale` (Hunter's Focus); `EnemyActor`: levels, traits, status effects, knockback; `GameProjectile`: pierce, homing, per-item abilities, world time scale.

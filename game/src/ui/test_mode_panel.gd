@@ -94,7 +94,8 @@ func _build_ui() -> void:
 	_section(ge, "Spawn in front of you")
 	for e in DataLoader.get_enemies_pack().get("enemies", []):
 		var eid := str(e["id"])
-		_btn(_next(ge), str(e.get("name", eid)), func() -> void: _game.test_spawn_enemy(eid, _count))
+		_btn(_next(ge), "%s (Lv %d-%d)" % [str(e.get("name", eid)), int(e.get("level_min", 1)), int(e.get("level_max", 1))],
+			func() -> void: _game.test_spawn_enemy(eid, _count))
 	_section(ge, "Control")
 	var gc := _next(ge)
 	_btn(gc, "Kill all", func() -> void: _game.test_kill_enemies())
@@ -140,6 +141,9 @@ func _build_ui() -> void:
 	_btn(gp, "+5 levels", func() -> void: _game.test_add_levels(5))
 	_btn(gp, "Full heal", func() -> void: _game.player.recalculate_vitals(true))
 	_btn(gp, "First / third person", func() -> void: _game.test_toggle("camera"))
+	_btn(gp, "Equipped gear +1 mastery", func() -> void: _game.test_add_mastery(1))
+	_btn(gp, "Equipped gear +5 mastery", func() -> void: _game.test_add_mastery(5))
+	_btn(gp, "Reveal whole bestiary", func() -> void: _game.test_reveal_bestiary())
 	_btn(gp, "Die (floor reset)", func() -> void:
 		_close_cb.call()
 		_game.reset_floor_to_snapshot("death"))

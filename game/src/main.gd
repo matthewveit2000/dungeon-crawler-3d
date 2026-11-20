@@ -83,6 +83,7 @@ func initialize_game(p_seed: int = 20261118, try_load_save: bool = true) -> void
 	run_seed = p_seed
 	rng = SeededRng.new(run_seed)
 	progression = ProgressionSystem.new(DataLoader.get_progression_pack())
+	bestiary.from_dict({})
 	floor_timer = FloorTimer.new(DataLoader.get_world()["floor_timer"])
 	snapshot_mgr = SnapshotManager.new()
 	vendor_sys = VendorSystem.new(DataLoader.get_affixes_pack())
@@ -123,7 +124,7 @@ func initialize_game(p_seed: int = 20261118, try_load_save: bool = true) -> void
 
 	inventory_menu = InventoryMenu.new()
 	add_child(inventory_menu)
-	inventory_menu.setup(player, close_all_menus)
+	inventory_menu.setup(player, close_all_menus, bestiary)
 
 	vendor_menu = VendorMenu.new()
 	add_child(vendor_menu)
@@ -1500,6 +1501,27 @@ func test_teleport(target: String) -> String:
 func test_set_floor(n: int, vast: bool) -> void:
 	test_vast_floor = vast
 	enter_floor(maxi(1, n), true)
+
+
+## Test Mode (D-049): adds mastery levels to every equipped item (unlocking their abilities).
+func test_add_mastery(levels: int) -> void:
+	for slot in player.equipment.keys():
+		var it: Dictionary = player.equipment[slot]
+		for _i in range(levels):
+			MasterySystem.add_xp(it, float(MasterySystem.xp_to_next(MasterySystem.level_of(it))) + 0.01)
+	player.recalculate_vitals(false)
+	player.refresh_hand_visuals()
+	player.emit_stats()
+
+
+## Test Mode (D-049): marks every enemy type as studied in the Bestiary.
+func test_reveal_bestiary() -> void:
+	for e in DataLoader.get_enemies_pack().get("enemies", []):
+		var r := EnemyLevels.type_range(e)
+		bestiary.record_seen(str(e["id"]), r.x, floor_number)
+		bestiary.record_seen(str(e["id"]), r.y, floor_number)
+		while bestiary.kills(str(e["id"])) < Bestiary.STUDY_KILLS:
+			bestiary.record_kill(str(e["id"]), r.x, floor_number)
 
 
 func test_toggle(flag: String) -> bool:
