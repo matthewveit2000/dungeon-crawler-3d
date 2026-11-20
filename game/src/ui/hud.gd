@@ -65,6 +65,9 @@ class CompassStrip extends Control:
 					"boss_arena":
 						icon_name = "skull"
 						col = Color(1.0, 0.38, 0.3)
+					"vault":
+						icon_name = "chest"
+						col = Color(1.0, 0.82, 0.36)
 					"stairs":
 						icon_name = "stairs"
 						col = Color(0.55, 0.78, 1.0)

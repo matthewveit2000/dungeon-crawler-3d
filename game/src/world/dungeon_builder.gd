@@ -15,7 +15,7 @@ const CHUNK_TILES := 6
 const SHADOWED_LIGHTS_HIGH := 8
 const SHADOWED_LIGHTS_LOW := 3
 const COMPAT_MAX_LIGHTS := 16
-const MAX_TORCHES := 240
+const MAX_TORCHES := 480
 
 const WALL_VARIANTS := [["wall_a", 0.3], ["wall_b", 0.3], ["wall_c", 0.24], ["wall_niche", 0.09], ["wall_damaged", 0.07]]
 const FLOOR_VARIANTS := ["floor_a", "floor_b", "floor_c"]
@@ -606,7 +606,8 @@ func _dress_room(room: Dictionary, wall_slots: Array[Dictionary], rng: SeededRng
 	var role := str(room["role"])
 	var options: Array = DRESSING.get(role, DRESSING["combat"])
 	var rect: Rect2i = room["rect"]
-	var chance := 0.42 if role != "boss" else 0.3
+	var density := float(DataLoader.get_world().get("labyrinth", {}).get("ambient_prop_density", 0.42))
+	var chance := density if role != "boss" else density * 0.6
 	for s in wall_slots:
 		var t: Vector2i = s["tile"]
 		if not rect.has_point(t) or _reserved_tiles.has(t):

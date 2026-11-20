@@ -571,6 +571,10 @@ func _check_zone_triggers(delta: float) -> void:
 		if EventBus != null:
 			EventBus.safe_room_exited.emit()
 
+	# Once the boss is down the vault must be open, whatever path got us here (kill, load, reset ordering)
+	if boss_defeated_this_floor and not dungeon_builder.vault_unlocked:
+		dungeon_builder.unlock_boss_and_vault()
+
 	# Boss Arena threshold lockdown (D-022)
 	if not boss_defeated_this_floor and not dungeon_builder.boss_arena_sealed:
 		if current_layout.is_world_in_boss_arena(player.global_position):

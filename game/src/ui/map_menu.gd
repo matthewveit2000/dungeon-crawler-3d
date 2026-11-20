@@ -91,8 +91,8 @@ class MapCanvas extends Control:
 			var wp: Vector3 = lm["world_pos"]
 			var tp := Vector2(wp.x, wp.z) / layout.tile_size
 			var pos := origin + tp * cell
-			var icons: Dictionary = {"safe_room": "icon_shield", "boss_arena": "icon_skull", "stairs": "icon_stairs"}
-			var cols: Dictionary = {"safe_room": Color(0.15, 0.45, 0.38), "boss_arena": Color(0.55, 0.12, 0.08), "stairs": Color(0.15, 0.25, 0.5)}
+			var icons: Dictionary = {"safe_room": "icon_shield", "boss_arena": "icon_skull", "vault": "icon_chest", "stairs": "icon_stairs"}
+			var cols: Dictionary = {"safe_room": Color(0.15, 0.45, 0.38), "boss_arena": Color(0.55, 0.12, 0.08), "vault": Color(0.6, 0.45, 0.1), "stairs": Color(0.15, 0.25, 0.5)}
 			var icon: String = str(icons.get(str(lm.get("id", "")), "icon_diamond"))
 			var col: Color = cols.get(str(lm.get("id", "")), ink)
 			var t := UiTheme.tex(icon)
@@ -180,7 +180,8 @@ func _build_ui() -> void:
 	v.add_child(UiTheme.divider())
 	v.add_child(UiTheme.label("LEGEND", 15, UiTheme.COL_GOLD, UiTheme.font_ui_bold()))
 	for spec in [["icon_player", "You", Color(0.9, 0.3, 0.2)], ["icon_shield", "Safe Room", Color(0.36, 0.95, 0.78)],
-			["icon_skull", "Boss Gate", Color(1.0, 0.4, 0.3)], ["icon_stairs", "Hidden Stairwell", Color(0.55, 0.78, 1.0)]]:
+			["icon_skull", "Boss Gate", Color(1.0, 0.4, 0.3)], ["icon_chest", "Treasure Vault", Color(1.0, 0.82, 0.36)],
+			["icon_stairs", "Hidden Stairwell", Color(0.55, 0.78, 1.0)]]:
 		var r := HBoxContainer.new()
 		r.add_theme_constant_override("separation", 10)
 		r.add_child(UiTheme.icon_rect(UiTheme.tex(spec[0]), 22, spec[2]))
