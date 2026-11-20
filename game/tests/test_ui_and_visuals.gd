@@ -312,18 +312,17 @@ func test_power_attack_charge_continuity_and_bow_sightline_alignment() -> void:
 	assert_lt(charged_pos.distance_to(first_swing_pos), 0.12,
 		"releasing a charged power attack continues seamlessly from the raised pose without snapping back to rest")
 
-	# Verify bow arrow aims cleanly forward along camera sightline at rest AND at full draw
+	# Bow (D-040): no arrow at idle; one is nocked as the draw starts and aims along the sightline at full draw
 	p.quick_equip_preset(4)
 	p._equip_raise = 0.0
 	p.step_simulation(1.0 / 60.0, false, {})
 	assert_not_null(p._fp_nocked_arrow)
-	assert_true(p._fp_nocked_arrow.visible)
+	assert_false(p._fp_nocked_arrow.visible, "no arrow is nocked while the bow is lowered at idle")
 	var cam_fwd := -p.camera.global_transform.basis.z.normalized()
-	var rest_dot := p._fp_nocked_arrow.global_transform.basis.y.normalized().dot(cam_fwd)
-	assert_gt(rest_dot, 0.85, "nocked arrow aims cleanly forward at rest (dot=%.2f)" % rest_dot)
 	p.handle_hand_press("right_hand")
 	for _i in range(50):
 		p.step_simulation(1.0 / 60.0, false, {})
+	assert_true(p._fp_nocked_arrow.visible, "an arrow is nocked once the draw starts")
 	var draw_dot := p._fp_nocked_arrow.global_transform.basis.y.normalized().dot(cam_fwd)
 	assert_gt(draw_dot, 0.94, "nocked arrow aims straight along crosshair at full draw (dot=%.2f)" % draw_dot)
 	p.handle_hand_release("right_hand")

@@ -502,7 +502,7 @@ func _rec_fp_spell_dual(ent: Vector3) -> void:
 		_snap("fp_spell_dual", f); f += 1
 
 	# Dual-wield two weapons (left alternating + right!)
-	var cleaver_def := DataLoader.get_item_def("ratings_cleaver")
+	var cleaver_def := DataLoader.get_item_def("sponsored_blade_ratings")
 	if cleaver_def.is_empty():
 		cleaver_def = DataLoader.get_item_def("iron_longsword")
 	var off_w := LootGenerator.make_base_item_instance(cleaver_def, "qa_dual_left")
