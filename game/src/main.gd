@@ -673,7 +673,8 @@ func _on_player_melee_swing(swing: Dictionary) -> void:
 		var delta := enemy.global_position - player.global_position
 		delta.y = 0.0
 		var dist := delta.length()
-		if dist > reach + 0.6:
+		# Reach is measured to the target's body edge, so big enemies (the boss) can't out-range the player
+		if dist > reach + maxf(0.6, enemy.body_radius + 0.1):
 			continue
 		if dist > 0.2 and fwd.dot(delta.normalized()) < half_arc_cos:
 			continue

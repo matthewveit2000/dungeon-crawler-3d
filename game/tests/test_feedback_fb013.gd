@@ -198,3 +198,13 @@ func test_test_mode_can_spawn_anything_and_never_touches_the_real_save() -> void
 	assert_eq(game.progression.level, lvl + 3, "levels up on demand")
 	assert_true(game.test_toggle("god"), "god mode")
 	assert_true(game.test_toggle("ai"), "freeze AI")
+
+
+func test_no_melee_enemy_can_out_range_the_players_melee() -> void:
+	DataLoader.ensure_loaded()
+	var reach := float(DataLoader.get_player()["combat"]["melee_range_meters"])
+	for e in DataLoader.get_enemies_pack().get("enemies", []):
+		if str(e.get("archetype", "melee")) == "ranged":
+			continue
+		var edge_reach := reach + maxf(0.6, float(e.get("radius", 0.5)) + 0.1)
+		assert_lt(float(e["attack_range"]), edge_reach, "%s attacks from %.1f m but the player can hit back to %.1f m" % [str(e["id"]), float(e["attack_range"]), edge_reach])

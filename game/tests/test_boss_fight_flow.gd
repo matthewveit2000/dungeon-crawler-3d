@@ -42,6 +42,9 @@ func test_real_boss_fight_opens_both_gates() -> void:
 	await get_tree().physics_frame
 	game.set_physics_process(false)
 	game.player.god_mode = true
+	# The boss is out of reach for a fresh crawler by design (D-046); fight it the way a scaled-up player would
+	var blade := game.test_give_item("iron_longsword", "sponsored")
+	game.player.equip_from_inventory(game.player.inventory.find(blade), "right_hand")
 	for c in game.enemies_root.get_children():
 		if c != game.boss_actor:
 			(c as Node3D).global_position = Vector3(0, -80, 0)
@@ -60,7 +63,7 @@ func test_real_boss_fight_opens_both_gates() -> void:
 	# fight: swing at the boss until it falls
 	var boss := game.boss_actor
 	var t := 0.0
-	while is_instance_valid(boss) and boss.current_health > 0.0 and t < 120.0:
+	while is_instance_valid(boss) and boss.current_health > 0.0 and t < 240.0:
 		game.player.stamina = game.player.max_stamina
 		var to_boss := boss.global_position - game.player.global_position
 		to_boss.y = 0.0

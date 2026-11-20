@@ -25,6 +25,7 @@ var damage: float = 12.0
 var armor: float = 6.0
 var move_speed: float = 3.8
 var aggro_radius: float = 13.0
+var body_radius: float = 0.5  ## collision radius; melee reach is measured to the body's edge
 var attack_range: float = 2.2
 var preferred_distance: float = 1.8
 var attack_cooldown_sec: float = 1.4
@@ -146,6 +147,7 @@ func setup(
 	collision_mask = 1
 
 	var radius := float(enemy_def.get("radius", 0.5))
+	body_radius = radius
 	_height = float(enemy_def.get("height", 1.85))
 	# Natural clip stride velocity matching char_anims.py (4*stride_half / clip_duration)
 	var leg_len := _height * 0.48
