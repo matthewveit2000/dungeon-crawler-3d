@@ -80,3 +80,8 @@ See [`docs/TESTING_STRATEGY.md`](../TESTING_STRATEGY.md) and [`docs/DECISION_LOG
 ## 2026-11-20 — Treasure Vault Access Test (`D-042`)
 
 - `test_vault_is_walkable_after_boss_defeat`: for four seeds, enter the arena (seals), kill the boss, then physically walk from mid-arena through the vault gate to the treasure; confirmed to fail when the gate stays shut.
+
+## 2026-11-20 — Boss Fight Playthrough & Gate Watchdog Tests (`D-043`)
+
+- `test_real_boss_fight_opens_both_gates`: real physics and real sword swings; walk in (arena seals), kill the boss, walk back out through the boss gate, then into the vault.
+- `test_gates_open_even_if_the_boss_vanishes_without_a_death_callback`: the watchdog opens both gates and drops them to collision layer 0.

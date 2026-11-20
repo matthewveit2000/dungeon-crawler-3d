@@ -849,6 +849,8 @@ func _set_gate_closed(gate: StaticBody3D, closed: bool, instant: bool) -> void:
 		visual.position.y = target_y
 	if col != null:
 		col.disabled = not closed
+	# Belt and braces: an open gate also leaves every collision layer, so no physics backend can keep it solid
+	gate.collision_layer = 1 if closed else 0
 
 
 # ---------------------------------------------------------------------------
