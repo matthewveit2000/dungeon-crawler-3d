@@ -10,7 +10,28 @@ static func make_base_item_instance(item_def: Dictionary, instance_id: String = 
 	inst["rarity"] = str(item_def.get("forced_rarity", "common"))
 	inst["affixes"] = []
 	inst["value"] = int(item_def.get("base_value", 20))
+	if MasterySystem.is_masterable(inst):
+		inst["mastery_level"] = 1
+		inst["mastery_xp"] = 0.0
 	return inst
+
+
+## Rarities the world may drop right now (D-049: Common only until higher-rarity loot is designed).
+static func enabled_rarities(affixes_pack: Dictionary) -> Array:
+	var en: Array = affixes_pack.get("loot_rarities_enabled", [])
+	if en.is_empty():
+		for r in affixes_pack.get("rarities", []):
+			en.append(str(r["id"]))
+	return en
+
+
+## The rarity a world drop actually rolls at: a requested tier that is not enabled yet falls back to the best
+## enabled one (so vaults and bosses still work, just Common for now).
+static func world_rarity(affixes_pack: Dictionary, requested: String) -> String:
+	var en := enabled_rarities(affixes_pack)
+	if requested.is_empty() or en.has(requested):
+		return requested
+	return str(en[-1]) if not en.is_empty() else "common"
 
 
 static func roll_loot(
@@ -33,6 +54,8 @@ static func roll_loot(
 		# Reserve unique forced-sponsored items for sponsored rolls
 		if str(item.get("forced_rarity", "")) == "legendary" and forced_rarity != "legendary":
 			continue
+		if int(item.get("floor_min", 1)) > floor_number:
+			continue
 		candidates.append(item)
 	if candidates.is_empty():
 		return {}
@@ -47,7 +70,10 @@ static func roll_loot(
 	if chosen_rarity.is_empty():
 		# Shift weights modestly upward on deeper floors
 		var weighted: Array = []
+		var en := enabled_rarities(affixes_pack)
 		for r in rarities:
+			if not en.has(str(r["id"])):
+				continue
 			var copy: Dictionary = r.duplicate()
 			var mult := float(r.get("stat_multiplier", 1.0))
 			if mult > 1.0:
@@ -65,7 +91,14 @@ static func roll_loot(
 		if not uniques.is_empty() and rng.next_float("loot") < 0.5:
 			base_def = rng.pick_array("loot", uniques)
 	if base_def.is_empty():
-		base_def = rng.pick_array("loot", candidates)
+		# D-049: every item has its own drop weight, so some finds are everyday and some are rare discoveries
+		var wc: Array = []
+		for c in candidates:
+			var cc: Dictionary = c.duplicate()
+			cc["_w"] = float(c.get("drop_weight", 10.0))
+			wc.append(cc)
+		var pick: Dictionary = rng.pick_weighted("loot", wc, "_w")
+		base_def = DataLoader.get_item_def(str(pick["id"])) if not DataLoader.get_item_def(str(pick["id"])).is_empty() else pick
 
 	var uid := "%s_%d" % [str(base_def["id"]), rng.next_int_range("loot", 10000, 999999)]
 	var inst := make_base_item_instance(base_def, uid)
@@ -152,22 +185,34 @@ static func aggregate_equipment_stats(equipment: Dictionary) -> Dictionary:
 		"block_bonus": 0.0,
 		"sponsored_effects": [],
 	}
+	var worn: Array = []
 	for slot in equipment.keys():
 		var item: Variant = equipment[slot]
 		if typeof(item) != TYPE_DICTIONARY or item.is_empty():
 			continue
-		totals["armor"] += float(item.get("armor", 0.0))
-		totals["bonus_damage"] += float(item.get("bonus_damage", 0.0))
-		totals["bonus_health"] += float(item.get("bonus_health", 0.0))
-		totals["bonus_magicka"] += float(item.get("bonus_magicka", 0.0))
-		totals["bonus_stamina"] += float(item.get("bonus_stamina", 0.0))
+		# D-049: mastery grows an item's core stats
+		totals["armor"] += MasterySystem.stat(item, "armor")
+		totals["bonus_damage"] += MasterySystem.stat(item, "bonus_damage")
+		totals["bonus_health"] += MasterySystem.stat(item, "bonus_health")
+		totals["bonus_magicka"] += MasterySystem.stat(item, "bonus_magicka")
+		totals["bonus_stamina"] += MasterySystem.stat(item, "bonus_stamina")
 		totals["bonus_crit_chance"] += float(item.get("bonus_crit_chance", 0.0))
 		totals["cooldown_reduction"] = minf(0.45, float(totals["cooldown_reduction"]) + float(item.get("cooldown_reduction", 0.0)))
 		totals["gold_find_bonus"] += float(item.get("gold_find_bonus", 0.0))
 		totals["block_bonus"] += float(item.get("block_bonus", 0.0))
+		if not str(slot).ends_with("_hand"):
+			worn.append(item)
 		var se := str(item.get("sponsored_effect", ""))
 		if not se.is_empty() and not totals["sponsored_effects"].has(se):
 			totals["sponsored_effects"].append(se)
+	# Passive mastery abilities of worn armor & accessories (D-049)
+	var pas := MasterySystem.aggregate_passives(worn)
+	totals["passives"] = pas
+	totals["armor"] += float(pas.get("iron_skin", {}).get("armor", 0.0))
+	totals["bonus_damage"] += float(pas.get("brutal", {}).get("damage", 0.0))
+	totals["bonus_crit_chance"] += float(pas.get("keen_eye", {}).get("crit", 0.0))
+	totals["cooldown_reduction"] = minf(0.45, float(totals["cooldown_reduction"]) + float(pas.get("quickness", {}).get("cooldown", 0.0)))
+	totals["gold_find_bonus"] += float(pas.get("treasure", {}).get("gold", 0.0))
 	return totals
 
 

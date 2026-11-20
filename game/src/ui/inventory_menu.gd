@@ -18,6 +18,7 @@ var _tabs: TabBar = null
 const SLOT_SIZE := 72.0
 var _inv_page: Control = null
 var _skill_page: Control = null
+var bestiary_page: BestiaryPage = null  ## Tab 3 (D-049)
 var _equip_left: VBoxContainer = null
 var _equip_right: VBoxContainer = null
 var _hands_row: HBoxContainer = null
@@ -49,9 +50,22 @@ func _ready() -> void:
 	_build_ui()
 
 
-func setup(p_player: PlayerController, close_cb: Callable) -> void:
+func setup(p_player: PlayerController, close_cb: Callable, p_bestiary: Bestiary = null) -> void:
 	_player = p_player
 	_close_cb = close_cb
+	if p_bestiary != null:
+		set_bestiary(p_bestiary)
+
+
+func set_bestiary(b: Bestiary) -> void:
+	if bestiary_page != null:
+		bestiary_page.bestiary = b
+
+
+## Opens straight onto a tab (0 inventory, 1 skills, 2 bestiary).
+func open_tab(i: int) -> void:
+	_tabs.current_tab = i
+	_show_tab(i)
 
 
 func open_menu() -> void:
@@ -93,6 +107,7 @@ func _build_ui() -> void:
 	_tabs = TabBar.new()
 	_tabs.add_tab("Inventory")
 	_tabs.add_tab("Skills & Perks")
+	_tabs.add_tab("Bestiary")
 	_tabs.tab_changed.connect(_show_tab)
 	_tabs.clip_tabs = false
 	_tabs.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -262,6 +277,9 @@ func _build_ui() -> void:
 	(_skill_page as HBoxContainer).add_theme_constant_override("separation", 16)
 	_skill_page.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	outer.add_child(_skill_page)
+	bestiary_page = BestiaryPage.new()
+	bestiary_page.visible = false
+	outer.add_child(bestiary_page)
 	var pp := PanelContainer.new()
 	pp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	pp.add_theme_stylebox_override("panel", UiTheme.panel_style("frame"))
@@ -319,6 +337,10 @@ func _build_portrait_scene() -> void:
 func _show_tab(i: int) -> void:
 	_inv_page.visible = i == 0
 	_skill_page.visible = i == 1
+	if bestiary_page != null:
+		bestiary_page.visible = i == 2
+		if i == 2:
+			bestiary_page.refresh()
 	if i == 1:
 		_refresh_skills()
 

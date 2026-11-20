@@ -87,3 +87,8 @@ Every screenshot and the 40-frame combat clip from the full Forward+ capture wer
 - `chest.glb`: dark inner wall linings behind the planks and an overlapping inner lid shell (9,378 tris); `round_shield.glb`: full-disc dark backing board behind the planks (5,458 tris). No light shows between boards from any angle.
 - `char_anims.py`: `_mirror_current_pose` mirrors any pose left/right (per-bone target chosen so the skin deform is the exact mirror, independent of bone roll); new crawler clips `idle_dual`, `attack_dual`, `attack_l`, `cast_r`, `cast_dual`, `bow_draw`.
 - First-person blades: rest/sprint poses turn every blade edge-on to the eye (standing rule).
+
+## 2026-11-20 — FB-015: New Gear & Enemy Variants (`D-049`)
+
+- 21 new gear models + icons in `build_gear.py`: hand axe, flanged mace, seax, broadsword, war hammer, Dane axe, yew longbow, bone short bow, iron kite shield, buckler, frost/venom/void/blood tomes, chain hauberk, wolf-pelt hood, hide bracers, fur boots, ember ring, gold signet, wolf-tooth amulet. `build_bow` and `build_tome` are now parametric.
+- Enemy variants reuse the rigs with a per-type colour wash (`CharacterVisual.set_tint`), scale, shield and weapon so no two types look alike.

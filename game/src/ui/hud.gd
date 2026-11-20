@@ -669,7 +669,7 @@ func update_stats(stats: Dictionary) -> void:
 	var rh_item: Dictionary = stats.get("right_hand_item", {})
 	var is_bow := str(rh_item.get("weapon_type", "")) == "archery"
 	var both_hands := is_bow or bool(rh_item.get("two_handed", false))
-	_right_name.text = rh
+	_right_name.text = rh + _mastery_tag(rh_item)
 	_right_hint.text = "LMB  ·  Hold to draw, release to loose" if is_bow else (
 		"LMB  ·  Cast" if str(rh_item.get("category", "")) == "spell" else "LMB  ·  Attack (hold for power)")
 	if stats.has("right_hand_item"):
@@ -681,9 +681,12 @@ func update_stats(stats: Dictionary) -> void:
 		_left_icon.texture = UiTheme.item_icon(rh_item)
 		_left_icon.modulate = Color(1, 1, 1, 0.45)
 	else:
-		_left_name.text = lh
-		var lcat := str(stats.get("left_hand_item", {}).get("category", ""))
+		var lh_item: Dictionary = stats.get("left_hand_item", {})
+		_left_name.text = lh + _mastery_tag(lh_item)
+		var lcat := str(lh_item.get("category", ""))
 		_left_hint.text = "RMB  ·  Cast" if lcat == "spell" else ("RMB  ·  Attack" if lcat == "weapon" else "RMB  ·  Block")
+		if lcat == "weapon" and MasterySystem.has_ability(lh_item, "cross_guard"):
+			_left_hint.text = "RMB  ·  Attack  ·  hold to Cross Guard"
 		_left_icon.modulate = Color.WHITE
 		if stats.has("left_hand_item"):
 			_left_icon.texture = UiTheme.item_icon(stats["left_hand_item"])
@@ -832,6 +835,13 @@ func show_level_up(new_level: int) -> void:
 		GameSettings.action_label("toggle_inventory") if GameSettings != null else "Tab"]
 	_levelup_box.pivot_offset = _levelup_box.size * 0.5
 	_levelup_t = 3.6
+
+
+## " · M3" after a held item's name: its mastery level (D-049).
+static func _mastery_tag(item: Dictionary) -> String:
+	if item.is_empty() or not MasterySystem.is_masterable(item):
+		return ""
+	return "  ·  M%d" % MasterySystem.level_of(item)
 
 
 func update_tutorial_hint(hint: Dictionary) -> void:

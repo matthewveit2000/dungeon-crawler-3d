@@ -16,6 +16,13 @@ Everything mechanical has already been verified by automated tests, so this play
 
 ---
 
+## 1a. Discovery & Mastery (`D-049`)
+
+- Every item you find is Common for now, but each one has its own **mastery track**: use it and its level (shown as `· M<level>` next to its name on the HUD) goes up, its stats grow, and at certain levels it unlocks a new ability ("NEW ABILITY" banner). Open the Character menu (Tab) and select the item to see its mastery XP, the abilities you have discovered, and the "???" ones still ahead.
+- Try: Chain Spark until it chains (M2), Firebolt until it explodes (M4), the Longsword's Lunge (M3, hold attack for a power attack) and Cross Guard (M5, a sword in each hand — hold the off-hand attack), the Recurve Bow's Hunter's Focus (M4, hold a full draw).
+- Enemies show their level over their heads; every type has its own level range and trait. Character menu → **Bestiary** fills in as you meet (sighted), kill (stats + abilities) and kill five (weakness) of each creature. It is never lost on a floor reset.
+- Test Mode (F1 → Player) has **+1 / +5 mastery** for equipped gear and **Reveal whole bestiary**.
+
 ## 1b. Test Mode — Spawn Anything (`D-047`)
 
 Choose **Test Mode** on the title screen. You start on a compact floor with every room type (entrance, combat halls, safe room, boss arena + treasure vault, stairwell) and no regular enemies; it uses its own save file, so your real expedition is never touched. Press **F1** for the tools:
@@ -59,7 +66,7 @@ All keys except Esc can be re-bound in **Settings → Controls**.
 3. **Loot, Pause & Level Up:** Loot chests and fallen enemy corpses (`E`). Open the dark-fantasy Inventory (`I`) — confirm the 5-day countdown freezes while you equip gear, spend Attribute/Perk points, or inspect your Skyrim use-to-improve weapon/magic skills.
 4. **Visit the Handcrafted Safe Room Sanctuary:** Follow the **Top Compass Bar** (`◆ SAFE`) or type `teleport safe` in the `` ` `` console. Step into the warm hearth-lit Sanctuary with the striped **Merchant Stall**, robed **Safe Room Vendor**, glowing **Sanctuary Beacon**, and **Syndicate Quest Board** — pursuing monsters flee immediately on sight!
 5. **Challenge the Handcrafted Boss Crucible & Treasure Vault:** Follow the `☠ BOSS` compass marker (or type `teleport boss`). Step inside — the iron portcullis slams shut behind you as the towering 3m **Iron Warden** strides off the glowing Rune Dais! Defeat him (or type `kill_boss`) to unlock the adjoining gilded **Treasure Vault** packed with guaranteed Sponsored/Mythic loot.
-6. **Test the 5-Day Floor Collapse & Snapshot Reset:** Earn some gold or spawn loot (`spawn_loot sponsored`), then type `advance_days 5.1`. Watch the Syndicate AI collapse toast fire and confirm your run resets cleanly to the start of Floor 1 with your pre-floor inventory/gold intact and a fresh 5-day clock!
+6. **Test the 5-Day Floor Collapse & Snapshot Reset:** Earn some gold or spawn loot (`spawn_loot common`), then type `advance_days 5.1`. Watch the Syndicate AI collapse toast fire and confirm your run resets cleanly to the start of Floor 1 with your pre-floor inventory/gold intact and a fresh 5-day clock!
 7. **Descend to Floor 2 (No Preview!) & Save-and-Quit:** Type `teleport stairs`, press `E` on the hidden staircase to descend straight into Floor 2 with zero preview, then press `Esc` → **Save & Quit** and relaunch to confirm you resume in the exact same spot with the exact same remaining time and tutorial progress.
 
 ---

@@ -63,7 +63,7 @@
 ## 5. Combat System (`D-013`, `D-046`)
 
 - **Either hand (`D-046`):** any one-handed item — blade, shield or spell — can be held in either hand: dual spells, spell + shield, a shield in the right hand (blocks while that hand's button is held), a sword in the left. Bows and two-handed weapons use both hands.
-- **Difficulty curve (`D-046`):** every floor starts very hard — enemy stats are fixed per floor and never scale with the player's level, and a fresh arrival is evenly matched by a single draugr and outclassed by the boss — then gets easier as the player levels up and finds gear on that floor. This is the power-scaling race (`D-038`).
+- **Difficulty curve (`D-046`):** every floor starts very hard — enemy stats come from each enemy's level, which the floor sets (never the player's level, `D-049`), and a fresh arrival is evenly matched by a single draugr and outclassed by the boss — then gets easier as the player levels up and finds gear on that floor. This is the power-scaling race (`D-038`).
 - **Enemy awareness (`D-046`):** idle enemies wander their rooms; they notice the player from 22-30 m when they can see them (6 m by hearing), archers shoot from 22 m, and they give up after a few seconds out of sight.
 
 Skyrim-inspired **left-hand / right-hand equipping** supporting four classic playstyles:
@@ -82,8 +82,48 @@ Skyrim-inspired **left-hand / right-hand equipping** supporting four classic pla
   - **Skyrim Use-to-Improve:** Swinging melee weapons, casting spells, blocking, and firing bows steadily improve those skill proficiencies through use.
 - **Skyrim Equipment Slots + Chaotic Affixes:**
   - Familiar slots: Left Hand, Right Hand, Head, Chest, Hands, Feet, Ring(s), Amulet.
-  - Items roll across rarity tiers (**Common → Uncommon → Rare → Epic → Legendary**, `D-048`) with scalable stats and wild build-changing affixes (especially on Legendary drops, including the DCC-style "sponsored" effects).
+  - Rarity tiers are **Common → Uncommon → Rare → Epic → Legendary** (`D-048`). **For now every drop is Common** (`D-049`): items are made interesting by *what they are* and *what they grow into*, not by a tier. Higher rarities will return later as genuinely different items with more powerful, unique powers — never as "the same item with bigger numbers".
 - **Economy & Quests:** Sell excess loot and buy supplies/gear at Safe Room Vendors; pick up floor-specific bounties and exploration quests from Quest Boards.
+
+### 6.1 Discovery & Item Mastery (`D-049`)
+
+The game should feel like you are **constantly discovering** something new: a weapon you have never held, a spell that
+does something you have not seen, an enemy you have never fought.
+
+- **A large variety of distinct loot.** Every item is its own thing with its own identity: Nordic longsword, bearded hand
+  axe, flanged mace, barrow seax, ash-hilt broadsword, battleaxe, war hammer, Dane axe, recurve / yew long / bone short
+  bows, firebolt, chain spark, frost shard, venom spit, void lance, blood siphon, mend wounds, round / kite shields and a
+  buckler, and armor and jewellery for every slot. Each item has a **drop weight**, so some are everyday finds and some
+  are rare discoveries. New items should keep being added.
+- **Item mastery.** Every weapon, spell, shield, armor piece and accessory has its own **mastery level (1–10)** stored
+  on the item. Using it earns mastery XP (hits, kills, blocks, hits taken while worn, casts). Each level makes the item's
+  core stats stronger, and **specific levels unlock new abilities that belong to that item's own mastery track**, so two
+  items of the same kind grow in different directions. Examples:
+  - Chain Spark learns **Arc Chain** at 2 and keeps jumping to more enemies (2, 3, 5, 8 targets).
+  - Firebolt learns **Ignite**, then **Detonation** (explodes), then **Splinter** (casts three).
+  - One-handed swords learn **Lunge** (power-attack dash) and **Cross Guard** (dual-wield block).
+  - The recurve bow learns **Quick Draw**, then **Hunter's Focus** (time slows at full draw), then **Volley** and **Piercing**.
+  - Shields learn **Shield Bash**, **Riposte** and a **Spiked Rim**; armor learns **Second Wind**, **Thorns**, **Fleet Foot**…
+- **Curiosity is the hook.** The item card shows the mastery level, XP bar and every ability discovered so far; the
+  abilities still ahead are shown only as **"Lv N ???"**, so the player has to invest time in a weapon or spell to find
+  out what it becomes. Unlocking one triggers a "NEW ABILITY" announcement.
+- **Data-driven.** The ability library (≈45 mechanics with parameters) lives in `game/data/mastery.json`; each item's
+  track lives with the item in `items.json`. Adding a new item = picking a unique path through the library.
+
+### 6.2 Unique Enemies, Levels & the Bestiary (`D-049`)
+
+- **Every enemy type is unique**: its own look (rig, scale, colour wash, weapon), behaviour and **trait** — the Draugr
+  Shieldwarden blocks frontal hits, Frostbound Draugr slow you, the Bone Hexer throws slowing hexes, the Goblin
+  Bomb-Tosser lobs fire pots, the Barrow Wight drains life and regenerates, the Draugr Deathlord slams the ground every
+  third blow, the Goblin Hype-Man's war cry makes everything nearby faster and stronger.
+- **Levels with a range per type.** Each type has its own minimum and maximum level (`level_min`/`level_max`). Each
+  floor covers a level band (floor 1 = 1–4, floor 2 = 4–7, …); a type only spawns where its range overlaps the band,
+  and each spawn rolls a level inside the overlap (deterministically, same seed = same levels, `D-039`). Stats scale
+  with level and the level is shown over the enemy's head. Deeper floors therefore keep **introducing new creatures**.
+- **Bestiary** (Character menu → Bestiary): every creature has a page, unknown ones are "???" silhouettes. Knowledge
+  fills in as you hunt: **sighted** (name, look, lore) → **slain** (stats per level seen, abilities) → **studied** after
+  5 kills (weakness, full level range). The Bestiary is crawler knowledge: it is saved and never rolled back by a floor
+  reset.
 
 ---
 

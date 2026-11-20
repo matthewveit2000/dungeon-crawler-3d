@@ -72,3 +72,9 @@ Detailed record of gameplay systems, rules, tuning, and DCC flavor implemented f
 
 - Enemies path around walls and props (A* over floor tiles) and unstick themselves instead of pressing into obstacles.
 - Rarity tiers are Common / Uncommon / Rare / Epic / Legendary (the old Sponsored tier is Legendary; the sponsored *effects* on specific items are unchanged).
+
+## 2026-11-20 — FB-015: Discovery & Mastery (`D-049`)
+
+- All world loot Common for now; 38 distinct items with per-item drop weights and their own mastery tracks (levels 1–10, +7% core stats per level, item-specific abilities from `mastery.json`).
+- 11 enemy types with unique traits and per-type level ranges; floors cover level bands (1–4, 4–7, …) so deeper floors introduce new enemies; stats scale with level.
+- Bestiary with tiered knowledge (sighted → slain → studied after 5 kills).

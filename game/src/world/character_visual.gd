@@ -155,6 +155,27 @@ func clear_attachments() -> void:
 			c.queue_free()
 
 
+var _tint_mat: StandardMaterial3D = null
+
+
+## Permanent colour wash over the whole body (D-049: enemy variants share a rig but never look alike).
+func set_tint(col: Color, strength: float) -> void:
+	if _flash_mats.is_empty():
+		_collect_flash_targets(model)
+	if strength <= 0.0:
+		_tint_mat = null
+	else:
+		_tint_mat = StandardMaterial3D.new()
+		_tint_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_tint_mat.albedo_color = Color(col.r, col.g, col.b, clampf(strength, 0.0, 0.9))
+		_tint_mat.roughness = 0.6
+		_tint_mat.metallic_specular = 0.3
+	for entry in _flash_mats:
+		var mi: MeshInstance3D = entry
+		if is_instance_valid(mi):
+			mi.material_overlay = _tint_mat
+
+
 ## Brief red/white hit flash using an overlay next_pass on every surface.
 func flash(col: Color = Color(1.0, 0.25, 0.2), duration: float = 0.16) -> void:
 	_flash_t = duration
@@ -189,4 +210,4 @@ func _tick_flash(delta: float) -> void:
 			var m := mi.material_overlay as StandardMaterial3D
 			m.albedo_color.a = FLASH_ALPHA * k
 			if _flash_t <= 0.0:
-				mi.material_overlay = null
+				mi.material_overlay = _tint_mat

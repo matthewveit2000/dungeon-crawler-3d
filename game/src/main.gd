@@ -38,6 +38,11 @@ var map_seen: Dictionary = {}
 var _last_player_tile: Vector2i = Vector2i(-999, -999)
 
 var boss_actor: EnemyActor = null
+## D-049: crawler knowledge of every enemy type met (saved with the session, never rolled back by a floor reset)
+var bestiary: Bestiary = Bestiary.new()
+## D-049 Hunter's Focus: enemies and their projectiles run at this speed while a mastered bow is fully drawn
+var world_time_scale: float = 1.0
+var _bestiary_scan_t: float = 0.0
 var boss_defeated_this_floor: bool = false
 var player_in_safe_room: bool = false
 var quest_bounty_claimed: bool = false
@@ -78,6 +83,7 @@ func initialize_game(p_seed: int = 20261118, try_load_save: bool = true) -> void
 	run_seed = p_seed
 	rng = SeededRng.new(run_seed)
 	progression = ProgressionSystem.new(DataLoader.get_progression_pack())
+	bestiary.from_dict({})
 	floor_timer = FloorTimer.new(DataLoader.get_world()["floor_timer"])
 	snapshot_mgr = SnapshotManager.new()
 	vendor_sys = VendorSystem.new(DataLoader.get_affixes_pack())
@@ -106,6 +112,7 @@ func initialize_game(p_seed: int = 20261118, try_load_save: bool = true) -> void
 	player.setup(DataLoader.get_player(), progression, rng, {
 		"melee_swing": _on_player_melee_swing,
 		"spawn_projectile": _on_spawn_projectile,
+		"item_used": func(item: Dictionary, event: String) -> void: grant_item_xp(item, event, 1),
 		"player_damaged": func(_dmg: float) -> void:
 			if hud != null:
 				hud.trigger_damage_flash(),
@@ -117,7 +124,7 @@ func initialize_game(p_seed: int = 20261118, try_load_save: bool = true) -> void
 
 	inventory_menu = InventoryMenu.new()
 	add_child(inventory_menu)
-	inventory_menu.setup(player, close_all_menus)
+	inventory_menu.setup(player, close_all_menus, bestiary)
 
 	vendor_menu = VendorMenu.new()
 	add_child(vendor_menu)
@@ -310,6 +317,7 @@ func save_current_session() -> bool:
 		"tutorials": tutorial_sys.to_dict() if tutorial_sys != null else {},
 		"boss_defeated": boss_defeated_this_floor,
 		"map_seen": _map_seen_to_array(),
+		"bestiary": bestiary.to_dict(),
 	}
 	return snapshot_mgr.save_session_to_file(session, save_path)
 
@@ -334,6 +342,7 @@ func load_saved_session() -> bool:
 		player.inventory.append(item.duplicate(true))
 	player.normalize_equipment()
 	progression.from_dict(session.get("progression", {}))
+	bestiary.from_dict(session.get("bestiary", {}))
 	if tutorial_sys != null and session.has("tutorials"):
 		tutorial_sys.from_dict(session["tutorials"])
 	player.refresh_hand_visuals()
@@ -538,6 +547,13 @@ func step_simulation(delta: float, input_override: Dictionary = {}) -> void:
 		player.magicka = player.max_magicka
 	# 2. Step Player & Enemy AI
 	player.step_simulation(delta, is_menu_paused, input_override)
+	world_time_scale = player.bullet_time_scale()
+	GameProjectile.world_time_scale = world_time_scale
+	var enemy_delta := delta * world_time_scale
+	_bestiary_scan_t -= delta
+	var scan := _bestiary_scan_t <= 0.0
+	if scan:
+		_bestiary_scan_t = 0.4
 	var enemy_nearby := false
 	var ppos := player.global_position
 	for child in enemies_root.get_children():
@@ -550,7 +566,9 @@ func step_simulation(delta: float, input_override: Dictionary = {}) -> void:
 				ea.process_mode = Node.PROCESS_MODE_INHERIT if near else Node.PROCESS_MODE_DISABLED
 			if not near:
 				continue
-			ea.step_ai(delta, is_menu_paused or test_ai_frozen)
+			ea.step_ai(enemy_delta, is_menu_paused or test_ai_frozen)
+			if scan and ea.state in [EnemyActor.AiState.CHASE, EnemyActor.AiState.ATTACK]:
+				_bestiary_sighting(ea)
 			if not ea.is_boss and ea.global_position.distance_to(player.global_position) <= 10.5:
 				enemy_nearby = true
 
@@ -659,8 +677,15 @@ func _check_zone_triggers(delta: float) -> void:
 
 func _on_player_melee_swing(swing: Dictionary) -> void:
 	var weapon: Dictionary = swing["weapon"]
-	var reach := float(weapon.get("range_meters", 2.6))
-	var half_arc_cos := cos(deg_to_rad(float(DataLoader.get_player()["combat"]["melee_arc_degrees"]) * 0.5))
+	var abil: Dictionary = swing.get("abilities", {})
+	var is_power := bool(swing["is_power_attack"])
+	var reach := float(weapon.get("range_meters", 2.6)) + float(swing.get("dash_distance", 0.0))
+	var arc := float(DataLoader.get_player()["combat"]["melee_arc_degrees"])
+	if abil.has("cleave"):
+		arc = maxf(arc, float(abil["cleave"].get("arc", 150.0)))
+	if is_power and abil.has("whirlwind"):
+		arc = 360.0
+	var half_arc_cos := cos(deg_to_rad(arc * 0.5)) if arc < 359.0 else -2.0
 	var fwd := player.get_forward_vector()
 	fwd.y = 0.0
 	fwd = fwd.normalized()
@@ -679,17 +704,49 @@ func _on_player_melee_swing(swing: Dictionary) -> void:
 		if dist > 0.2 and fwd.dot(delta.normalized()) < half_arc_cos:
 			continue
 		_apply_player_hit_to_enemy(enemy, {
-			"base_damage": float(weapon.get("damage", 16.0)),
+			"base_damage": MasterySystem.stat(weapon, "damage", 16.0),
 			"bonus_damage": float(swing["bonus_damage"]),
 			"damage_multiplier": float(swing["damage_multiplier"]),
-			"is_power_attack": bool(swing["is_power_attack"]),
+			"is_power_attack": is_power,
 			"crit_chance": float(swing["crit_chance"]),
 			"crit_multiplier": float(swing["crit_multiplier"]),
 			"sponsored_effects": swing["sponsored_effects"],
+			"abilities": abil,
+			"item": swing.get("item", {}),
+			"melee": true,
+			"passives": swing.get("passives", {}),
+			"from_dir": delta.normalized(),
 		}, str(swing["skill_name"]))
+		if is_power and abil.has("knockback") and is_instance_valid(enemy):
+			enemy.apply_knockback(delta, float(abil["knockback"].get("force", 6.0)))
 		hit_any = true
 
+	# Earthbreaker: power attacks shatter the ground around you
+	if is_power and abil.has("ground_slam"):
+		var gs: Dictionary = abil["ground_slam"]
+		var r := float(gs.get("radius", 3.5))
+		var burst := VfxFactory.make_impact_burst(Color(0.7, 0.6, 0.45), 46, r)
+		projectiles_root.add_child(burst)
+		burst.global_position = player.global_position + Vector3(0, 0.2, 0)
+		for child in enemies_root.get_children():
+			var e := child as EnemyActor
+			if e != null and is_instance_valid(e) and e.global_position.distance_to(player.global_position) <= r:
+				_apply_player_hit_to_enemy(e, {
+					"base_damage": MasterySystem.stat(weapon, "damage", 16.0) * float(gs.get("damage", 0.6)),
+					"damage_multiplier": float(swing["damage_multiplier"]),
+					"crit_chance": 0.0,
+					"item": swing.get("item", {}),
+				}, str(swing["skill_name"]))
+				if is_instance_valid(e):
+					e.apply_knockback(e.global_position - player.global_position, 4.0)
+				hit_any = true
+		player.add_shake(0.6)
+
 	if hit_any:
+		if abil.has("frenzy"):
+			player.register_frenzy_hit(abil["frenzy"])
+		elif swing.get("passives", {}).has("frenzy"):
+			player.register_frenzy_hit(swing["passives"]["frenzy"])
 		player.on_melee_hit(bool(swing["is_power_attack"]))
 		if EventBus != null:
 			EventBus.sfx_requested.emit("sword_hit")
@@ -702,40 +759,106 @@ func _on_spawn_projectile(params: Dictionary) -> void:
 	projectiles_root.add_child(proj)
 	proj.global_position = params["origin"]
 	proj.setup(params, _on_projectile_hit)
+	if params.has("shooter"):
+		proj.set_meta("shooter", params["shooter"])
+	if bool(params.get("full_draw", false)):
+		proj.set_meta("full_draw", true)
 
 
 func _on_projectile_hit(proj: GameProjectile, body: Node3D, hit_pos: Vector3) -> void:
 	if proj.from_player:
+		var abil: Dictionary = proj.abilities
+		var item := player.find_item_by_uid(proj.item_uid)
+		var hit_params := {
+			"base_damage": proj.damage,
+			"crit_chance": proj.crit_chance,
+			"crit_multiplier": proj.crit_multiplier,
+			"sponsored_effects": proj.sponsored_effects,
+			"abilities": abil,
+			"item": item,
+		}
 		if body is EnemyActor:
-			_apply_player_hit_to_enemy(body as EnemyActor, {
-				"base_damage": proj.damage,
-				"crit_chance": proj.crit_chance,
-				"crit_multiplier": proj.crit_multiplier,
-				"sponsored_effects": proj.sponsored_effects,
-			}, proj.skill_name)
-			if proj.chain_radius > 0.0:
-				for other in enemies_root.get_children():
-					if other is EnemyActor and other != body:
-						if (other as EnemyActor).global_position.distance_to(hit_pos) <= proj.chain_radius:
-							(other as EnemyActor).take_damage(proj.damage * 0.65)
-							break
-		if proj.splash_radius > 0.0:
+			var target := body as EnemyActor
+			_apply_player_hit_to_enemy(target, hit_params, proj.skill_name)
+			if abil.has("power_shot") and proj.get_meta("full_draw", false) and is_instance_valid(target):
+				target.apply_knockback(proj.velocity, float(abil["power_shot"].get("force", 4.0)))
+			# Arc Chain: leap to the nearest enemies not yet struck
+			if abil.has("chain") or proj.chain_radius > 0.0:
+				var ch: Dictionary = abil.get("chain", {"jumps": 1, "radius": proj.chain_radius, "falloff": 0.65})
+				chain_lightning(target, hit_pos, proj.damage, ch, hit_params, proj.skill_name, Color.html("#58c8ff"))
+		var splash_r := proj.splash_radius
+		var splash_k := 0.55
+		if abil.has("explode"):
+			splash_r = maxf(splash_r, float(abil["explode"].get("radius", 3.5)))
+			splash_k = float(abil["explode"].get("damage", 0.6))
+		if splash_r > 0.0:
+			var boom := VfxFactory.make_impact_burst(proj._color, 40, splash_r * 1.2)
+			projectiles_root.add_child(boom)
+			boom.global_position = hit_pos
+			var sp := hit_params.duplicate()
+			sp["base_damage"] = proj.damage * splash_k
 			for other in enemies_root.get_children():
-				if other is EnemyActor and other != body:
-					if (other as EnemyActor).global_position.distance_to(hit_pos) <= proj.splash_radius:
-						(other as EnemyActor).take_damage(proj.damage * 0.55)
+				if other is EnemyActor and other != body and is_instance_valid(other):
+					if (other as EnemyActor).global_position.distance_to(hit_pos) <= splash_r + 0.5:
+						_apply_player_hit_to_enemy(other as EnemyActor, sp, proj.skill_name)
 	else:
+		var shooter: Variant = proj.get_meta("shooter", null)
+		var sh: EnemyActor = shooter as EnemyActor if is_instance_valid(shooter) else null
 		if body == player:
-			player.take_damage(proj.damage)
+			_enemy_hit_player(sh, proj.damage, false)
+		# Goblin bombs burst wherever they land
+		elif proj.splash_radius > 0.0 and player.global_position.distance_to(hit_pos) <= proj.splash_radius:
+			_enemy_hit_player(sh, proj.damage, false)
 
 
 func _apply_player_hit_to_enemy(enemy: EnemyActor, params: Dictionary, skill_name: String) -> void:
-	var attack_params := params.duplicate(true)
-	attack_params["target_armor"] = enemy.armor
+	if enemy == null or not is_instance_valid(enemy) or enemy.state == EnemyActor.AiState.DEAD:
+		return
+	var abil: Dictionary = params.get("abilities", {})
+	var item: Dictionary = params.get("item", {})
+	var attack_params := params.duplicate(false)
+	attack_params.erase("abilities")
+	attack_params.erase("item")
+	attack_params.erase("passives")
+	attack_params["target_armor"] = enemy.effective_armor()
+	# Executioner
+	if abil.has("execute") and enemy.current_health / maxf(1.0, enemy.max_health) <= float(abil["execute"].get("threshold", 0.3)):
+		attack_params["damage_multiplier"] = float(attack_params.get("damage_multiplier", 1.0)) * (1.0 + float(abil["execute"].get("bonus", 0.5)))
 	var res := CombatMath.resolve_attack(attack_params, DataLoader.get_player(), rng)
 	var dmg := float(res["final_damage"])
+	# Draugr Shieldwarden: frontal hits glance off the shield unless it is a power attack (D-049 trait)
+	if enemy.traits.has("shield_front") and not bool(params.get("is_power_attack", false)):
+		var to_player := player.global_position - enemy.global_position
+		var facing := enemy.global_transform.basis.z
+		if Vector2(facing.x, facing.z).normalized().dot(Vector2(to_player.x, to_player.z).normalized()) > 0.3:
+			dmg *= 1.0 - float(enemy.traits["shield_front"].get("reduction", 0.7))
+			if EventBus != null:
+				EventBus.sfx_requested.emit("shield_block")
 	var hit_pos := enemy.global_position + Vector3(0.0, 1.2 if not enemy.is_boss else 2.0, 0.0)
+	enemy.set_meta("last_hit_uid", str(item.get("instance_id", "")))
+	_bestiary_sighting(enemy)
+	var enemy_level := enemy.level
 	enemy.take_damage(dmg)
+	# On-hit mastery effects (only while the target lives)
+	if is_instance_valid(enemy) and enemy.state != EnemyActor.AiState.DEAD:
+		for k in ["bleed", "burn", "poison", "chill", "sunder"]:
+			if abil.has(k):
+				enemy.apply_status(k, abil[k])
+		if abil.has("fire_arrows"):
+			enemy.apply_status("burn", abil["fire_arrows"])
+		for k in ["freeze", "stun"]:
+			if abil.has(k) and rng.next_float("combat") < float(abil[k].get("chance", 0.15)):
+				enemy.apply_status(k, abil[k])
+		var pas: Dictionary = params.get("passives", {})
+		if bool(params.get("melee", false)) and pas.has("ember_touch"):
+			enemy.apply_status("burn", pas["ember_touch"])
+	var heal_frac := float(abil.get("lifesteal", {}).get("fraction", 0.0)) + float(abil.get("siphon", {}).get("fraction", 0.0))
+	if bool(params.get("melee", false)):
+		heal_frac += float(params.get("passives", {}).get("blood_pact", {}).get("fraction", 0.0))
+	if heal_frac > 0.0:
+		player.health = minf(player.max_health, player.health + dmg * heal_frac)
+	if not item.is_empty():
+		grant_item_xp(item, "hit", enemy_level)
 	if hud != null:
 		hud.trigger_hit_marker()
 	_spawn_hit_feedback(hit_pos, dmg, bool(res.get("is_crit", false)))
@@ -804,7 +927,22 @@ func _on_enemy_died(enemy: EnemyActor) -> void:
 	var gold_roll := loot_rng.next_int_range("loot", enemy.gold_min, enemy.gold_max)
 	gold_roll = int(round(float(gold_roll) * (1.0 + float(eq_totals["gold_find_bonus"])))) + bonus_gold
 
-	var lvls := progression.add_xp(float(enemy.xp_reward))
+	var scholar := float(eq_totals.get("passives", {}).get("scholar", {}).get("xp", 0.0))
+	var lvls := progression.add_xp(float(enemy.xp_reward) * (1.0 + scholar))
+	# D-049: Bestiary kill + mastery XP for the item that landed the killing blow and every worn piece
+	var kills := bestiary.record_kill(enemy.enemy_id, enemy.level, floor_number)
+	if kills == Bestiary.STUDY_KILLS and EventBus != null:
+		EventBus.dungeon_ai_announcement.emit("BESTIARY: %s STUDIED" % enemy.display_name.to_upper(),
+			"%d slain. Its weakness is now in your Bestiary." % kills, "info")
+	elif kills == 1 and EventBus != null:
+		EventBus.dungeon_ai_announcement.emit("BESTIARY: FIRST %s SLAIN" % enemy.display_name.to_upper(),
+			"Its stats and abilities are now recorded in your Bestiary.", "info")
+	var killer := player.find_item_by_uid(str(enemy.get_meta("last_hit_uid", "")))
+	if not killer.is_empty():
+		grant_item_xp(killer, "kill", enemy.level)
+	for slot in player.equipment.keys():
+		if not str(slot).ends_with("_hand"):
+			grant_item_xp(player.equipment[slot], "worn_kill", enemy.level)
 	for l in lvls:
 		if EventBus != null:
 			EventBus.level_up_occurred.emit(l)
@@ -813,7 +951,8 @@ func _on_enemy_died(enemy: EnemyActor) -> void:
 	var corpse := InteractableObject.new()
 	var forced_r := enemy.guaranteed_rarity
 	var has_item := not forced_r.is_empty() or loot_rng.next_float("loot") <= enemy.loot_drop_chance
-	var loot_item := LootGenerator.roll_loot(DataLoader.get_items_pack(), DataLoader.get_affixes_pack(), floor_number, loot_rng, forced_r) if has_item else {}
+	var loot_item := LootGenerator.roll_loot(DataLoader.get_items_pack(), DataLoader.get_affixes_pack(), floor_number, loot_rng,
+		LootGenerator.world_rarity(DataLoader.get_affixes_pack(), forced_r)) if has_item else {}
 	corpse.setup("corpse_%s" % enemy.enemy_id, "corpse", "Search %s" % enemy.display_name, {
 		"gold": gold_roll,
 		"item": loot_item,
@@ -853,7 +992,8 @@ func _on_interactable_triggered(inter: InteractableObject, _actor: Node3D) -> bo
 			var tier := str(inter.payload.get("tier", "standard"))
 			var forced := "legendary" if tier == "vault_legendary" else ("rare" if tier == "rare" else "")
 			var chest_rng := _loot_rng_for(inter.interact_id)
-			var rolled := LootGenerator.roll_loot(DataLoader.get_items_pack(), DataLoader.get_affixes_pack(), floor_number, chest_rng, forced, true)
+			var rolled := LootGenerator.roll_loot(DataLoader.get_items_pack(), DataLoader.get_affixes_pack(), floor_number, chest_rng,
+				LootGenerator.world_rarity(DataLoader.get_affixes_pack(), forced), true)
 			var gold_gain := chest_rng.next_int_range("loot", 25, 65) * floor_number
 			_grant_loot(rolled, gold_gain)
 			_complete_tutorial("looting")
@@ -935,30 +1075,142 @@ func _spawn_floor_enemies(enemies_pack: Dictionary) -> void:
 
 
 ## Creates one enemy (floor spawns and Test Mode). Returns null for an unknown enemy id.
-func spawn_enemy(enemy_id: String, wpos: Vector3, room_id: int = -1, spawn_key: String = "", scaling: Dictionary = {}) -> EnemyActor:
+func spawn_enemy(enemy_id: String, wpos: Vector3, room_id: int = -1, spawn_key: String = "", scaling: Dictionary = {}, level_override: int = 0) -> EnemyActor:
 	var edef := DataLoader.get_enemy_def(enemy_id)
 	if edef.is_empty():
 		return null
 	if scaling.is_empty():
 		scaling = DataLoader.get_enemies_pack().get("floor_scaling", {})
 	var enemy := EnemyActor.new()
-	enemy.set_meta("spawn_key", spawn_key if not spawn_key.is_empty() else "spawned_%s_%d" % [enemy_id, enemies_root.get_child_count()])
+	var key := spawn_key if not spawn_key.is_empty() else "spawned_%s_%d" % [enemy_id, enemies_root.get_child_count()]
+	enemy.set_meta("spawn_key", key)
 	enemies_root.add_child(enemy)
-	if true:
-		enemy.setup(edef, scaling, floor_number, room_id, wpos, current_layout, player, rng, {
-			"attack_player": func(_e: EnemyActor, dmg: float, _dir: Vector3) -> void: player.take_damage(dmg),
-			"shoot_projectile": func(_e: EnemyActor, origin: Vector3, vel: Vector3, dmg: float) -> void:
-				_on_spawn_projectile({
-					"kind": "arrow",
-					"origin": origin,
-					"velocity": vel,
-					"gravity": 2.0,
-					"damage": dmg,
-					"from_player": false,
-				}),
-			"died": _on_enemy_died,
-		})
+	# D-049: deterministic level per spawn (same seed -> same levels every attempt, D-039)
+	var lvl := EnemyLevels.roll_level(edef, floor_number, DataLoader.get_enemies_pack(), _loot_rng_for("level_" + key))
+	if level_override > 0:
+		lvl = level_override
+	enemy.setup(edef, scaling, floor_number, room_id, wpos, current_layout, player, rng, {
+		"attack_player": func(e: EnemyActor, dmg: float, _dir: Vector3) -> void: _enemy_hit_player(e, dmg, true),
+		"shoot_projectile": func(e: EnemyActor, origin: Vector3, vel: Vector3, dmg: float) -> void:
+			var pk := e.projectile_kind
+			_on_spawn_projectile({
+				"kind": "arrow" if pk == "arrow" else "spell",
+				"color": e.projectile_color,
+				"origin": origin,
+				"velocity": vel,
+				"gravity": EnemyActor.BOMB_GRAVITY if pk == "bomb" else (0.0 if pk == "hex" else 2.0),
+				"damage": dmg,
+				"from_player": false,
+				"splash_radius": float(e.traits.get("bomb_throw", {}).get("radius", 0.0)),
+				"shooter": e,
+			}),
+		"died": _on_enemy_died,
+	}, lvl)
 	return enemy
+
+
+## An enemy's blow or shot reaching the crawler: blocks, shield & armor mastery effects and enemy traits (D-049).
+func _enemy_hit_player(e: EnemyActor, dmg: float, melee: bool) -> void:
+	var res := player.take_damage(dmg)
+	if bool(res.get("dodged", false)):
+		return
+	var alive := e != null and is_instance_valid(e) and e.state != EnemyActor.AiState.DEAD
+	var guard := player.blocking_item() if bool(res.get("was_blocked", false)) else {}
+	if not guard.is_empty():
+		grant_item_xp(guard, "block", e.level if alive else 1)
+		var ga := MasterySystem.abilities(guard)
+		if alive and melee and ga.has("bash"):
+			e.apply_status("stun", {"duration": float(ga["bash"].get("duration", 0.8))})
+		if alive and melee and ga.has("reflect"):
+			e.take_damage(dmg * float(ga["reflect"].get("fraction", 0.3)))
+	else:
+		for slot in player.equipment.keys():
+			if not str(slot).ends_with("_hand"):
+				grant_item_xp(player.equipment[slot], "hit_taken", e.level if alive else 1)
+	alive = e != null and is_instance_valid(e) and e.state != EnemyActor.AiState.DEAD
+	if not alive:
+		return
+	var pas: Dictionary = LootGenerator.aggregate_equipment_stats(player.equipment).get("passives", {})
+	if melee and pas.has("thorns"):
+		e.take_damage(float(pas["thorns"].get("damage", 5.0)))
+	if not is_instance_valid(e) or e.state == EnemyActor.AiState.DEAD:
+		return
+	var taken := float(res.get("final_damage", 0.0))
+	if e.traits.has("frost_strike") and taken > 0.0:
+		player.apply_slow(float(e.traits["frost_strike"].get("slow", 0.4)), float(e.traits["frost_strike"].get("duration", 2.5)))
+	if e.traits.has("hex_bolt") and taken > 0.0:
+		player.apply_slow(float(e.traits["hex_bolt"].get("slow", 0.3)), float(e.traits["hex_bolt"].get("duration", 2.5)))
+	if e.traits.has("lifedrain") and taken > 0.0:
+		e.current_health = minf(e.max_health, e.current_health + taken * float(e.traits["lifedrain"].get("fraction", 0.5)))
+
+
+## Arc Chain: lightning leaps from `first` to up to `jumps` nearby enemies, losing `falloff` each jump.
+func chain_lightning(first: EnemyActor, from_pos: Vector3, damage: float, ch: Dictionary, hit_params: Dictionary, skill_name: String, col: Color) -> int:
+	var struck: Array = [first]
+	var cur_pos := from_pos
+	var dmg := damage
+	var hits := 0
+	for _j in range(int(ch.get("jumps", 1))):
+		dmg *= float(ch.get("falloff", 0.7))
+		var best: EnemyActor = null
+		var best_d := float(ch.get("radius", 6.0))
+		for other in enemies_root.get_children():
+			var o := other as EnemyActor
+			if o == null or not is_instance_valid(o) or struck.has(o) or o.state == EnemyActor.AiState.DEAD:
+				continue
+			var d := o.global_position.distance_to(cur_pos)
+			if d <= best_d:
+				best = o
+				best_d = d
+		if best == null:
+			break
+		struck.append(best)
+		var to := best.global_position + Vector3(0, 1.2, 0)
+		var arc := VfxFactory.make_impact_burst(col, 16, 2.0)
+		projectiles_root.add_child(arc)
+		arc.global_position = to
+		var p := hit_params.duplicate()
+		p["base_damage"] = dmg
+		_apply_player_hit_to_enemy(best, p, skill_name)
+		cur_pos = to
+		hits += 1
+	return hits
+
+
+## Adds mastery XP to an equipped item and announces new levels / newly discovered abilities (D-049).
+func grant_item_xp(item: Dictionary, event: String, enemy_level: int = 1) -> void:
+	if item.is_empty() or not MasterySystem.is_masterable(item):
+		return
+	var res := MasterySystem.add_xp(item, MasterySystem.xp_for(event, enemy_level))
+	if res["levels"].is_empty():
+		return
+	var lvl := int(res["levels"][-1])
+	if EventBus != null:
+		if res["unlocked"].is_empty():
+			EventBus.dungeon_ai_announcement.emit("%s — MASTERY %d" % [str(item.get("name", "Item")).to_upper(), lvl],
+				"Stronger with every use. Next discovery at mastery %s." % (str(MasterySystem.next_unlock_level(item)) if MasterySystem.next_unlock_level(item) > 0 else "—"), "info")
+		else:
+			var names: Array = []
+			for e in res["unlocked"]:
+				names.append(MasterySystem.ability_name(str(e["ability"])))
+			var e0: Dictionary = res["unlocked"][0]
+			var p0: Dictionary = e0.duplicate()
+			p0.erase("level")
+			EventBus.dungeon_ai_announcement.emit("NEW ABILITY — %s" % ", ".join(names).to_upper(),
+				"%s reached mastery %d: %s" % [str(item.get("name", "Item")), lvl, MasterySystem.describe(str(e0["ability"]), p0)], "warning")
+			EventBus.sfx_requested.emit("level_up")
+	player.recalculate_vitals(false)
+	player.emit_stats()
+
+
+## First sighting of an enemy type adds it to the Bestiary (D-049).
+func _bestiary_sighting(e: EnemyActor) -> void:
+	if e == null or not is_instance_valid(e) or e.has_meta("bestiary_seen"):
+		return
+	e.set_meta("bestiary_seen", true)
+	if bestiary.record_seen(e.enemy_id, e.level, floor_number) and EventBus != null:
+		EventBus.dungeon_ai_announcement.emit("NEW ENEMY — %s" % e.display_name.to_upper(),
+			"Level %d. Added to your Bestiary (Character menu)." % e.level, "warning")
 
 
 ## Marks the floor boss beaten and opens the arena and vault gates (idempotent).
@@ -1249,6 +1501,27 @@ func test_teleport(target: String) -> String:
 func test_set_floor(n: int, vast: bool) -> void:
 	test_vast_floor = vast
 	enter_floor(maxi(1, n), true)
+
+
+## Test Mode (D-049): adds mastery levels to every equipped item (unlocking their abilities).
+func test_add_mastery(levels: int) -> void:
+	for slot in player.equipment.keys():
+		var it: Dictionary = player.equipment[slot]
+		for _i in range(levels):
+			MasterySystem.add_xp(it, float(MasterySystem.xp_to_next(MasterySystem.level_of(it))) + 0.01)
+	player.recalculate_vitals(false)
+	player.refresh_hand_visuals()
+	player.emit_stats()
+
+
+## Test Mode (D-049): marks every enemy type as studied in the Bestiary.
+func test_reveal_bestiary() -> void:
+	for e in DataLoader.get_enemies_pack().get("enemies", []):
+		var r := EnemyLevels.type_range(e)
+		bestiary.record_seen(str(e["id"]), r.x, floor_number)
+		bestiary.record_seen(str(e["id"]), r.y, floor_number)
+		while bestiary.kills(str(e["id"])) < Bestiary.STUDY_KILLS:
+			bestiary.record_kill(str(e["id"]), r.x, floor_number)
 
 
 func test_toggle(flag: String) -> bool:

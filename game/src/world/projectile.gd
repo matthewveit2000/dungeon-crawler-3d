@@ -12,6 +12,15 @@ var skill_name: String = "archery"
 var splash_radius: float = 0.0
 var chain_radius: float = 0.0
 var sponsored_effects: Array = []
+## D-049 mastery: on-hit abilities of the item that fired this, the item's instance id (for mastery XP),
+## shots that pass through enemies, and seekers that curve toward the nearest enemy
+var abilities: Dictionary = {}
+var item_uid: String = ""
+var pierce_left: int = 0
+var homing_turn: float = 0.0
+var hit_bodies: Array = []
+## Bullet time (Hunter's Focus) slows every projectile except the player's own
+static var world_time_scale: float = 1.0
 var lifetime: float = 4.5
 var _hit_callback: Callable = Callable()
 var _expired: bool = false
@@ -30,6 +39,10 @@ func setup(params: Dictionary, hit_callback: Callable) -> void:
 	splash_radius = float(params.get("splash_radius", 0.0))
 	chain_radius = float(params.get("chain_radius", 0.0))
 	sponsored_effects = params.get("sponsored_effects", [])
+	abilities = params.get("abilities", {})
+	item_uid = str(params.get("item_uid", ""))
+	pierce_left = int(params.get("pierce", 0))
+	homing_turn = float(params.get("homing", 0.0))
 	_hit_callback = hit_callback
 
 	var shape := CollisionShape3D.new()
@@ -40,6 +53,8 @@ func setup(params: Dictionary, hit_callback: Callable) -> void:
 
 	var kind := str(params.get("kind", "arrow"))
 	_kind = kind
+	if kind == "bomb":
+		lifetime = 6.0
 	if kind == "arrow":
 		var mesh_node := ModelLoader.instantiate_model("res://assets/models/gear/arrow.glb", Vector3(0.03, 0.75, 0.03), Color(0.65, 0.5, 0.35))
 		# arrow model points +Y; projectile looks down -Z
@@ -72,7 +87,24 @@ func _physics_process(delta: float) -> void:
 	if lifetime <= 0.0:
 		_expire()
 		return
+	if not from_player:
+		delta *= world_time_scale
 	velocity.y -= projectile_gravity * delta
+	if homing_turn > 0.0 and is_inside_tree():
+		var best: Node3D = null
+		var best_d := 26.0
+		for n in get_tree().get_nodes_in_group("enemies"):
+			var e := n as Node3D
+			if e == null or hit_bodies.has(e):
+				continue
+			var to := e.global_position + Vector3(0, 1.1, 0) - global_position
+			var d := to.length()
+			if d < best_d and to.normalized().dot(velocity.normalized()) > 0.2:
+				best = e
+				best_d = d
+		if best != null:
+			var want := (best.global_position + Vector3(0, 1.1, 0) - global_position).normalized() * velocity.length()
+			velocity = velocity.lerp(want, clampf(homing_turn * delta, 0.0, 1.0))
 	global_position += velocity * delta
 	if velocity.length_squared() > 0.05:
 		look_at(global_position + velocity.normalized(), Vector3.UP)
@@ -85,8 +117,14 @@ func _on_body_entered(body: Node3D) -> void:
 		return
 	if not from_player and body.is_in_group("enemies"):
 		return
+	if hit_bodies.has(body):
+		return
+	hit_bodies.append(body)
 	if _hit_callback.is_valid():
 		_hit_callback.call(self, body, global_position)
+	if from_player and pierce_left > 0 and body.is_in_group("enemies"):
+		pierce_left -= 1  # Piercing: keep flying through to the next enemy
+		return
 	if is_inside_tree() and get_parent() != null:
 		var burst := VfxFactory.make_impact_burst(_color if _kind != "arrow" else Color(1.0, 0.8, 0.5), 26 if _kind != "arrow" else 12, 4.0)
 		get_parent().add_child(burst)

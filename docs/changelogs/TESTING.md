@@ -99,3 +99,7 @@ See [`docs/TESTING_STRATEGY.md`](../TESTING_STRATEGY.md) and [`docs/DECISION_LOG
 
 - New `game/tests/test_feedback_fb014.gd`: wall pathing, barricade unsticking, facing while chasing, rarity tiers + save migration, first-person blades edge-on (sword, axe, dual), third-person dual-wield / spells / bow clips and aim camera.
 - `test_menus_fit_a_720p_screen` now fills the bag with every item ×6 and checks the inventory at 1280×720 and at 150 % interface scale (853×480) — it failed before the fix.
+
+## 2026-11-20 — FB-015 Regression Guards (`D-049`)
+
+- New `game/tests/test_feedback_fb015.gd` (15 tests): all-Common varied loot, unique mastery tracks, mastery levels/stats/unlocks, in-game mastery XP, shock chaining, fire detonation, lunge + cross guard, bow bullet time, bleeding, enemy level ranges/floor bands, level scaling + deterministic levels, enemy traits, bestiary tiers + persistence through floor reset and save/load, Bestiary tab, item-card mastery with hidden abilities.
