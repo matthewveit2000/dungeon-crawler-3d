@@ -2,24 +2,28 @@
   "grid": {
     "tile_size_meters": 4.0,
     "wall_height_meters": 4.5,
-    "width_tiles": 72,
-    "height_tiles": 72
+    "width_tiles": 336,
+    "height_tiles": 336
   },
   "labyrinth": {
-    "room_count_min": 28,
-    "room_count_max": 36,
     "room_min_size": 3,
     "room_max_size": 8,
     "boss_room_size": 7,
     "vault_room_size": 4,
     "safe_room_size": 5,
-    "loop_connection_chance": 0.38,
+    "loop_connection_chance": 0.3,
     "corridor_width_tiles": 1,
     "max_generation_attempts": 12,
     "chest_room_chance": 0.6,
     "trap_corridor_chance": 0.14,
     "ambient_prop_density": 0.6,
-    "containers_per_room_max": 3
+    "containers_per_room_max": 2,
+    "sector_tiles": 12,
+    "room_fill_chance": 0.82,
+    "stairs_count": 3,
+    "safe_room_regions": 3,
+    "boss_min_distance_frac": 0.7,
+    "stairs_min_distance_frac": 0.45
   },
   "floor_timer": {
     "days_per_floor": 5,
@@ -49,7 +53,7 @@
       "torch_color": "#ff9e4a",
       "safe_zone_color": "#6ce5c4",
       "boss_color": "#e04838",
-      "enemy_budget": 30,
+      "enemy_budget": 440,
       "boss_id": "iron_warden_boss"
     },
     {
@@ -62,7 +66,7 @@
       "torch_color": "#ff6a2b",
       "safe_zone_color": "#6ce5c4",
       "boss_color": "#ff3824",
-      "enemy_budget": 38,
+      "enemy_budget": 530,
       "boss_id": "iron_warden_boss"
     }
   ]

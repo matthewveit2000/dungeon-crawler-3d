@@ -30,13 +30,24 @@ static func compute_visible_markers(
 		fwd = Vector2(0.0, -1.0)
 	var right := Vector2(-fwd.y, fwd.x)
 
+	# Far sense (D-044): for each far-sensed landmark kind (stairwells, boss gate) the NEAREST undiscovered one is
+	# hinted on the compass at any distance, so sparse landmarks on vast floors can always be found.
+	var far_pick: Dictionary = {}
+	for lm in landmarks:
+		if bool(lm.get("far_sense", false)) and not bool(lm.get("discovered", false)):
+			var fp: Vector3 = lm["world_pos"]
+			var fd := Vector2(fp.x - player_pos.x, fp.z - player_pos.z).length()
+			var kind := str(lm["id"])
+			if not far_pick.has(kind) or fd < float(far_pick[kind][0]):
+				far_pick[kind] = [fd, lm]
 	var markers: Array[Dictionary] = []
 	for lm in landmarks:
 		var pos: Vector3 = lm["world_pos"]
 		var delta := Vector2(pos.x - player_pos.x, pos.z - player_pos.z)
 		var dist := delta.length()
 		var is_disc := bool(lm.get("discovered", false))
-		if not is_disc and dist > visible_radius:
+		var sensed: bool = far_pick.has(str(lm["id"])) and far_pick[str(lm["id"])][1] == lm
+		if not is_disc and dist > visible_radius and not sensed:
 			continue
 		var dir := delta.normalized() if dist > 0.01 else fwd
 		var angle := atan2(dir.dot(right), dir.dot(fwd))

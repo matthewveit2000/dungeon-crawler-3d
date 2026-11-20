@@ -22,8 +22,10 @@ class FloorLayout:
 	var tiles: PackedByteArray = PackedByteArray()
 	var rooms: Array[Dictionary] = []
 	var entrance_room_id: int = -1
-	var stairs_room_id: int = -1
-	var safe_room_id: int = -1
+	var stairs_room_id: int = -1  ## primary (nearest the entrance)
+	var safe_room_id: int = -1  ## primary (nearest the entrance)
+	var stairs_room_ids: Array[int] = []  ## every hidden stairwell on the floor (D-044)
+	var safe_room_ids: Array[int] = []  ## every safe room on the floor (D-044)
 	var boss_room_id: int = -1
 	var vault_room_id: int = -1
 	var boss_gate_tile: Vector2i = Vector2i(-1, -1)
@@ -103,169 +105,262 @@ static func _try_generate(
 	layout.tiles.resize(layout.width * layout.height)
 	layout.tiles.fill(TILE_VOID)
 
-	var target_rooms := rng.next_int_range("gen", int(lab_cfg["room_count_min"]), int(lab_cfg["room_count_max"]))
+	# --- Vast-floor sector layout (D-044) ---------------------------------------------------------------
+	# The map is cut into SEC x SEC-tile sectors holding at most one room each, so rooms are spread evenly
+	# over an enormous area at O(rooms) cost. Landmarks are placed by distance so they are sparse:
+	# the entrance near a corner, the boss arena + vault far away, several stairwells far from the
+	# entrance AND from each other, and one safe room per region so a vendor is never impossibly far.
+	var sec := int(lab_cfg.get("sector_tiles", 12))
+	var sw := layout.width / sec
+	var sh := layout.height / sec
+	if sw < 3 or sh < 3:
+		return null
+	var fill := float(lab_cfg.get("room_fill_chance", 0.8))
 	var min_sz := int(lab_cfg["room_min_size"])
-	var max_sz := int(lab_cfg["room_max_size"])
+	var max_sz := mini(int(lab_cfg["room_max_size"]), sec - 4)
 	var boss_sz := int(lab_cfg["boss_room_size"])
 	var vault_sz := int(lab_cfg["vault_room_size"])
 	var safe_sz := int(lab_cfg["safe_room_size"])
+	var sdiag := Vector2(sw, sh).length()
 
-	var rects: Array[Rect2i] = []
+	var role_of: Dictionary = {}  # Vector2i sector -> role
+	# Entrance: a sector near a random corner of the map
+	var corner := rng.next_int_range("gen", 0, 3)
+	var ent_s := Vector2i(rng.next_int_range("gen", 0, 1), rng.next_int_range("gen", 0, 1))
+	if corner & 1:
+		ent_s.x = sw - 1 - ent_s.x
+	if corner & 2:
+		ent_s.y = sh - 1 - ent_s.y
+	role_of[ent_s] = "entrance"
 
-	# 1. Place Boss Arena + adjoining Treasure Vault pair first so they always fit cleanly
-	var boss_placed := false
-	for _i in range(80):
-		var bx := rng.next_int_range("gen", 3, layout.width - boss_sz - vault_sz - 5)
-		var by := rng.next_int_range("gen", 3, layout.height - boss_sz - 4)
-		var boss_rect := Rect2i(bx, by, boss_sz, boss_sz)
-		var vault_x := bx + boss_sz + 1
-		var vault_y := by + (boss_sz - vault_sz) / 2
-		var vault_rect := Rect2i(vault_x, vault_y, vault_sz, vault_sz)
-		if _rect_in_bounds(boss_rect, layout) and _rect_in_bounds(vault_rect, layout):
-			rects.append(boss_rect)
-			rects.append(vault_rect)
-			boss_placed = true
+	# Boss arena (sector b) + treasure vault (sector b + 1 to the east): far from the entrance
+	var boss_cands: Array[Vector2i] = []
+	var best_bd := 0.0
+	for by in range(sh):
+		for bx in range(sw - 1):
+			best_bd = maxf(best_bd, Vector2(bx + 0.5 - ent_s.x, by - ent_s.y).length())
+	var boss_min := best_bd * float(lab_cfg.get("boss_min_distance_frac", 0.7))
+	for by in range(sh):
+		for bx in range(sw - 1):
+			if Vector2(bx + 0.5 - ent_s.x, by - ent_s.y).length() >= boss_min and not role_of.has(Vector2i(bx, by)) \
+					and not role_of.has(Vector2i(bx + 1, by)):
+				boss_cands.append(Vector2i(bx, by))
+	if boss_cands.is_empty():
+		return null
+	var boss_s: Vector2i = boss_cands[rng.next_int_range("gen", 0, boss_cands.size() - 1)]
+	role_of[boss_s] = "boss"
+	role_of[boss_s + Vector2i(1, 0)] = "vault"
+
+	# Stairwells: far from the entrance, away from the boss, and spread far apart from each other
+	var stairs_count := int(lab_cfg.get("stairs_count", 3))
+	var stair_min_ent := sdiag * float(lab_cfg.get("stairs_min_distance_frac", 0.45))
+	var stairs_s: Array[Vector2i] = []
+	for _k in range(stairs_count):
+		var scored: Array = []
+		for sy in range(sh):
+			for sx in range(sw):
+				var s := Vector2i(sx, sy)
+				if role_of.has(s) or s.distance_to(ent_s) < stair_min_ent or s.distance_to(boss_s) < 2.5:
+					continue
+				var md := 1e9
+				for o in stairs_s:
+					md = minf(md, s.distance_to(o))
+				scored.append([md if not stairs_s.is_empty() else s.distance_to(ent_s), s])
+		if scored.is_empty():
 			break
-	if not boss_placed:
+		scored.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) > float(b[0]))
+		var top := maxi(1, scored.size() / 5)
+		var pick: Vector2i = scored[rng.next_int_range("gen", 0, top - 1)][1]
+		stairs_s.append(pick)
+		role_of[pick] = "stairs"
+	if stairs_s.is_empty():
 		return null
 
-	# 2. Place Safe Room
-	var safe_placed := false
-	for _i in range(100):
-		var sx := rng.next_int_range("gen", 2, layout.width - safe_sz - 3)
-		var sy := rng.next_int_range("gen", 2, layout.height - safe_sz - 3)
-		var r := Rect2i(sx, sy, safe_sz, safe_sz)
-		if not _overlaps_any(r, rects, 2):
+	# Safe rooms: one per region of an R x R macro grid, near each region's middle
+	var regions := maxi(1, int(lab_cfg.get("safe_room_regions", 3)))
+	var safe_s: Array[Vector2i] = []
+	for ry in range(regions):
+		for rx in range(regions):
+			var x0 := rx * sw / regions
+			var x1 := (rx + 1) * sw / regions
+			var y0 := ry * sh / regions
+			var y1 := (ry + 1) * sh / regions
+			var mid := Vector2((x0 + x1 - 1) * 0.5, (y0 + y1 - 1) * 0.5)
+			var best := Vector2i(-1, -1)
+			var best_d := 1e9
+			for sy in range(y0, y1):
+				for sx in range(x0, x1):
+					var s := Vector2i(sx, sy)
+					if role_of.has(s) or s.distance_to(boss_s) < 2.0:
+						continue
+					var d := Vector2(s).distance_to(mid) + rng.next_float("gen") * 0.9
+					if d < best_d:
+						best_d = d
+						best = s
+			if best.x >= 0:
+				safe_s.append(best)
+				role_of[best] = "safe"
+	if safe_s.is_empty():
+		return null
+
+	# Room rectangles: boss (id 0), vault (1), then every other sector
+	var boss_rect := Rect2i(boss_s.x * sec + sec - boss_sz, boss_s.y * sec + 2 + rng.next_int_range("gen", 0, maxi(0, sec - 4 - boss_sz)), boss_sz, boss_sz)
+	var vault_rect := Rect2i(boss_rect.end.x + 1, boss_rect.position.y + (boss_sz - vault_sz) / 2, vault_sz, vault_sz)
+	if not _rect_in_bounds(boss_rect, layout) or not _rect_in_bounds(vault_rect, layout):
+		return null
+	var rects: Array[Rect2i] = [boss_rect, vault_rect]
+	var roles: Array[String] = ["boss", "vault"]
+	for sy in range(sh):
+		for sx in range(sw):
+			var s := Vector2i(sx, sy)
+			var role := str(role_of.get(s, "combat"))
+			if role == "boss" or role == "vault":
+				continue
+			if role == "combat" and rng.next_float("gen") > fill:
+				continue
+			var rw := rng.next_int_range("gen", min_sz, max_sz)
+			var rh := rng.next_int_range("gen", min_sz, max_sz)
+			match role:
+				"safe":
+					rw = safe_sz
+					rh = safe_sz
+				"stairs":
+					rw = maxi(5, rw)
+					rh = maxi(5, rh)
+				"entrance":
+					rw = maxi(5, rw)
+					rh = maxi(5, rh)
+			rw = mini(rw, sec - 4)
+			rh = mini(rh, sec - 4)
+			var r := Rect2i(sx * sec + 2 + rng.next_int_range("gen", 0, sec - 4 - rw), sy * sec + 2 + rng.next_int_range("gen", 0, sec - 4 - rh), rw, rh)
+			if not _rect_in_bounds(r, layout):
+				continue
 			rects.append(r)
-			safe_placed = true
-			break
-	if not safe_placed:
-		return null
+			roles.append(role)
 
-	# 3. Place remaining Nordic-ruin chambers & halls
-	for _attempt in range(target_rooms * 25):
-		if rects.size() >= target_rooms:
-			break
-		var rw := rng.next_int_range("gen", min_sz, max_sz)
-		var rh := rng.next_int_range("gen", min_sz, max_sz)
-		var rx := rng.next_int_range("gen", 2, layout.width - rw - 3)
-		var ry := rng.next_int_range("gen", 2, layout.height - rh - 3)
-		var cand := Rect2i(rx, ry, rw, rh)
-		if not _overlaps_any(cand, rects, 2):
-			rects.append(cand)
-
-	if rects.size() < 6:
-		return null
-
-	# Build room metadata
+	layout.stairs_room_ids.clear()
+	layout.safe_room_ids.clear()
 	for idx in range(rects.size()):
 		var rect: Rect2i = rects[idx]
-		var center := Vector2i(rect.position.x + rect.size.x / 2, rect.position.y + rect.size.y / 2)
-		var role := "combat"
-		if idx == 0:
-			role = "boss"
-		elif idx == 1:
-			role = "vault"
-		elif idx == 2:
-			role = "safe"
 		layout.rooms.append({
 			"id": idx,
 			"rect": rect,
-			"center": center,
-			"role": role,
+			"center": Vector2i(rect.position.x + rect.size.x / 2, rect.position.y + rect.size.y / 2),
+			"role": roles[idx],
 			"neighbors": [],
+			"sector": Vector2i(rect.position.x / sec, rect.position.y / sec),
 		})
-
+		match roles[idx]:
+			"entrance": layout.entrance_room_id = idx
+			"stairs": layout.stairs_room_ids.append(idx)
+			"safe": layout.safe_room_ids.append(idx)
 	layout.boss_room_id = 0
 	layout.vault_room_id = 1
-	layout.safe_room_id = 2
+	if layout.entrance_room_id < 0 or layout.stairs_room_ids.is_empty() or layout.safe_room_ids.is_empty():
+		return null
+	# Primary stairwell / safe room = the nearest to the entrance (debug teleports, tools)
+	var ent_c: Vector2i = layout.rooms[layout.entrance_room_id]["center"]
+	layout.stairs_room_id = _nearest_room(layout, layout.stairs_room_ids, ent_c)
+	layout.safe_room_id = _nearest_room(layout, layout.safe_room_ids, ent_c)
+	if rects.size() < 8:
+		return null
 
-	# 4. Build Prim's MST over all rooms EXCEPT Vault (Vault connects ONLY to Boss Arena!)
+	# --- Room graph: MST over rooms in nearby sectors (Kruskal), plus loops between sector neighbours ---------
+	var by_sector: Dictionary = {}
+	for r in layout.rooms:
+		by_sector[r["sector"]] = int(r["id"])
 	var main_ids: Array[int] = []
-	for idx in range(layout.rooms.size()):
-		if idx != layout.vault_room_id:
-			main_ids.append(idx)
-
-	var in_tree: Dictionary = {main_ids[0]: true}
-	var edges: Array[Vector2i] = []
-	while in_tree.size() < main_ids.size():
-		var best_dist := 1e12
-		var best_u := -1
-		var best_v := -1
-		for u in in_tree.keys():
-			var cu: Vector2i = layout.rooms[u]["center"]
-			for v in main_ids:
-				if in_tree.has(v):
+	for r in layout.rooms:
+		var rid := int(r["id"])
+		if rid != layout.boss_room_id and rid != layout.vault_room_id:
+			main_ids.append(rid)
+	var cand: Array = []
+	for u in main_ids:
+		var su: Vector2i = layout.rooms[u]["sector"]
+		for dy in range(-2, 3):
+			for dx in range(-2, 3):
+				var v := int(by_sector.get(su + Vector2i(dx, dy), -1))
+				if v <= u or v == layout.boss_room_id or v == layout.vault_room_id:
 					continue
+				var cu: Vector2i = layout.rooms[u]["center"]
 				var cv: Vector2i = layout.rooms[v]["center"]
-				var d := cu.distance_squared_to(cv)
-				if d < best_dist:
-					best_dist = d
-					best_u = u
-					best_v = v
-		if best_u == -1:
+				cand.append([cu.distance_squared_to(cv), u, v, maxi(absi(dx), absi(dy))])
+	cand.sort_custom(func(a: Array, b: Array) -> bool: return int(a[0]) < int(b[0]))
+	var uf := PackedInt32Array()
+	uf.resize(layout.rooms.size())
+	for i in range(uf.size()):
+		uf[i] = i
+	var edges: Array[Vector2i] = []
+	var edge_set: Dictionary = {}
+	var loop_chance := float(lab_cfg.get("loop_connection_chance", 0.3))
+	var loops: Array[Vector2i] = []
+	for c in cand:
+		var u := int(c[1])
+		var v := int(c[2])
+		var ru := _uf_find(uf, u)
+		var rv := _uf_find(uf, v)
+		if ru != rv:
+			uf[ru] = rv
+			edges.append(Vector2i(u, v))
+			edge_set[Vector2i(u, v)] = true
+		elif int(c[3]) == 1 and rng.next_float("gen") < loop_chance:
+			loops.append(Vector2i(u, v))
+	# Join any islands left by empty sector clusters (rare): nearest pair between components
+	var guard := 0
+	while guard < 64:
+		guard += 1
+		var root0 := _uf_find(uf, main_ids[0])
+		var stray := -1
+		for rid in main_ids:
+			if _uf_find(uf, rid) != root0:
+				stray = rid
+				break
+		if stray == -1:
 			break
-		in_tree[best_v] = true
-		edges.append(Vector2i(best_u, best_v))
+		var rs := _uf_find(uf, stray)
+		var best_pair := Vector2i(-1, -1)
+		var best_d := 1 << 30
+		for a in main_ids:
+			if _uf_find(uf, a) != rs:
+				continue
+			for b in main_ids:
+				if _uf_find(uf, b) == rs:
+					continue
+				var d: int = (layout.rooms[a]["center"] as Vector2i).distance_squared_to(layout.rooms[b]["center"])
+				if d < best_d:
+					best_d = d
+					best_pair = Vector2i(a, b)
+		uf[rs] = _uf_find(uf, best_pair.y)
+		edges.append(best_pair)
+	for e in loops:
+		if not edge_set.has(e):
+			edges.append(e)
 
-	# Add loop corridors (skipping Boss Arena & Vault so Boss Arena remains a single sealable entrance!)
-	var loop_chance := float(lab_cfg.get("loop_connection_chance", 0.28))
-	for i in range(main_ids.size()):
-		var u := main_ids[i]
-		if u == layout.boss_room_id:
+	# Boss arena joins the labyrinth by exactly ONE corridor (its sealable gate), from the nearest room that is
+	# not on the vault side; no other corridor may touch the arena or the vault.
+	var b_center: Vector2i = layout.rooms[layout.boss_room_id]["center"]
+	var boss_link := -1
+	var link_d := 1 << 30
+	for rid in main_ids:
+		var c: Vector2i = layout.rooms[rid]["center"]
+		if c.x >= boss_rect.end.x and absi(c.y - b_center.y) < boss_sz:
 			continue
-		for j in range(i + 1, main_ids.size()):
-			var v := main_ids[j]
-			if v == layout.boss_room_id:
-				continue
-			if _has_edge(edges, u, v):
-				continue
-			var cu: Vector2i = layout.rooms[u]["center"]
-			var cv: Vector2i = layout.rooms[v]["center"]
-			if cu.distance_to(cv) <= 14.0 and rng.next_float("gen") < loop_chance:
-				edges.append(Vector2i(u, v))
+		var d := c.distance_squared_to(b_center)
+		if d < link_d:
+			link_d = d
+			boss_link = rid
+	if boss_link < 0:
+		return null
 
-	# Record room graph adjacency
 	for e in edges:
 		layout.rooms[e.x]["neighbors"].append(e.y)
 		layout.rooms[e.y]["neighbors"].append(e.x)
+	layout.rooms[layout.boss_room_id]["neighbors"].append(boss_link)
+	layout.rooms[boss_link]["neighbors"].append(layout.boss_room_id)
 	layout.rooms[layout.boss_room_id]["neighbors"].append(layout.vault_room_id)
 	layout.rooms[layout.vault_room_id]["neighbors"].append(layout.boss_room_id)
 
-	# 5. Choose Entrance (furthest non-special room from Boss) and Hidden Staircase (furthest BFS room from Entrance)
-	var dist_from_boss := _bfs_room_distances(layout.rooms, layout.boss_room_id)
-	var best_ent := -1
-	var best_ent_d := -1
-	for r in layout.rooms:
-		var rid := int(r["id"])
-		if rid in [layout.boss_room_id, layout.vault_room_id, layout.safe_room_id]:
-			continue
-		var d := int(dist_from_boss.get(rid, 0))
-		if d > best_ent_d:
-			best_ent_d = d
-			best_ent = rid
-	if best_ent == -1:
-		return null
-	layout.entrance_room_id = best_ent
-	layout.rooms[best_ent]["role"] = "entrance"
-
-	var dist_from_ent := _bfs_room_distances(layout.rooms, layout.entrance_room_id)
-	var best_stairs := -1
-	var best_stairs_d := -1
-	for r in layout.rooms:
-		var rid := int(r["id"])
-		if rid in [layout.boss_room_id, layout.vault_room_id, layout.safe_room_id, layout.entrance_room_id]:
-			continue
-		var d := int(dist_from_ent.get(rid, 0))
-		if d > best_stairs_d:
-			best_stairs_d = d
-			best_stairs = rid
-	if best_stairs == -1:
-		return null
-	layout.stairs_room_id = best_stairs
-	layout.rooms[best_stairs]["role"] = "stairs"
-
-	# 6. Carve rooms into grid
+	# --- Carve rooms, corridors and gates ---------------------------------------------------------------
 	for r in layout.rooms:
 		var rect: Rect2i = r["rect"]
 		var tile_type := TILE_FLOOR
@@ -277,29 +372,38 @@ static func _try_generate(
 			for x in range(rect.position.x, rect.end.x):
 				layout.set_tile(x, y, tile_type)
 
-	# 7. Carve L-shaped corridors for all edges, capturing Boss Arena entrance gate tile
+	var forbidden := PackedByteArray()
+	forbidden.resize(layout.width * layout.height)
+	for fr in [boss_rect.grow(1), vault_rect.grow(1)]:
+		for y in range(fr.position.y, fr.end.y):
+			for x in range(fr.position.x, fr.end.x):
+				if x >= 0 and y >= 0 and x < layout.width and y < layout.height:
+					forbidden[y * layout.width + x] = 1
 	for e in edges:
-		var a: Vector2i = layout.rooms[e.x]["center"]
-		var b: Vector2i = layout.rooms[e.y]["center"]
-		var path_tiles := _carve_corridor(layout, a, b, rng)
-		if e.x == layout.boss_room_id or e.y == layout.boss_room_id:
-			var boss_rect: Rect2i = layout.rooms[layout.boss_room_id]["rect"]
-			for pt in path_tiles:
-				if not boss_rect.has_point(pt) and _is_adjacent_to_rect(pt, boss_rect):
-					layout.boss_gate_tile = pt
-					layout.set_tile(pt.x, pt.y, TILE_BOSS_GATE)
-					break
+		_carve_avoiding(layout, layout.rooms[e.x]["center"], layout.rooms[e.y]["center"], forbidden, rng)
 
-	# Carve sealed doorway between Boss Arena and Treasure Vault
-	var b_rect: Rect2i = layout.rooms[layout.boss_room_id]["rect"]
-	var v_rect: Rect2i = layout.rooms[layout.vault_room_id]["rect"]
-	var gate_x := b_rect.end.x
-	var gate_y := v_rect.position.y + v_rect.size.y / 2
-	layout.vault_gate_tile = Vector2i(gate_x, gate_y)
-	layout.set_tile(gate_x, gate_y, TILE_VAULT_GATE)
-
-	if layout.boss_gate_tile == Vector2i(-1, -1):
+	# The single boss doorway: on the arena side facing its linked room (never the vault's east side)
+	var lc: Vector2i = layout.rooms[boss_link]["center"]
+	var dv := lc - b_center
+	var door := Vector2i.ZERO
+	if absi(dv.x) >= absi(dv.y) and dv.x < 0:
+		door = Vector2i(boss_rect.position.x - 1, b_center.y)
+	elif dv.y < 0:
+		door = Vector2i(b_center.x, boss_rect.position.y - 1)
+	else:
+		door = Vector2i(b_center.x, boss_rect.end.y)
+	var outside := door + (door - b_center).sign()
+	if outside.x >= 0 and outside.y >= 0 and outside.x < layout.width and outside.y < layout.height:
+		forbidden[outside.y * layout.width + outside.x] = 0
+	if not _carve_avoiding(layout, lc, outside, forbidden, rng):
 		return null
+	layout.set_tile(outside.x, outside.y, TILE_CORRIDOR)
+	layout.boss_gate_tile = door
+	layout.set_tile(door.x, door.y, TILE_BOSS_GATE)
+
+	# Sealed doorway between Boss Arena and Treasure Vault
+	layout.vault_gate_tile = Vector2i(boss_rect.end.x, vault_rect.position.y + vault_sz / 2)
+	layout.set_tile(layout.vault_gate_tile.x, layout.vault_gate_tile.y, TILE_VAULT_GATE)
 
 	_populate_contents(layout, lab_cfg, world_data, enemies_data, floor_number, rng)
 	return layout
@@ -376,84 +480,52 @@ static func _populate_contents(
 				"is_boss": false,
 			})
 
-	# Populate Compass Landmarks (discovered as the player approaches — D-016)
-	layout.landmarks = [
-		{
-			"id": "safe_room",
-			"label": "Safe Room",
-			"icon": "S",
-			"world_pos": layout.tile_to_world(layout.rooms[layout.safe_room_id]["center"]),
-			"discovered": false,
-		},
-		{
-			"id": "boss_arena",
-			"label": "Boss Gate",
-			"icon": "B",
-			"world_pos": layout.tile_to_world(layout.boss_gate_tile),
-			"discovered": false,
-		},
-		{
-			"id": "vault",
-			"label": "Treasure Vault",
-			"icon": "V",
-			"world_pos": layout.tile_to_world(layout.rooms[layout.vault_room_id]["center"]),
-			"discovered": false,
-		},
-		{
-			"id": "stairs",
-			"label": "Stairwell",
-			"icon": "D",
-			"world_pos": layout.tile_to_world(layout.rooms[layout.stairs_room_id]["center"]),
-			"discovered": false,
-		},
-	]
-
-
-static func _carve_corridor(layout: FloorLayout, a: Vector2i, b: Vector2i, rng: SeededRng) -> Array[Vector2i]:
-	var carved: Array[Vector2i] = []
-	var horizontal_first := rng.next_float("gen") < 0.5
-	var cur := a
-	if horizontal_first:
-		while cur.x != b.x:
-			cur.x += 1 if b.x > cur.x else -1
-			carved.append(cur)
-		while cur.y != b.y:
-			cur.y += 1 if b.y > cur.y else -1
-			carved.append(cur)
-	else:
-		while cur.y != b.y:
-			cur.y += 1 if b.y > cur.y else -1
-			carved.append(cur)
-		while cur.x != b.x:
-			cur.x += 1 if b.x > cur.x else -1
-			carved.append(cur)
-
-	for pt in carved:
-		if layout.get_tile(pt.x, pt.y) == TILE_VOID:
-			layout.set_tile(pt.x, pt.y, TILE_CORRIDOR)
-	return carved
+	# Populate Compass Landmarks (discovered as the player approaches — D-016). On vast floors (D-044) the boss
+	# gate and the stairwells are "far-sensed": the compass always hints at the nearest undiscovered one.
+	layout.landmarks.clear()
+	for sid in layout.safe_room_ids:
+		layout.landmarks.append({"id": "safe_room", "label": "Safe Room", "icon": "S",
+			"world_pos": layout.tile_to_world(layout.rooms[sid]["center"]), "discovered": false, "far_sense": false})
+	layout.landmarks.append({"id": "boss_arena", "label": "Boss Gate", "icon": "B",
+		"world_pos": layout.tile_to_world(layout.boss_gate_tile), "discovered": false, "far_sense": true})
+	layout.landmarks.append({"id": "vault", "label": "Treasure Vault", "icon": "V",
+		"world_pos": layout.tile_to_world(layout.rooms[layout.vault_room_id]["center"]), "discovered": false, "far_sense": false})
+	for sid in layout.stairs_room_ids:
+		layout.landmarks.append({"id": "stairs", "label": "Stairwell", "icon": "D",
+			"world_pos": layout.tile_to_world(layout.rooms[sid]["center"]), "discovered": false, "far_sense": true})
 
 
 static func _validate_connectivity(layout: FloorLayout) -> bool:
 	if layout.entrance_room_id < 0 or layout.stairs_room_id < 0 or layout.safe_room_id < 0 or layout.boss_room_id < 0 or layout.vault_room_id < 0:
 		return false
+	var w := layout.width
 	var start: Vector2i = layout.rooms[layout.entrance_room_id]["center"]
-	var visited: Dictionary = {start: true}
-	var queue: Array[Vector2i] = [start]
-	var dirs := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
-	while not queue.is_empty():
-		var cur: Vector2i = queue.pop_front()
-		for d in dirs:
-			var nxt: Vector2i = cur + d
-			if visited.has(nxt):
+	var seen := PackedByteArray()
+	seen.resize(w * layout.height)
+	seen[start.y * w + start.x] = 1
+	var q := PackedInt32Array([start.y * w + start.x])
+	var head := 0
+	while head < q.size():
+		var cur := q[head]
+		head += 1
+		var cx := cur % w
+		var cy := cur / w
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var nx: int = cx + d.x
+			var ny: int = cy + d.y
+			if not layout.is_walkable(nx, ny):
 				continue
-			if layout.is_walkable(nxt.x, nxt.y):
-				visited[nxt] = true
-				queue.append(nxt)
-
-	for rid in [layout.stairs_room_id, layout.safe_room_id, layout.boss_room_id, layout.vault_room_id]:
+			var ni := ny * w + nx
+			if seen[ni] == 1:
+				continue
+			seen[ni] = 1
+			q.append(ni)
+	var must: Array[int] = [layout.boss_room_id, layout.vault_room_id]
+	must.append_array(layout.stairs_room_ids)
+	must.append_array(layout.safe_room_ids)
+	for rid in must:
 		var target: Vector2i = layout.rooms[rid]["center"]
-		if not visited.has(target):
+		if seen[target.y * w + target.x] == 0:
 			return false
 	return true
 
@@ -500,6 +572,8 @@ static func _build_fallback_layout(
 	layout.entrance_room_id = 0
 	layout.safe_room_id = 2
 	layout.stairs_room_id = 4
+	layout.safe_room_ids = [2]
+	layout.stairs_room_ids = [4]
 	layout.boss_room_id = 5
 	layout.vault_room_id = 6
 
@@ -518,45 +592,112 @@ static func _build_fallback_layout(
 	return layout
 
 
+static func _uf_find(uf: PackedInt32Array, i: int) -> int:
+	var r := i
+	while uf[r] != r:
+		r = uf[r]
+	var c := i
+	while uf[c] != r:
+		var nxt := uf[c]
+		uf[c] = r
+		c = nxt
+	return r
+
+
+static func _nearest_room(layout: FloorLayout, ids: Array[int], to: Vector2i) -> int:
+	var best := -1
+	var best_d := 1 << 30
+	for rid in ids:
+		var d := (layout.rooms[rid]["center"] as Vector2i).distance_squared_to(to)
+		if d < best_d:
+			best_d = d
+			best = rid
+	return best
+
+
+static func _l_path(a: Vector2i, b: Vector2i, horizontal_first: bool) -> Array[Vector2i]:
+	var cur := a
+	var out: Array[Vector2i] = [cur]
+	for leg in range(2):
+		var do_x := (leg == 0) == horizontal_first
+		if do_x:
+			while cur.x != b.x:
+				cur.x += 1 if b.x > cur.x else -1
+				out.append(cur)
+		else:
+			while cur.y != b.y:
+				cur.y += 1 if b.y > cur.y else -1
+				out.append(cur)
+	return out
+
+
+static func _path_clear(layout: FloorLayout, path: Array[Vector2i], forbidden: PackedByteArray) -> bool:
+	for pt in path:
+		if pt.x < 0 or pt.y < 0 or pt.x >= layout.width or pt.y >= layout.height:
+			return false
+		if forbidden[pt.y * layout.width + pt.x] == 1:
+			return false
+	return true
+
+
+## Carves a corridor from a to b: an L-shape when one stays clear of the forbidden (boss/vault) zone, otherwise a
+## breadth-first detour around it. Returns false only if no route exists.
+static func _carve_avoiding(layout: FloorLayout, a: Vector2i, b: Vector2i, forbidden: PackedByteArray, rng: SeededRng) -> bool:
+	var first := rng.next_float("gen") < 0.5
+	var path := _l_path(a, b, first)
+	if not _path_clear(layout, path, forbidden):
+		path = _l_path(a, b, not first)
+	if not _path_clear(layout, path, forbidden):
+		path = _bfs_path(layout, a, b, forbidden)
+		if path.is_empty():
+			return false
+	for pt in path:
+		if layout.get_tile(pt.x, pt.y) == TILE_VOID:
+			layout.set_tile(pt.x, pt.y, TILE_CORRIDOR)
+	return true
+
+
+static func _bfs_path(layout: FloorLayout, a: Vector2i, b: Vector2i, forbidden: PackedByteArray) -> Array[Vector2i]:
+	var w := layout.width
+	var prev := PackedInt32Array()
+	prev.resize(w * layout.height)
+	prev.fill(-1)
+	var start := a.y * w + a.x
+	var goal := b.y * w + b.x
+	prev[start] = start
+	var q := PackedInt32Array([start])
+	var head := 0
+	while head < q.size():
+		var cur := q[head]
+		head += 1
+		if cur == goal:
+			break
+		var cx := cur % w
+		var cy := cur / w
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var nx: int = cx + d.x
+			var ny: int = cy + d.y
+			if nx < 1 or ny < 1 or nx >= w - 1 or ny >= layout.height - 1:
+				continue
+			var ni := ny * w + nx
+			if prev[ni] != -1 or forbidden[ni] == 1:
+				continue
+			prev[ni] = cur
+			q.append(ni)
+	var out: Array[Vector2i] = []
+	if prev[goal] == -1:
+		return out
+	var c := goal
+	while c != start:
+		out.append(Vector2i(c % w, c / w))
+		c = prev[c]
+	out.append(a)
+	out.reverse()
+	return out
+
+
 static func _rect_in_bounds(rect: Rect2i, layout: FloorLayout) -> bool:
 	return rect.position.x >= 1 and rect.position.y >= 1 and rect.end.x < layout.width - 1 and rect.end.y < layout.height - 1
-
-
-static func _overlaps_any(rect: Rect2i, rects: Array[Rect2i], padding: int) -> bool:
-	var padded := rect.grow(padding)
-	for other in rects:
-		if padded.intersects(other):
-			return true
-	return false
-
-
-static func _has_edge(edges: Array[Vector2i], u: int, v: int) -> bool:
-	for e in edges:
-		if (e.x == u and e.y == v) or (e.x == v and e.y == u):
-			return true
-	return false
-
-
-static func _is_adjacent_to_rect(pt: Vector2i, rect: Rect2i) -> bool:
-	var expanded := rect.grow(1)
-	if not expanded.has_point(pt):
-		return false
-	var on_x := pt.x >= rect.position.x and pt.x < rect.end.x
-	var on_y := pt.y >= rect.position.y and pt.y < rect.end.y
-	return on_x or on_y
-
-
-static func _bfs_room_distances(rooms: Array[Dictionary], start_id: int) -> Dictionary:
-	var dist: Dictionary = {start_id: 0}
-	var q: Array[int] = [start_id]
-	while not q.is_empty():
-		var cur: int = q.pop_front()
-		var d := int(dist[cur])
-		for nxt in rooms[cur]["neighbors"]:
-			if not dist.has(nxt):
-				dist[nxt] = d + 1
-				q.append(nxt)
-	return dist
 
 
 static func _get_floor_cfg(world_data: Dictionary, floor_number: int) -> Dictionary:

@@ -61,3 +61,8 @@ See [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) and [`docs/DECISION_LOG.md`](..
 - **`InteractableObject` & `DungeonBuilder` (`game/src/world/interactable.gd`, `game/src/world/dungeon_builder.gd`):** Animated only `Handle*` child on levers (pedestal stationary), upgraded chests to weighted hinge settle and urns to damped rock-and-settle; upgraded portcullis/vault gates to gravity-accelerated slam (`28 m/s²`) with metallic floor bounce and weighted winch raise; added smooth hover/rotation to Safe Room `Crystal*` and proximity `talk` animation trigger for `vendor_visual`.
 
 
+
+## 2026-11-20 — World Streaming for Vast Floors (`D-044`)
+
+- Sector-based generator (O(rooms)), Kruskal MST, BFS corridor detours around the boss/vault.
+- `DungeonBuilder` chunk streaming (`STREAM_CHUNK_TILES` 8, `STREAM_RADIUS` 2): decor spawned/freed around the player; MultiMesh chunks positioned at their centre with a 170 m visibility range; infinite floor/ceiling `WorldBoundaryShape3D` planes; merged wall colliders; per-room wall-slot index. `GameMain` freezes/hides enemies beyond 70 m.

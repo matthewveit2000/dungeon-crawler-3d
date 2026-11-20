@@ -43,6 +43,7 @@ var player_in_safe_room: bool = false
 var quest_bounty_claimed: bool = false
 var _trap_damage_cooldown: float = 0.0
 var _spawn_anchor_pos: Vector3 = Vector3.ZERO
+const ENEMY_ACTIVE_RADIUS := 70.0
 var _initialized: bool = false
 
 
@@ -202,6 +203,7 @@ func enter_floor(target_floor: int, capture_snapshot: bool = true) -> void:
 	var ent_center: Vector2i = current_layout.rooms[current_layout.entrance_room_id]["center"]
 	player.global_position = current_layout.tile_to_world(ent_center) + Vector3(0.0, 0.25, 0.0)
 	_spawn_anchor_pos = player.global_position
+	dungeon_builder.update_streaming(player.global_position, true)
 	player.velocity = Vector3.ZERO
 	player.recalculate_vitals(true)
 
@@ -489,9 +491,17 @@ func step_simulation(delta: float, input_override: Dictionary = {}) -> void:
 	# 2. Step Player & Enemy AI
 	player.step_simulation(delta, is_menu_paused, input_override)
 	var enemy_nearby := false
+	var ppos := player.global_position
 	for child in enemies_root.get_children():
 		if child is EnemyActor:
 			var ea := child as EnemyActor
+			# Vast floors (D-044): enemies far from the player are frozen and hidden (no AI, no animation)
+			var near := ea.global_position.distance_squared_to(ppos) <= ENEMY_ACTIVE_RADIUS * ENEMY_ACTIVE_RADIUS
+			if near != ea.visible:
+				ea.visible = near
+				ea.process_mode = Node.PROCESS_MODE_INHERIT if near else Node.PROCESS_MODE_DISABLED
+			if not near:
+				continue
 			ea.step_ai(delta, is_menu_paused)
 			if not ea.is_boss and ea.global_position.distance_to(player.global_position) <= 10.5:
 				enemy_nearby = true
@@ -508,7 +518,6 @@ func step_simulation(delta: float, input_override: Dictionary = {}) -> void:
 
 	# 3. Check Safe Room, Boss Arena Threshold, and Spike Traps
 	_check_zone_triggers(delta)
-	dungeon_builder.update_light_budget()
 
 	# 4. Update Skyrim Compass Bar, Floor Clock & Boss HP Bar
 	_update_hud_navigation()

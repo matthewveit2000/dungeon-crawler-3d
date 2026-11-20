@@ -11,11 +11,15 @@ extends Node3D
 
 const KIT := "res://assets/models/kit/"
 const PROPS := "res://assets/models/props/"
-const CHUNK_TILES := 6
+const CHUNK_TILES := 8
+## Vast floors (D-044): decor (torches, braziers, room lights, dressing, dust) is spawned per STREAM_CHUNK_TILES
+## chunk while the player is within STREAM_RADIUS chunks and freed behind them; far architecture is not drawn.
+const STREAM_CHUNK_TILES := 8
+const STREAM_RADIUS := 2
+const ARCH_VISIBILITY_RANGE := 170.0
 const SHADOWED_LIGHTS_HIGH := 8
 const SHADOWED_LIGHTS_LOW := 3
 const COMPAT_MAX_LIGHTS := 16
-const MAX_TORCHES := 480
 
 const WALL_VARIANTS := [["wall_a", 0.3], ["wall_b", 0.3], ["wall_c", 0.24], ["wall_niche", 0.09], ["wall_damaged", 0.07]]
 const FLOOR_VARIANTS := ["floor_a", "floor_b", "floor_c"]
@@ -51,6 +55,11 @@ var _occluder_idx: PackedInt32Array = PackedInt32Array()
 var _reserved_tiles: Dictionary = {}
 var _tile_room: Dictionary = {}
 var _floor_cfg: Dictionary = {}
+var _stream_specs: Dictionary = {}  ## chunk -> Array[Callable] that spawn that chunk's decor and return the nodes
+var _stream_live: Dictionary = {}  ## chunk -> Array[Node] currently spawned
+var _stream_center := Vector2i(-99999, -99999)
+var _hwall_runs: Dictionary = {}  ## boundary line y -> Array[int] tile x with a wall on that line
+var _vwall_runs: Dictionary = {}  ## boundary line x -> Array[int] tile y with a wall on that line
 
 
 func set_light_focus_target(target: Node3D) -> void:
@@ -67,7 +76,7 @@ func _is_compat_renderer() -> bool:
 func update_light_budget() -> void:
 	var valid: Array[OmniLight3D] = []
 	for l in _managed_lights:
-		if is_instance_valid(l):
+		if is_instance_valid(l) and not l.is_queued_for_deletion():
 			valid.append(l)
 	if valid.is_empty():
 		return
@@ -90,7 +99,61 @@ func update_light_budget() -> void:
 			light.shadow_enabled = i < shadow_n and bool(light.get_meta("can_shadow", true))
 
 
+func _stream_key(p: Vector3) -> Vector2i:
+	var cs := layout.tile_size * float(STREAM_CHUNK_TILES)
+	return Vector2i(floori(p.x / cs), floori(p.z / cs))
+
+
+## Registers decor to be spawned only while the player is near `p`. `spawner` returns the nodes it created.
+func _stream_add(p: Vector3, spawner: Callable) -> void:
+	var k := _stream_key(p)
+	if not _stream_specs.has(k):
+		_stream_specs[k] = []
+	(_stream_specs[k] as Array).append(spawner)
+
+
+## Spawns decor in chunks within STREAM_RADIUS of `focus` and frees chunks beyond STREAM_RADIUS + 1.
+func update_streaming(focus: Vector3, force: bool = false) -> void:
+	if layout == null or _world_root == null or not is_instance_valid(_world_root):
+		return
+	var c := _stream_key(focus)
+	if c == _stream_center and not force:
+		return
+	_stream_center = c
+	for k in _stream_live.keys():
+		var kk: Vector2i = k
+		if maxi(absi(kk.x - c.x), absi(kk.y - c.y)) > STREAM_RADIUS + 1:
+			for n in _stream_live[kk]:
+				if is_instance_valid(n):
+					n.queue_free()
+			_stream_live.erase(kk)
+	for dy in range(-STREAM_RADIUS, STREAM_RADIUS + 1):
+		for dx in range(-STREAM_RADIUS, STREAM_RADIUS + 1):
+			var k := c + Vector2i(dx, dy)
+			if _stream_live.has(k) or not _stream_specs.has(k):
+				continue
+			var live: Array = []
+			for sp in _stream_specs[k]:
+				live.append_array((sp as Callable).call())
+			_stream_live[k] = live
+	_prune_lights()
+	update_light_budget()
+
+
+func _prune_lights() -> void:
+	_managed_lights = _managed_lights.filter(func(l: OmniLight3D) -> bool: return is_instance_valid(l) and not l.is_queued_for_deletion())
+	_flicker_lights = _flicker_lights.filter(func(f: Dictionary) -> bool:
+		var l: OmniLight3D = f["light"]
+		return is_instance_valid(l) and not l.is_queued_for_deletion())
+
+
+func streamed_chunk_count() -> int:
+	return _stream_live.size()
+
+
 func _process(delta: float) -> void:
+	if _light_focus != null and is_instance_valid(_light_focus) and _light_focus.is_inside_tree():
+		update_streaming(_light_focus.global_position)
 	_flicker_time += delta
 	_budget_timer -= delta
 	if _budget_timer <= 0.0:
@@ -163,6 +226,11 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 	_occluder_idx = PackedInt32Array()
 	_reserved_tiles.clear()
 	_tile_room.clear()
+	_stream_specs.clear()
+	_stream_live.clear()
+	_stream_center = Vector2i(-99999, -99999)
+	_hwall_runs.clear()
+	_vwall_runs.clear()
 
 	_world_root = Node3D.new()
 	_world_root.name = "DungeonGeometry"
@@ -177,6 +245,15 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 
 	var ts := layout.tile_size
 	var wall_h := float(DataLoader.get_world()["grid"]["wall_height_meters"])
+	# One infinite floor plane and one ceiling plane replace per-tile slabs: walls enclose every walkable tile,
+	# so nothing can reach the void around the labyrinth (vast floors would otherwise need ~30k slab colliders)
+	for plane_def in [[Plane(Vector3.UP, 0.0), "FloorPlane"], [Plane(Vector3.DOWN, -wall_h), "CeilingPlane"]]:
+		var pcol := CollisionShape3D.new()
+		pcol.name = str(plane_def[1])
+		var wb := WorldBoundaryShape3D.new()
+		wb.plane = plane_def[0]
+		pcol.shape = wb
+		_static_world.add_child(pcol)
 	var torch_color := Color.html(str(floor_cfg.get("torch_color", "#ffa34d")))
 
 	for room in layout.rooms:
@@ -192,9 +269,11 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 		_reserved_tiles[t] = true
 	for sp in layout.enemy_spawns:
 		_reserved_tiles[sp["tile"]] = true
-	var stairs_center := Vector2i(-99, -99)
+	var stairs_centers: Dictionary = {}
+	for sid in layout.stairs_room_ids:
+		stairs_centers[layout.rooms[sid]["center"]] = true
 	if layout.stairs_room_id >= 0:
-		stairs_center = layout.rooms[layout.stairs_room_id]["center"]
+		stairs_centers[layout.rooms[layout.stairs_room_id]["center"]] = true
 
 	var wall_dirs := [
 		{"d": Vector2i(0, -1), "rot_y": 0.0, "off": Vector3(0.0, 0.0, -ts * 0.5)},
@@ -212,12 +291,10 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 			var t := Vector2i(x, y)
 			var pos := layout.tile_to_world(t)
 			var spin := float(rng.next_int_range("gen", 0, 3)) * PI * 0.5
-			if t != stairs_center:
+			if not stairs_centers.has(t):
 				_batch(KIT + FLOOR_VARIANTS[rng.next_int_range("gen", 0, 2)] + ".glb", t, Transform3D(Basis(Vector3.UP, spin), pos))
-			_add_box_collider(_static_world, pos + Vector3(0.0, -0.25, 0.0), Vector3(ts, 0.5, ts))
 			var ceil_name := "ceiling_b" if rng.next_float("gen") < 0.08 else "ceiling_a"
 			_batch(KIT + ceil_name + ".glb", t, Transform3D(Basis(Vector3.UP, spin), pos))
-			_add_box_collider(_static_world, pos + Vector3(0.0, wall_h + 0.25, 0.0), Vector3(ts, 0.5, ts))
 
 			for wd in wall_dirs:
 				var d: Vector2i = wd["d"]
@@ -229,11 +306,22 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 					var inward := Vector3(-float(d.x), 0.0, -float(d.y))
 					wall_slots.append({"pos": w_pos, "rot_y": rot_y, "inward": inward, "tile": t, "tile_type": tile,
 						"room": _tile_room.get(t, {}), "variant": ""})
-					var col_size := Vector3(ts, wall_h, 0.65) if d.y != 0 else Vector3(0.65, wall_h, ts)
-					_add_box_collider(_static_world, w_pos + Vector3(0.0, wall_h * 0.5, 0.0), col_size)
+					# Wall colliders are merged into long runs per boundary line after the loop
+					if d.y != 0:
+						var line_y := t.y + (1 if d.y > 0 else 0)
+						if not _hwall_runs.has(line_y):
+							_hwall_runs[line_y] = []
+						(_hwall_runs[line_y] as Array).append(t.x)
+					else:
+						var line_x := t.x + (1 if d.x > 0 else 0)
+						if not _vwall_runs.has(line_x):
+							_vwall_runs[line_x] = []
+						(_vwall_runs[line_x] as Array).append(t.y)
 					_add_occluder_quad(w_pos + inward * -0.05, basis, ts, wall_h + 0.3)
 				elif (d == Vector2i(1, 0) or d == Vector2i(0, 1)) and _is_room_tile(tile) != _is_room_tile(layout.get_tile(n.x, n.y)):
 					_place_arch(w_pos, rot_y)
+
+	_build_wall_colliders(ts, wall_h)
 
 	# Choose wall variants: torch slots stay plain; a few niches & damaged walls add storytelling
 	var torch_slots: Array[Dictionary] = []
@@ -247,7 +335,7 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 			want_torch = (t.x * 3 + t.y * 5 + i) % 2 == 0
 		else:
 			want_torch = (t.x + t.y) % 2 == 0
-		if want_torch and torch_count < MAX_TORCHES:
+		if want_torch:
 			s["variant"] = ["wall_a", "wall_b", "wall_c"][rng.next_int_range("gen", 0, 2)]
 			torch_slots.append(s)
 			torch_count += 1
@@ -285,6 +373,17 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 	for room in layout.rooms:
 		_light_room(room, torch_color, rng)
 
+	# Index wall slots by room once (each room used to scan every slot on the floor: O(rooms x walls))
+	var slots_by_room: Dictionary = {}
+	for ws in wall_slots:
+		var wr: Dictionary = ws["room"]
+		if wr.is_empty():
+			continue
+		var wid := int(wr["id"])
+		if not slots_by_room.has(wid):
+			slots_by_room[wid] = []
+		(slots_by_room[wid] as Array).append(ws)
+
 	# Handcrafted setpieces stitched into procedural rooms (D-029)
 	var setpieces_map: Dictionary = DataLoader.get_setpieces_pack().get("setpieces", {})
 	for room in layout.rooms:
@@ -310,7 +409,9 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 				glow.light_volumetric_fog_energy = 0.35
 			"entrance":
 				_add_light(_world_root, center_w + Vector3(0.0, 3.4, 0.0), Color(1.0, 0.78, 0.55), 1.0, 14.0, false)
-		_dress_room(room, wall_slots, rng)
+		var room_slots: Array[Dictionary] = []
+		room_slots.assign(slots_by_room.get(int(room["id"]), []))
+		_dress_room(room, room_slots, rng)
 		_add_room_atmosphere(room)
 
 	boss_gate_node = _build_gate(layout.boss_gate_tile, "BossGate", PROPS + "boss_gate.glb", false)
@@ -361,6 +462,29 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 			_world_root.add_child(lever)
 
 	update_light_budget()
+
+
+## One box per straight run of wall along each tile boundary line (instead of one box per 4 m segment).
+func _build_wall_colliders(ts: float, wall_h: float) -> void:
+	for horizontal in [true, false]:
+		var runs: Dictionary = _hwall_runs if horizontal else _vwall_runs
+		for line in runs.keys():
+			var cells: Array = runs[line]
+			cells.sort()
+			var i := 0
+			while i < cells.size():
+				var j := i
+				while j + 1 < cells.size() and int(cells[j + 1]) == int(cells[j]) + 1:
+					j += 1
+				var a := float(cells[i])
+				var n := float(int(cells[j]) - int(cells[i]) + 1)
+				var mid := (a + n * 0.5) * ts
+				var edge := float(line) * ts
+				if horizontal:
+					_add_box_collider(_static_world, Vector3(mid, wall_h * 0.5, edge), Vector3(n * ts, wall_h, 0.65))
+				else:
+					_add_box_collider(_static_world, Vector3(edge, wall_h * 0.5, mid), Vector3(0.65, wall_h, n * ts))
+				i = j + 1
 
 
 func _is_room_tile(tile: int) -> bool:
@@ -417,16 +541,22 @@ func _flush_batches() -> void:
 		var per: Dictionary = _batches[path]
 		for chunk in per.keys():
 			var xfs: Array = per[chunk]
+			var cc := Vector3((float(chunk.x) + 0.5) * CHUNK_TILES * layout.tile_size, 0.0, (float(chunk.y) + 0.5) * CHUNK_TILES * layout.tile_size)
 			var mm := MultiMesh.new()
 			mm.transform_format = MultiMesh.TRANSFORM_3D
 			mm.mesh = mesh
 			mm.instance_count = xfs.size()
 			for i in range(xfs.size()):
-				mm.set_instance_transform(i, xfs[i])
+				var xf: Transform3D = xfs[i]
+				mm.set_instance_transform(i, Transform3D(xf.basis, xf.origin - cc))
 			var mmi := MultiMeshInstance3D.new()
 			mmi.name = "%s_%d_%d" % [str(path).get_file().get_basename(), chunk.x, chunk.y]
 			mmi.multimesh = mm
+			mmi.position = cc
 			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			# Vast floors: chunks far beyond the fog are not drawn at all
+			mmi.visibility_range_end = ARCH_VISIBILITY_RANGE
+			mmi.visibility_range_end_margin = 12.0
 			holder.add_child(mmi)
 	_batches.clear()
 
@@ -478,10 +608,8 @@ func _light_room(room: Dictionary, torch_color: Color, rng: SeededRng) -> void:
 	var center_w := layout.tile_to_world(room["center"])
 	var area := rect.size.x * rect.size.y
 	var fill_e := 0.9 if area >= 25 else 0.7
-	var fill := _add_light(_world_root, center_w + Vector3(0.0, 3.7, 0.0), torch_color.lerp(Color(1.0, 0.9, 0.78), 0.5), fill_e,
-		maxf(10.0, float(maxi(rect.size.x, rect.size.y)) * 2.6), false)
-	fill.set_meta("can_shadow", false)
-	fill.light_volumetric_fog_energy = 0.3
+	_stream_add(center_w, _spawn_room_fill.bind(center_w + Vector3(0.0, 3.7, 0.0), torch_color.lerp(Color(1.0, 0.9, 0.78), 0.5), fill_e,
+		maxf(10.0, float(maxi(rect.size.x, rect.size.y)) * 2.6)))
 	if role in ["safe", "boss", "vault", "entrance", "stairs"]:
 		return  # these rooms have handcrafted setpieces with their own braziers
 	var ts := layout.tile_size
@@ -495,28 +623,47 @@ func _light_room(room: Dictionary, torch_color: Color, rng: SeededRng) -> void:
 		var dx := -1.0 if t.x == rect.position.x else 1.0
 		var dz := -1.0 if t.y == rect.position.y else 1.0
 		var pos := layout.tile_to_world(t) + Vector3(dx, 0.0, dz) * (ts * 0.5 - 0.95)
-		var braz := ModelLoader.instantiate_model(PROPS + "brazier.glb", Vector3(1.0, 1.0, 1.0))
-		braz.position = pos
-		braz.rotation.y = rng.next_float("gen") * TAU
-		_world_root.add_child(braz)
 		_add_box_collider(_static_world, pos + Vector3(0.0, 0.5, 0.0), Vector3(0.9, 1.0, 0.9))
-		var socket := braz.find_child("FlameSocket*", true, false) as Node3D
-		var fpos := braz.transform * socket.position if socket != null else pos + Vector3(0.0, 1.0, 0.0)
-		var fire := VfxFactory.make_fire(1.1)
-		fire.position = fpos
-		_world_root.add_child(fire)
-		var bl := _add_light(_world_root, fpos + Vector3(0.0, 0.35, 0.0), torch_color, 2.0, 11.0, true, rng.next_float("gen") * TAU)
-		bl.set_meta("can_shadow", false)
+		_stream_add(pos, _spawn_brazier.bind(pos, rng.next_float("gen") * TAU, torch_color, rng.next_float("gen") * TAU))
 		_reserved_tiles[t] = true
 		brazier_count += 1
 
 
+func _spawn_room_fill(pos: Vector3, col: Color, energy: float, rng_m: float) -> Array:
+	var fill := _add_light(_world_root, pos, col, energy, rng_m, false)
+	fill.set_meta("can_shadow", false)
+	fill.light_volumetric_fog_energy = 0.3
+	return [fill]
+
+
+func _spawn_brazier(pos: Vector3, rot_y: float, col: Color, phase: float) -> Array:
+	var braz := ModelLoader.instantiate_model(PROPS + "brazier.glb", Vector3(1.0, 1.0, 1.0))
+	braz.position = pos
+	braz.rotation.y = rot_y
+	_world_root.add_child(braz)
+	var socket := braz.find_child("FlameSocket*", true, false) as Node3D
+	var fpos := braz.transform * socket.position if socket != null else pos + Vector3(0.0, 1.0, 0.0)
+	var fire := VfxFactory.make_fire(1.1)
+	fire.position = fpos
+	_world_root.add_child(fire)
+	var bl := _add_light(_world_root, fpos + Vector3(0.0, 0.35, 0.0), col, 2.0, 11.0, true, phase)
+	bl.set_meta("can_shadow", false)
+	return [braz, fire, bl]
+
+
 func _place_torch(slot: Dictionary, torch_color: Color, rng: SeededRng) -> void:
+	var col := torch_color
+	if int(slot["tile_type"]) == DungeonGenerator.TILE_BOSS_FLOOR:
+		col = Color(1.0, 0.5, 0.3)
 	var inward: Vector3 = slot["inward"]
-	var mount: Vector3 = slot["pos"] + inward * 0.30 + Vector3(0.0, 2.15, 0.0)
+	_stream_add(slot["pos"], _spawn_torch.bind(slot["pos"] + inward * 0.30 + Vector3(0.0, 2.15, 0.0), float(slot["rot_y"]), inward, col,
+		rng.next_float("gen") * TAU))
+
+
+func _spawn_torch(mount: Vector3, rot_y: float, inward: Vector3, col: Color, phase: float) -> Array:
 	var sconce := ModelLoader.instantiate_model(PROPS + "torch_sconce.glb", Vector3(0.2, 0.6, 0.3))
 	sconce.position = mount
-	sconce.rotation.y = float(slot["rot_y"])
+	sconce.rotation.y = rot_y
 	_world_root.add_child(sconce)
 	var socket := sconce.find_child("FlameSocket*", true, false) as Node3D
 	var flame_local := socket.position if socket != null else Vector3(0.0, 0.55, 0.42)
@@ -524,11 +671,9 @@ func _place_torch(slot: Dictionary, torch_color: Color, rng: SeededRng) -> void:
 	var fire := VfxFactory.make_fire(0.55)
 	fire.position = flame_pos
 	_world_root.add_child(fire)
-	var col := torch_color
-	if int(slot["tile_type"]) == DungeonGenerator.TILE_BOSS_FLOOR:
-		col = Color(1.0, 0.5, 0.3)
-	var light := _add_light(_world_root, flame_pos + inward * 0.25 + Vector3(0, 0.1, 0), col, 2.2, 11.5, true, rng.next_float("gen") * TAU)
+	var light := _add_light(_world_root, flame_pos + inward * 0.25 + Vector3(0, 0.1, 0), col, 2.2, 11.5, true, phase)
 	light.set_meta("can_shadow", true)
+	return [sconce, fire, light]
 
 
 func _add_light(parent: Node3D, pos: Vector3, col: Color, energy: float, rng_m: float, flicker: bool, phase: float = 0.0) -> OmniLight3D:
@@ -639,10 +784,7 @@ func _dress_room(room: Dictionary, wall_slots: Array[Dictionary], rng: SeededRng
 
 
 func _spawn_dressing(kind: String, p: Vector3, rot: float, _rng: SeededRng) -> void:
-	var n := ModelLoader.instantiate_model(PROPS + kind + ".glb")
-	n.position = p
-	n.rotation.y = rot
-	_world_root.add_child(n)
+	_stream_add(p, _spawn_dressing_visual.bind(kind, p, rot))
 	spawned_dressing_props += 1
 	if DRESSING_COLLIDE.has(kind):
 		var cs: Vector3 = DRESSING_COLLIDE[kind]
@@ -658,9 +800,19 @@ func _spawn_dressing(kind: String, p: Vector3, rot: float, _rng: SeededRng) -> v
 		col.position.y = cs.y * 0.5
 		body.add_child(col)
 		_world_root.add_child(body)
+
+
+func _spawn_dressing_visual(kind: String, p: Vector3, rot: float) -> Array:
+	var n := ModelLoader.instantiate_model(PROPS + kind + ".glb")
+	n.position = p
+	n.rotation.y = rot
+	_world_root.add_child(n)
+	var out: Array = [n]
 	if kind == "candle_cluster":
 		var l := _add_light(_world_root, p + Vector3(0, 0.45, 0), Color(1.0, 0.7, 0.4), 0.55, 3.5, true, p.x)
 		l.set_meta("can_shadow", false)
+		out.append(l)
+	return out
 
 
 func _tile_near_opening(t: Vector2i) -> bool:
@@ -674,6 +826,11 @@ func _tile_near_opening(t: Vector2i) -> bool:
 
 
 func _add_room_atmosphere(room: Dictionary) -> void:
+	_stream_add(layout.tile_to_world(room["center"]), _spawn_room_atmosphere.bind(room))
+
+
+func _spawn_room_atmosphere(room: Dictionary) -> Array:
+	var out: Array = []
 	var rect: Rect2i = room["rect"]
 	var ts := layout.tile_size
 	var c := layout.tile_to_world(room["center"])
@@ -683,6 +840,7 @@ func _add_room_atmosphere(room: Dictionary) -> void:
 	if dust != null:
 		dust.position = origin + Vector3(float(rect.size.x) * ts * 0.5, 2.0, float(rect.size.y) * ts * 0.5)
 		_world_root.add_child(dust)
+		out.append(dust)
 	# cobwebs in inner corners just under the ceiling
 	var corners := [
 		[rect.position, Vector3(1, 0, 1)],
@@ -702,6 +860,8 @@ func _add_room_atmosphere(room: Dictionary) -> void:
 		var b := Basis.looking_at(-dn, Vector3.UP) * Basis(Vector3.RIGHT, -0.45)
 		web.transform = Transform3D(b, corner + dn * 0.2 + Vector3(0, 4.35, 0) - b.x * 0.65)
 		_world_root.add_child(web)
+		out.append(web)
+	return out
 
 
 # ---------------------------------------------------------------------------
@@ -837,6 +997,9 @@ func clear_floor() -> void:
 	_managed_lights.clear()
 	_gate_targets.clear()
 	_gate_vels.clear()
+	_stream_specs.clear()
+	_stream_live.clear()
+	_stream_center = Vector2i(-99999, -99999)
 
 
 func _set_gate_closed(gate: StaticBody3D, closed: bool, instant: bool) -> void:

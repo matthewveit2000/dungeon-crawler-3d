@@ -63,6 +63,8 @@ func test_safe_room_entry_repels_pursuing_enemies() -> void:
 	regular.state = EnemyActor.AiState.CHASE
 
 	game.run_console_command("teleport safe")
+	# A pursuer is right behind the player (on vast floors far-away enemies are frozen, D-044)
+	regular.global_position = game.player.global_position + Vector3(0.0, 0.1, 9.0)
 	game.step_simulation(0.1)
 	assert_true(game.player_in_safe_room, "Player must be recognized inside Safe Room")
 	assert_eq(regular.state, EnemyActor.AiState.FLEE_SAFE_ZONE, "D-021: Pursuing enemy must flee when player enters Safe Room")

@@ -85,3 +85,8 @@ See [`docs/TESTING_STRATEGY.md`](../TESTING_STRATEGY.md) and [`docs/DECISION_LOG
 
 - `test_real_boss_fight_opens_both_gates`: real physics and real sword swings; walk in (arena seals), kill the boss, walk back out through the boss gate, then into the vault.
 - `test_gates_open_even_if_the_boss_vanishes_without_a_death_callback`: the watchdog opens both gates and drops them to collision layer 0.
+
+## 2026-11-20 — Vast Floor Tests (`D-044`)
+
+- `test_vast_floors.gd`: 25% of the floor outlasts the floor clock even with perfect walking x2 backtracking; landmarks sparse, reachable, boss arena single entrance; compass far-sense; only nearby decor/lights live and chunks freed after moving.
+- Safe-room flee test now places its pursuer right behind the player (far enemies are frozen on vast floors).
