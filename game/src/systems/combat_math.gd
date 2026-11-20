@@ -15,11 +15,21 @@ static func equip_item_in_slots(equipment: Dictionary, item: Dictionary, preferr
 		updated.erase("left_hand")
 		return updated
 
+	# Rings fill the first free ring slot (D-046: they used to be stored under an invisible "ring" key)
+	if slot == "ring":
+		updated.erase("ring")
+		var target_ring := "ring_1"
+		if preferred_hand in ["ring_1", "ring_2"]:
+			target_ring = preferred_hand
+		elif updated.has("ring_1") and not updated.has("ring_2"):
+			target_ring = "ring_2"
+		updated[target_ring] = item.duplicate(true)
+		return updated
+
 	var target_slot := slot
-	if preferred_hand == "left_hand" and (slot == "left_hand" or bool(item.get("can_offhand", false))):
-		target_slot = "left_hand"
-	elif preferred_hand == "right_hand" and (slot == "right_hand" or bool(item.get("can_mainhand", false))):
-		target_slot = "right_hand"
+	# D-046: any one-handed item (blade, shield, spell) can go in either hand
+	if is_one_handed(item) and preferred_hand in ["left_hand", "right_hand"]:
+		target_slot = preferred_hand
 
 	# Equipping a one-handed/offhand item replaces an equipped two-handed weapon
 	if target_slot in ["left_hand", "right_hand"]:
@@ -29,6 +39,18 @@ static func equip_item_in_slots(equipment: Dictionary, item: Dictionary, preferr
 
 	updated[target_slot] = item.duplicate(true)
 	return updated
+
+
+## True for items that may be held in either hand: one-handed weapons, shields and spells (not bows / 2H).
+static func is_one_handed(item: Dictionary) -> bool:
+	var slot := str(item.get("slot", ""))
+	return slot in ["left_hand", "right_hand"] and not bool(item.get("two_handed", false)) \
+		and str(item.get("weapon_type", "")) != "archery"
+
+
+## The hand an item goes to when equipped without a preference (its usual hand).
+static func other_hand(hand: String) -> String:
+	return "left_hand" if hand == "right_hand" else "right_hand"
 
 
 static func compute_armor_mitigation(armor: float, player_cfg: Dictionary) -> float:

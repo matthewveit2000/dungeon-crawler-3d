@@ -35,3 +35,9 @@ When the User steps in at a playable milestone, an in-game **Debug / Audit Conso
 - Advance the 5-day floor clock or trigger instant Floor Collapse
 - Spawn specific enemies, chests, or Sponsored/Mythic loot
 - Toggle God Mode, 1st/3rd person, or jump directly to a specific seed
+
+## Test Mode & User-Feedback Regression Guards (`D-045`, `D-047`)
+
+- **Manual testing happens in Test Mode** (title screen → Test Mode, F1 tools; see `PLAYTEST_GUIDE.md` §1b). Every tool calls the public `GameMain.test_*` API, so anything checked by hand there can be scripted in GUT the same way.
+- **Every testable User request has a regression test** named after the request and listed against its `FB-###` entry in `docs/USER_FEEDBACK_LOG.md` (e.g. `game/tests/test_feedback_fb013.gd`).
+

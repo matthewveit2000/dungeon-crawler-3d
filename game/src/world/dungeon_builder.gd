@@ -487,6 +487,86 @@ func _build_wall_colliders(ts: float, wall_h: float) -> void:
 				i = j + 1
 
 
+# ---------------------------------------------------------------------------
+# Test Mode spawning (D-047)
+# ---------------------------------------------------------------------------
+const TEST_OBJECTS := ["chest", "rare_chest", "vault_chest", "crate", "urn", "lever", "spike_trap", "brazier",
+	"torch_light", "stairs", "safe_room_kit", "setpiece:entrance", "setpiece:safe_room", "setpiece:boss_arena",
+	"setpiece:vault", "setpiece:stairs"]
+var _test_counter: int = 0
+
+
+## Spawns any world object / room kit at `pos` (Test Mode). Returns the main node created.
+func spawn_test_object(kind: String, pos: Vector3, yaw: float, interact_cb: Callable) -> Node3D:
+	_test_counter += 1
+	var tid := "test_%s_%d" % [kind.replace(":", "_"), _test_counter]
+	match kind:
+		"chest", "rare_chest", "vault_chest":
+			var tier: String = {"chest": "standard", "rare_chest": "rare", "vault_chest": "vault_sponsored"}[kind]
+			var inter := InteractableObject.new()
+			inter.setup(tid, "chest", "Open Vault Treasure Chest" if tier == "vault_sponsored" else "Open Iron-Bound Chest",
+				{"tier": tier}, interact_cb, Vector3(1.2, 1.0, 0.85))
+			inter.position = pos
+			inter.rotation.y = yaw
+			var model := ModelLoader.instantiate_model(PROPS + "chest.glb", Vector3(1.1, 0.8, 0.7))
+			inter.add_child(model)
+			inter.visual_root = model
+			_world_root.add_child(inter)
+			return inter
+		"crate", "urn":
+			var c := InteractableObject.new()
+			c.setup(tid, kind, "Search %s" % ("Supply Crate" if kind == "crate" else "Burial Urn"), {}, interact_cb, Vector3(0.95, 1.0, 0.95))
+			c.position = pos
+			c.rotation.y = yaw
+			var cm := ModelLoader.instantiate_model(PROPS + kind + ".glb", Vector3(0.9, 0.9, 0.9))
+			c.add_child(cm)
+			c.visual_root = cm
+			_world_root.add_child(c)
+			return c
+		"lever":
+			var lv := InteractableObject.new()
+			lv.setup(tid, "lever", "Pull Trap Disarm Lever", {}, interact_cb, Vector3(0.6, 1.4, 0.6))
+			lv.position = pos
+			lv.rotation.y = yaw
+			var lm := ModelLoader.instantiate_model(PROPS + "lever.glb", Vector3(0.6, 1.5, 0.6))
+			lv.add_child(lm)
+			lv.visual_root = lm
+			_world_root.add_child(lv)
+			return lv
+		"spike_trap":
+			var tile := layout.world_to_tile(pos)
+			layout.traps.append(tile)
+			var trap := ModelLoader.instantiate_model(PROPS + "spike_trap.glb", Vector3(1.8, 0.4, 1.8))
+			trap.position = layout.tile_to_world(tile) + Vector3(0.0, 0.02, 0.0)
+			_world_root.add_child(trap)
+			_trap_nodes.append(trap)
+			traps_disarmed = false
+			return trap
+		"brazier":
+			var nodes := _spawn_brazier(pos, yaw, Color(1.0, 0.62, 0.3), 0.0)
+			_add_box_collider(_static_world, pos + Vector3(0.0, 0.5, 0.0), Vector3(0.9, 1.0, 0.9))
+			update_light_budget()
+			return nodes[0]
+		"torch_light":
+			var l := _add_light(_world_root, pos + Vector3(0.0, 2.4, 0.0), Color(1.0, 0.7, 0.4), 2.2, 11.5, true)
+			update_light_budget()
+			return l
+		"stairs":
+			_build_stairs_interactable(pos, interact_cb)
+			return _world_root.get_child(_world_root.get_child_count() - 2) as Node3D
+		"safe_room_kit":
+			_build_safe_room_interactables(pos, Color.html(str(_floor_cfg.get("safe_zone_color", "#45e6b8"))), interact_cb)
+			return _world_root.get_child(_world_root.get_child_count() - 1) as Node3D
+	if kind.begins_with("setpiece:"):
+		var key := kind.substr(9)
+		var map: Dictionary = DataLoader.get_setpieces_pack().get("setpieces", {})
+		if map.has(key):
+			_apply_handcrafted_setpiece(map[key], pos, SeededRng.new(_test_counter))
+			update_light_budget()
+			return _world_root.get_child(_world_root.get_child_count() - 1) as Node3D
+	return null
+
+
 func _is_room_tile(tile: int) -> bool:
 	return tile == DungeonGenerator.TILE_FLOOR or tile == DungeonGenerator.TILE_SAFE_FLOOR \
 		or tile == DungeonGenerator.TILE_BOSS_FLOOR or tile == DungeonGenerator.TILE_VAULT_FLOOR

@@ -149,6 +149,10 @@ func _build_ui() -> void:
 		if not summary.is_empty():
 			_menu_box.add_child(UiTheme.label(summary, 16, UiTheme.COL_MUTED, UiTheme.font_ui()))
 	_menu_btn("New Expedition", _on_new)
+	# D-047: sandbox with every room type, spawners for anything and all test switches (F1 in game)
+	_menu_btn("Test Mode", func() -> void:
+		GameMain.launch_test_mode = true
+		_start_game(false))
 	_menu_btn("Settings", func() -> void: _show("settings"))
 	_menu_btn("Credits", func() -> void: _show("credits"))
 	_menu_btn("Quit", func() -> void: get_tree().quit())

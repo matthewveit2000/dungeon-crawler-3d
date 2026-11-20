@@ -19,10 +19,15 @@ static func roll_loot(
 	floor_number: int,
 	rng: SeededRng,
 	forced_rarity: String = "",
-	exclude_consumables: bool = false
+	exclude_consumables: bool = false,
+	forced_item_id: String = ""
 ) -> Dictionary:
 	var candidates: Array = []
 	for item in items_pack.get("items", []):
+		if not forced_item_id.is_empty():
+			if str(item.get("id", "")) == forced_item_id:
+				candidates.append(item)
+			continue
 		if exclude_consumables and str(item.get("category", "")) == "consumable":
 			continue
 		# Reserve unique forced-sponsored items for sponsored rolls
@@ -52,7 +57,7 @@ static func roll_loot(
 
 	# On Sponsored roll, 50% chance to pick a named Sponsored unique if available
 	var base_def: Dictionary = {}
-	if str(chosen_rarity["id"]) == "sponsored":
+	if str(chosen_rarity["id"]) == "sponsored" and forced_item_id.is_empty():
 		var uniques: Array = []
 		for item in items_pack.get("items", []):
 			if str(item.get("forced_rarity", "")) == "sponsored":

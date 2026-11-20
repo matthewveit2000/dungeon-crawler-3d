@@ -66,3 +66,8 @@ See [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) and [`docs/DECISION_LOG.md`](..
 
 - Sector-based generator (O(rooms)), Kruskal MST, BFS corridor detours around the boss/vault.
 - `DungeonBuilder` chunk streaming (`STREAM_CHUNK_TILES` 8, `STREAM_RADIUS` 2): decor spawned/freed around the player; MultiMesh chunks positioned at their centre with a 170 m visibility range; infinite floor/ceiling `WorldBoundaryShape3D` planes; merged wall colliders; per-room wall-slot index. `GameMain` freezes/hides enemies beyond 70 m.
+
+## 2026-11-20 — Test Mode & Minimap (`D-047`, `D-046`)
+
+- `GameMain.test_*` API + `TestModePanel` (F1), `GameMain.launch_test_mode`, `TEST_SAVE_PATH`; `DungeonGenerator.generate_test_floor`; `DungeonBuilder.spawn_test_object` / `TEST_OBJECTS`; `GameMain.spawn_enemy` shared by floor spawning and Test Mode.
+- `MiniMap` HUD control; `MapMenu` locked on the player (`tile_to_screen`).

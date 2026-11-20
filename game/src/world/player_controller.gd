@@ -96,6 +96,7 @@ var _trail: MeshInstance3D = null
 var _trail_pts: Array = []
 const TRAIL_LIFE := 0.095
 var _swing_start_key: Array = []
+var _shield_hit_t: float = 0.0  ## block impact recoil timer (either hand's shield)
 var _last_right_attack_t: float = -10.0
 var _last_left_attack_t: float = -10.0
 var _fp_upper_r: Node3D = null
@@ -443,6 +444,14 @@ func equip_from_inventory(inv_index: int, preferred_hand: String = "") -> bool:
 	return true
 
 
+## Moves a ring saved under the old "ring" key (D-046 bug) into a real ring slot.
+func normalize_equipment() -> void:
+	if equipment.has("ring"):
+		var r: Dictionary = equipment["ring"]
+		equipment.erase("ring")
+		equipment["ring_2" if equipment.has("ring_1") and not equipment.has("ring_2") else "ring_1"] = r
+
+
 ## Moves an equipped item back into the bag (QoL: lets players strip a slot from the inventory screen).
 func unequip_slot(slot: String) -> bool:
 	if not equipment.has(slot):
@@ -513,7 +522,12 @@ func step_simulation(delta: float, is_paused: bool, input_override: Dictionary =
 	# Left-hand Shield Block tracking
 	var lh: Dictionary = equipment.get("left_hand", {})
 	var holding_left: bool = bool(input_override.get("left_held", Input.is_action_pressed("left_hand_action")))
-	is_blocking = (not lh.is_empty() and str(lh.get("category", "")) == "shield" and holding_left and stamina > 2.0)
+	var holding_right: bool = bool(input_override.get("right_held", Input.is_action_pressed("right_hand_action")))
+	var rh_eq: Dictionary = equipment.get("right_hand", {})
+	# D-046: a shield blocks from whichever hand holds it
+	var left_block := str(lh.get("category", "")) == "shield" and holding_left
+	var right_block := str(rh_eq.get("category", "")) == "shield" and holding_right
+	is_blocking = (left_block or right_block) and stamina > 2.0
 
 	var speed := float(mov["walk_speed"])
 	var is_sprinting := false
@@ -571,9 +585,12 @@ func handle_hand_press(hand: String) -> void:
 		is_right_holding = true
 		right_attack_hold = 0.0
 		var rh: Dictionary = equipment.get("right_hand", {})
-		if str(rh.get("category", "")) == "spell":
+		var rcat := str(rh.get("category", ""))
+		if rcat == "spell":
 			_cast_spell(rh, true)
 			is_right_holding = false
+		elif rcat == "shield" or rh.is_empty():
+			is_right_holding = false  # a right-hand shield blocks while held (see step_simulation)
 	elif hand == "left_hand":
 		var lh: Dictionary = equipment.get("left_hand", {})
 		if lh.is_empty():
@@ -629,8 +646,10 @@ func take_damage(raw_damage: float) -> Dictionary:
 	if bool(res["was_blocked"]):
 		stamina = maxf(0.0, stamina - float(res["block_stamina_cost"]))
 		_stamina_regen_delay = float(player_cfg["stats"]["regen_delay_after_spend_sec"])
-		_left_action_t = 0.16
-		_left_action_dur = 0.16
+		_shield_hit_t = 0.16
+		if str(equipment.get("left_hand", {}).get("category", "")) == "shield":
+			_left_action_t = 0.16
+			_left_action_dur = 0.16
 		_camera_kick = maxf(_camera_kick, 0.35)
 		if progression != null:
 			var s_res := progression.record_skill_use("block")
@@ -731,6 +750,14 @@ func refresh_hand_visuals() -> void:
 			fp_right_anchor.add_child(_open_arm("r"))
 			_elbow_local_r = FP_ELBOW_OPEN
 			_attach_spell_fx(_fp_right_weapon_holder, rh)
+		elif str(rh.get("category", "")) == "shield":
+			fp_right_anchor.add_child(_arm("fp_arm_grip_r"))
+			_elbow_local_r = FP_ELBOW_GRIP
+			var rsh := ModelLoader.instantiate_model(str(rh.get("model", "")), Vector3(0.8, 0.8, 0.1))
+			rsh.rotation_degrees = Vector3(0.0, 180.0, 0.0)
+			rsh.scale = Vector3.ONE * 0.62
+			_disable_shadows(rsh)
+			_fp_right_weapon_holder.add_child(rsh)
 		else:
 			fp_right_anchor.add_child(_arm("fp_arm_grip_r"))
 			_elbow_local_r = FP_ELBOW_GRIP
@@ -849,8 +876,16 @@ func _refresh_tp_weapons() -> void:
 	var gl := tp_visual.model.find_child("GripL*", true, false) as Node3D
 	_tp_grip_r = gr
 	var is_bow := str(rh.get("weapon_type", "")) == "archery"
-	if gr != null and not rh.is_empty() and str(rh.get("category", "")) != "spell" and not is_bow:
-		gr.add_child(ModelLoader.instantiate_model(str(rh.get("model", "")), Vector3(0.05, 0.9, 0.05)))
+	var rcat := str(rh.get("category", ""))
+	if gr != null and not rh.is_empty() and not is_bow:
+		if rcat == "spell":
+			gr.add_child(VfxFactory.make_glow(Color.html(str(rh.get("color", "#ff6a22"))), 0.3, 1.6))
+		elif rcat == "shield":
+			var rsh := ModelLoader.instantiate_model(str(rh.get("model", "")), Vector3(0.8, 0.8, 0.1))
+			rsh.rotation_degrees = Vector3(0.0, -90.0, 0.0)  # painted face out from the right hand's outer side
+			gr.add_child(rsh)
+		else:
+			gr.add_child(ModelLoader.instantiate_model(str(rh.get("model", "")), Vector3(0.05, 0.9, 0.05)))
 	if gl != null:
 		if is_bow:
 			var b := ModelLoader.instantiate_model(str(rh.get("model", "")), Vector3(0.05, 1.4, 0.1))
@@ -923,6 +958,7 @@ func _update_procedural_animations(delta: float, move_amount: float, is_sprintin
 		_right_swing_t = maxf(0.0, _right_swing_t - act_dt)
 	if _left_action_t > 0.0:
 		_left_action_t = maxf(0.0, _left_action_t - act_dt)
+	_shield_hit_t = maxf(0.0, _shield_hit_t - act_dt)
 	if _slash_vfx_timer > 0.0:
 		_slash_vfx_timer = maxf(0.0, _slash_vfx_timer - act_dt)
 
@@ -937,6 +973,7 @@ func _update_procedural_animations(delta: float, move_amount: float, is_sprintin
 	var is_bow := str(rh.get("weapon_type", "")) == "archery"
 	var is_two_hand := bool(rh.get("two_handed", false)) and not is_bow
 	var r_spell := str(rh.get("category", "")) == "spell"
+	var r_shield := str(rh.get("category", "")) == "shield"
 
 	# Subtle organic breathing (asymmetric inhale/exhale) + smooth figure-8 pendulum stride bob
 	var br_wave := sin(_anim_time * 1.45) + 0.25 * sin(_anim_time * 2.9 - 0.55)
@@ -955,7 +992,7 @@ func _update_procedural_animations(delta: float, move_amount: float, is_sprintin
 	if r_spell:
 		r_key = FP_SPELL_REST_R
 	var sprint_key: Array = FP_AXE_SPRINT if is_two_hand else FP_SWORD_SPRINT
-	if _sprint_blend > 0.01 and _right_swing_t <= 0.0 and not is_bow and not r_spell:
+	if _sprint_blend > 0.01 and _right_swing_t <= 0.0 and not is_bow and not r_spell and not r_shield:
 		var sp_pump := sin(_walk_bob_phase) * bob_k
 		var pumped := [
 			(sprint_key[0] as Vector3) + Vector3(sp_pump * 0.03, cos(_walk_bob_phase * 2.0) * 0.015 * bob_k, -sp_pump * 0.025),
@@ -1011,23 +1048,9 @@ func _update_procedural_animations(delta: float, move_amount: float, is_sprintin
 	if is_bow or _offhand_axe:
 		pass
 	elif lcat == "shield":
-		# Rest: compact edge-on lower-left. Block: decisive raise across left-of-center; impact shove-back on hit.
-		var rest_p := Vector3(-0.50, -0.44, -0.62)
-		var rest_q := Basis.from_euler(Vector3(-8.0, 58.0, -14.0) * (PI / 180.0)).get_rotation_quaternion()
-		var blk_p := Vector3(-0.24, -0.27, -0.56)
-		var blk_q := Basis.from_euler(Vector3(2.0, 18.0, -6.0) * (PI / 180.0)).get_rotation_quaternion()
-		var be := ease(_block_blend, -1.6)
-		l_pos = rest_p.lerp(blk_p, be)
-		l_quat = rest_q.slerp(blk_q, be)
-		if _sprint_blend > 0.01 and _block_blend < 0.2:
-			l_pos += Vector3(0.06, -0.06, 0.05) * _sprint_blend
-		if _left_action_t > 0.0:
-			var bu := 1.0 - (_left_action_t / maxf(0.01, _left_action_dur))
-			# Fast knockback shock -> damped spring settle back into guard
-			var imp := sin(minf(1.0, bu * 2.2) * PI * 0.5) * exp(-bu * 3.8)
-			l_pos += Vector3(-0.025, -0.035, 0.13) * imp
-			var imp_q := Basis.from_euler(Vector3(16.0, 12.0, -8.0) * imp * (PI / 180.0)).get_rotation_quaternion()
-			l_quat = l_quat * imp_q
+		var sp := _shield_pose()
+		l_pos = sp[0]
+		l_quat = sp[1]
 	elif lcat == "spell":
 		l_key = FP_SPELL_REST_L
 		if _left_action_t > 0.0:
@@ -1068,6 +1091,11 @@ func _update_procedural_animations(delta: float, move_amount: float, is_sprintin
 		_pose_two_hand(r_key)
 	elif r_spell:
 		_pose_palm(fp_right_anchor, r_key)
+	elif r_shield:
+		var rsp := _shield_pose()
+		fp_right_anchor.transform = Transform3D(_mirror_basis(Basis(rsp[1] as Quaternion)), (rsp[0] as Vector3) * Vector3(-1.0, 1.0, 1.0))
+		if _fp_right_weapon_holder != null:
+			_fp_right_weapon_holder.basis = Basis()
 	elif not rh.is_empty():
 		_pose_fist(fp_right_anchor, _fp_right_weapon_holder, r_key, false, _right_single_edge)
 	else:
@@ -1211,6 +1239,32 @@ static func _sample_keys(u: float, keys: Array, times: Array, curves: Array) -> 
 		var v := bj.cubic_interpolate(cj, (a[j] as Vector3).normalized(), (d[j] as Vector3).normalized(), k)
 		out.append(v.normalized() if v.length() > 0.05 else bj.slerp(cj, k).normalized())
 	return out
+
+
+## Left-hand shield pose (rig space): compact edge-on lower-left at rest, decisive raise across left-of-centre to
+## block, shove-back on impact. A right-hand shield (D-046) uses the mirror image of this pose.
+func _shield_pose() -> Array:
+	var rest_p := Vector3(-0.50, -0.44, -0.62)
+	var rest_q := Basis.from_euler(Vector3(-8.0, 58.0, -14.0) * (PI / 180.0)).get_rotation_quaternion()
+	var blk_p := Vector3(-0.24, -0.27, -0.56)
+	var blk_q := Basis.from_euler(Vector3(2.0, 18.0, -6.0) * (PI / 180.0)).get_rotation_quaternion()
+	var be := ease(_block_blend, -1.6)
+	var pos := rest_p.lerp(blk_p, be)
+	var quat := rest_q.slerp(blk_q, be)
+	if _sprint_blend > 0.01 and _block_blend < 0.2:
+		pos += Vector3(0.06, -0.06, 0.05) * _sprint_blend
+	if _shield_hit_t > 0.0:
+		var bu := 1.0 - (_shield_hit_t / 0.16)
+		# Fast knockback shock -> damped spring settle back into guard
+		var imp := sin(minf(1.0, bu * 2.2) * PI * 0.5) * exp(-bu * 3.8)
+		pos += Vector3(-0.025, -0.035, 0.13) * imp
+		quat = quat * Basis.from_euler(Vector3(16.0, 12.0, -8.0) * imp * (PI / 180.0)).get_rotation_quaternion()
+	return [pos, quat]
+
+
+static func _mirror_basis(b: Basis) -> Basis:
+	var m := Basis(Vector3(-1, 0, 0), Vector3(0, 1, 0), Vector3(0, 0, 1))
+	return m * b * m
 
 
 ## Stretches an upper-arm sleeve from the end of a forearm mesh back to that side's shoulder.
@@ -1592,15 +1646,47 @@ func _raycast_interactable() -> InteractableObject:
 		return null
 	var reach := float(player_cfg["interaction"]["reach_meters"])
 	var from := camera.global_position
-	var to := from + get_aim_direction() * reach
+	var body := head_pivot.global_position if head_pivot != null else global_position
+	# Third person (D-046): the camera sits metres behind the crawler, so the ray is lengthened by that offset and
+	# only accepts targets within reach of the crawler's body
+	var extra := from.distance_to(body) if camera_mode == "third_person" else 0.0
+	var to := from + get_aim_direction() * (reach + extra)
 	var query := PhysicsRayQueryParameters3D.create(from, to, 2)
 	query.exclude = [get_rid()]
-	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	var space := get_world_3d().direct_space_state
+	var hit := space.intersect_ray(query)
 	if not hit.is_empty():
 		var col: Variant = hit.get("collider")
-		if col is InteractableObject and not (col as InteractableObject).consumed:
+		if col is InteractableObject and not (col as InteractableObject).consumed \
+				and (hit["position"] as Vector3).distance_to(body) <= reach + 0.9:
 			return col as InteractableObject
-	return null
+	if camera_mode != "third_person":
+		return null
+	# Third person fallback: the nearest unlooted interactable in front of the crawler within reach
+	var sq := PhysicsShapeQueryParameters3D.new()
+	var sph := SphereShape3D.new()
+	sph.radius = reach
+	sq.shape = sph
+	sq.transform = Transform3D(Basis(), global_position + Vector3(0.0, 0.8, 0.0))
+	sq.collision_mask = 2
+	sq.exclude = [get_rid()]
+	var fwd := get_forward_vector()
+	fwd.y = 0.0
+	fwd = fwd.normalized()
+	var best: InteractableObject = null
+	var best_d := INF
+	for r in space.intersect_shape(sq, 16):
+		var c: Variant = r.get("collider")
+		if not (c is InteractableObject) or (c as InteractableObject).consumed:
+			continue
+		var d := (c as Node3D).global_position - global_position
+		d.y = 0.0
+		if d.length() > 0.05 and d.normalized().dot(fwd) < 0.2:
+			continue
+		if d.length() < best_d:
+			best_d = d.length()
+			best = c as InteractableObject
+	return best
 
 
 func _update_interaction_raycast() -> void:

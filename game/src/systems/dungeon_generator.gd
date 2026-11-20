@@ -495,6 +495,22 @@ static func _populate_contents(
 			"world_pos": layout.tile_to_world(layout.rooms[sid]["center"]), "discovered": false, "far_sense": true})
 
 
+## Test Mode (D-047): a compact floor holding one of every room type (entrance, combat halls, safe room, boss arena +
+## vault, stairwell) with no regular enemies, so anything can be spawned and tested close at hand.
+static func generate_test_floor(world_data: Dictionary, enemies_data: Dictionary, floor_number: int, run_seed: int) -> FloorLayout:
+	var grid_cfg: Dictionary = (world_data["grid"] as Dictionary).duplicate()
+	grid_cfg["width_tiles"] = 48
+	grid_cfg["height_tiles"] = 48
+	var rng := SeededRng.new(int(("%d:test:%d" % [run_seed, floor_number]).hash()))
+	var layout := _build_fallback_layout(grid_cfg, world_data, enemies_data, floor_number, run_seed, rng)
+	var kept: Array[Dictionary] = []
+	for sp in layout.enemy_spawns:
+		if bool(sp.get("is_boss", false)):
+			kept.append(sp)
+	layout.enemy_spawns = kept
+	return layout
+
+
 static func _validate_connectivity(layout: FloorLayout) -> bool:
 	if layout.entrance_room_id < 0 or layout.stairs_room_id < 0 or layout.safe_room_id < 0 or layout.boss_room_id < 0 or layout.vault_room_id < 0:
 		return false

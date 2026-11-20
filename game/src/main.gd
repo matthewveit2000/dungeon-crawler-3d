@@ -46,8 +46,27 @@ var _spawn_anchor_pos: Vector3 = Vector3.ZERO
 const ENEMY_ACTIVE_RADIUS := 70.0
 var _initialized: bool = false
 
+# --- Test Mode (D-047) -------------------------------------------------------------------------------
+## Set by the title screen's "Test Mode" button before the game scene loads.
+static var launch_test_mode: bool = false
+const TEST_SAVE_PATH := "user://test_mode_save.json"
+var test_mode: bool = false
+var test_panel: TestModePanel = null
+var test_ai_frozen: bool = false
+var test_clock_paused: bool = false
+var test_infinite_resources: bool = false
+var test_vast_floor: bool = false  ## Test Mode on a real vast floor instead of the compact test floor
+
 
 func _ready() -> void:
+	if launch_test_mode:
+		launch_test_mode = false
+		test_mode = true
+	if test_mode:
+		# Test Mode never touches the real expedition save
+		save_path = TEST_SAVE_PATH
+		auto_load_save_on_ready = false
+		test_clock_paused = true
 	initialize_game(run_seed, auto_load_save_on_ready)
 
 
@@ -133,6 +152,12 @@ func initialize_game(p_seed: int = 20261118, try_load_save: bool = true) -> void
 	add_child(map_menu)
 	map_menu.setup(close_all_menus)
 
+	if test_mode:
+		hud.set_test_mode(true)
+		test_panel = TestModePanel.new()
+		add_child(test_panel)
+		test_panel.setup(self, close_all_menus)
+
 	death_screen = DeathScreen.new()
 	add_child(death_screen)
 	# The HUD steps aside while the death / collapse card is up
@@ -191,7 +216,10 @@ func enter_floor(target_floor: int, capture_snapshot: bool = true) -> void:
 	var enemies_pack := DataLoader.get_enemies_pack()
 	var floor_cfg := DataLoader.get_floor_config(floor_number)
 
-	current_layout = DungeonGenerator.generate(world_pack, enemies_pack, floor_number, run_seed)
+	if test_mode and not test_vast_floor:
+		current_layout = DungeonGenerator.generate_test_floor(world_pack, enemies_pack, floor_number, run_seed)
+	else:
+		current_layout = DungeonGenerator.generate(world_pack, enemies_pack, floor_number, run_seed)
 	var build_rng := SeededRng.new(int(("%d:build:%d" % [run_seed, floor_number]).hash()))
 	dungeon_builder.build_floor(current_layout, floor_cfg, _on_interactable_triggered, build_rng)
 
@@ -241,6 +269,7 @@ func reset_floor_to_snapshot(reason: String) -> void:
 		run_seed = int(snap.get("run_seed", run_seed))
 		player.gold = int(snap.get("gold", 75))
 		player.equipment = snap.get("equipment", {}).duplicate(true)
+		player.normalize_equipment()
 		player.inventory.clear()
 		for item in snap.get("inventory", []):
 			player.inventory.append(item.duplicate(true))
@@ -300,6 +329,7 @@ func load_saved_session() -> bool:
 	floor_number = int(session.get("floor_number", 1))
 	player.gold = int(session.get("gold", 75))
 	player.equipment = session.get("equipment", {}).duplicate(true)
+	player.normalize_equipment()
 	player.inventory.clear()
 	for item in session.get("inventory", []):
 		player.inventory.append(item.duplicate(true))
@@ -350,6 +380,8 @@ func open_exclusive_menu(menu_name: String) -> void:
 	pause_menu.visible = false
 	map_menu.visible = false
 	debug_overlay.visible = false
+	if test_panel != null:
+		test_panel.visible = false
 	set_menu_pause(true, menu_name)
 	match menu_name:
 		"inventory":
@@ -374,6 +406,9 @@ func open_exclusive_menu(menu_name: String) -> void:
 				"%s\nLandmarks found: %d / %d" % [floor_timer.get_formatted_clock().replace("|", "·"), found, current_layout.landmarks.size()])
 		"console":
 			debug_overlay.open_console()
+		"test":
+			if test_panel != null:
+				test_panel.open_menu()
 
 
 func close_all_menus() -> void:
@@ -382,6 +417,8 @@ func close_all_menus() -> void:
 	pause_menu.visible = false
 	map_menu.visible = false
 	debug_overlay.visible = false
+	if test_panel != null:
+		test_panel.visible = false
 	set_menu_pause(false, "")
 
 
@@ -401,6 +438,14 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("dismiss_hint") and not is_menu_paused and tutorial_sys != null:
 		tutorial_sys.dismiss_current()
 		_sync_tutorial_hud()
+		return
+
+	if test_mode and event is InputEventKey and (event as InputEventKey).pressed and not (event as InputEventKey).echo \
+			and (event as InputEventKey).keycode == KEY_F1:
+		if active_menu_name == "test":
+			close_all_menus()
+		else:
+			open_exclusive_menu("test")
 		return
 
 	if event.is_action_pressed("toggle_console"):
@@ -475,7 +520,7 @@ func step_simulation(delta: float, input_override: Dictionary = {}) -> void:
 		return
 
 	# 1. Tick 5-Day Collapse Clock (freezes completely when paused — D-016)
-	var tick_res := floor_timer.tick(delta, is_menu_paused)
+	var tick_res := floor_timer.tick(delta, is_menu_paused or test_clock_paused)
 	if float(tick_res["warning_days_left"]) > 0.0:
 		_announce_ai("time_warning", {"days_left": str(tick_res["warning_days_left"])}, "warning")
 		_trigger_tutorial("floor_clock")
@@ -488,6 +533,9 @@ func step_simulation(delta: float, input_override: Dictionary = {}) -> void:
 	if is_menu_paused:
 		return
 
+	if test_infinite_resources:
+		player.stamina = player.max_stamina
+		player.magicka = player.max_magicka
 	# 2. Step Player & Enemy AI
 	player.step_simulation(delta, is_menu_paused, input_override)
 	var enemy_nearby := false
@@ -502,7 +550,7 @@ func step_simulation(delta: float, input_override: Dictionary = {}) -> void:
 				ea.process_mode = Node.PROCESS_MODE_INHERIT if near else Node.PROCESS_MODE_DISABLED
 			if not near:
 				continue
-			ea.step_ai(delta, is_menu_paused)
+			ea.step_ai(delta, is_menu_paused or test_ai_frozen)
 			if not ea.is_boss and ea.global_position.distance_to(player.global_position) <= 10.5:
 				enemy_nearby = true
 
@@ -625,7 +673,8 @@ func _on_player_melee_swing(swing: Dictionary) -> void:
 		var delta := enemy.global_position - player.global_position
 		delta.y = 0.0
 		var dist := delta.length()
-		if dist > reach + 0.6:
+		# Reach is measured to the target's body edge, so big enemies (the boss) can't out-range the player
+		if dist > reach + maxf(0.6, enemy.body_radius + 0.1):
 			continue
 		if dist > 0.2 and fwd.dot(delta.normalized()) < half_arc_cos:
 			continue
@@ -878,12 +927,25 @@ func _spawn_floor_enemies(enemies_pack: Dictionary) -> void:
 		var edef := DataLoader.get_enemy_def(str(sp["enemy_id"]))
 		if edef.is_empty():
 			continue
-		var enemy := EnemyActor.new()
-		enemy.set_meta("spawn_key", "enemy_%d_%s" % [spawn_idx, str(sp["enemy_id"])])
-		enemies_root.add_child(enemy)
 		var y_off := 0.45 if bool(edef.get("is_boss", false)) else 0.1
-		var wpos := current_layout.tile_to_world(sp["tile"]) + Vector3(0.0, y_off, 0.0)
-		enemy.setup(edef, scaling, floor_number, int(sp["room_id"]), wpos, current_layout, player, rng, {
+		var enemy := spawn_enemy(str(sp["enemy_id"]), current_layout.tile_to_world(sp["tile"]) + Vector3(0.0, y_off, 0.0),
+			int(sp["room_id"]), "enemy_%d_%s" % [spawn_idx, str(sp["enemy_id"])], scaling)
+		if enemy != null and enemy.is_boss:
+			boss_actor = enemy
+
+
+## Creates one enemy (floor spawns and Test Mode). Returns null for an unknown enemy id.
+func spawn_enemy(enemy_id: String, wpos: Vector3, room_id: int = -1, spawn_key: String = "", scaling: Dictionary = {}) -> EnemyActor:
+	var edef := DataLoader.get_enemy_def(enemy_id)
+	if edef.is_empty():
+		return null
+	if scaling.is_empty():
+		scaling = DataLoader.get_enemies_pack().get("floor_scaling", {})
+	var enemy := EnemyActor.new()
+	enemy.set_meta("spawn_key", spawn_key if not spawn_key.is_empty() else "spawned_%s_%d" % [enemy_id, enemies_root.get_child_count()])
+	enemies_root.add_child(enemy)
+	if true:
+		enemy.setup(edef, scaling, floor_number, room_id, wpos, current_layout, player, rng, {
 			"attack_player": func(_e: EnemyActor, dmg: float, _dir: Vector3) -> void: player.take_damage(dmg),
 			"shoot_projectile": func(_e: EnemyActor, origin: Vector3, vel: Vector3, dmg: float) -> void:
 				_on_spawn_projectile({
@@ -896,8 +958,7 @@ func _spawn_floor_enemies(enemies_pack: Dictionary) -> void:
 				}),
 			"died": _on_enemy_died,
 		})
-		if enemy.is_boss:
-			boss_actor = enemy
+	return enemy
 
 
 ## Marks the floor boss beaten and opens the arena and vault gates (idempotent).
@@ -1004,6 +1065,7 @@ func _update_hud_navigation() -> void:
 	var markers := CompassSystem.compute_visible_markers(current_layout.landmarks, player.global_position, fwd, compass_cfg)
 	var yaw_rad := wrapf(-player.rotation.y, 0.0, TAU)
 	hud.update_compass(yaw_rad, markers)
+	hud.update_minimap(current_layout, map_seen, player.global_position, -player.rotation.y)
 	var fcfg := DataLoader.get_floor_config(floor_number)
 	hud.update_clock(floor_number, str(fcfg.get("name", "Dungeon")), floor_timer.get_formatted_clock())
 
@@ -1059,8 +1121,13 @@ func _cmd_teleport(args: Array[String]) -> String:
 		"boss": room_id = current_layout.boss_room_id
 		"vault": room_id = current_layout.vault_room_id
 		"stairs": room_id = current_layout.stairs_room_id
+		"combat":
+			for r in current_layout.rooms:
+				if str(r["role"]) == "combat":
+					room_id = int(r["id"])
+					break
 	if room_id < 0:
-		return "Unknown target '%s'. Options: entrance, safe, boss, vault, stairs." % target
+		return "Unknown target '%s'. Options: entrance, combat, safe, boss, vault, stairs." % target
 	var tile: Vector2i = current_layout.rooms[room_id]["center"]
 	player.global_position = current_layout.tile_to_world(tile) + Vector3(0.0, 0.3, 0.0)
 	_update_hud_navigation()
@@ -1092,3 +1159,114 @@ func _cmd_seed(args: Array[String]) -> String:
 	run_seed = int(args[0])
 	enter_floor(floor_number, true)
 	return "Regenerated Floor %d with seed %d." % [floor_number, run_seed]
+
+
+# ---------------------------------------------------------------------------
+# Test Mode API (D-047) — used by the F1 Test Mode panel and by automated tests
+# ---------------------------------------------------------------------------
+
+## A point `dist` metres in front of the player at floor level (offset sideways by `side`).
+func test_front_point(dist: float = 3.0, side: float = 0.0) -> Vector3:
+	var fwd := player.get_forward_vector()
+	fwd.y = 0.0
+	fwd = fwd.normalized()
+	var right := fwd.cross(Vector3.UP)
+	var p := player.global_position + fwd * dist + right * side
+	return Vector3(p.x, 0.1, p.z)
+
+
+func test_spawn_enemy(enemy_id: String, count: int = 1) -> Array:
+	var out: Array = []
+	for i in range(count):
+		var side := (float(i) - float(count - 1) * 0.5) * 1.8
+		var e := spawn_enemy(enemy_id, test_front_point(4.5, side), -1)
+		if e != null:
+			if e.is_boss:
+				boss_actor = e
+				boss_defeated_this_floor = false
+				e.wake_boss()
+			out.append(e)
+	return out
+
+
+func test_kill_enemies(radius: float = 1e9) -> int:
+	var n := 0
+	for c in enemies_root.get_children():
+		var e := c as EnemyActor
+		if e != null and e.state != EnemyActor.AiState.DEAD and e.global_position.distance_to(player.global_position) <= radius:
+			e.take_damage(1e9)
+			n += 1
+	return n
+
+
+func test_clear_enemies() -> void:
+	for c in enemies_root.get_children():
+		c.queue_free()
+	boss_actor = null
+
+
+func test_give_item(item_id: String, rarity: String = "common") -> Dictionary:
+	var def := DataLoader.get_item_def(item_id)
+	if def.is_empty():
+		return {}
+	var item: Dictionary
+	if str(def.get("category", "")) == "consumable":
+		item = LootGenerator.make_base_item_instance(def, "test_%s_%d" % [item_id, player.inventory.size()])
+	else:
+		item = LootGenerator.roll_loot(DataLoader.get_items_pack(), DataLoader.get_affixes_pack(), floor_number,
+			SeededRng.new(player.inventory.size() + 1), rarity, false, item_id)
+	if item.is_empty():
+		return {}
+	player.inventory.append(item)
+	player.emit_stats()
+	return item
+
+
+func test_give_all_items(rarity: String = "rare") -> void:
+	for it in DataLoader.get_items_pack().get("items", []):
+		test_give_item(str(it["id"]), rarity)
+
+
+func test_spawn_object(kind: String) -> Node3D:
+	var yaw := player.rotation.y + PI
+	return dungeon_builder.spawn_test_object(kind, test_front_point(3.0), yaw, _on_interactable_triggered)
+
+
+func test_add_levels(n: int) -> void:
+	for _i in range(n):
+		var lv := progression.add_xp(progression.xp_for_next_level() - progression.xp + 0.01)
+		for l in lv:
+			if EventBus != null:
+				EventBus.level_up_occurred.emit(l)
+	player.recalculate_vitals(true)
+	player.emit_stats()
+
+
+func test_teleport(target: String) -> String:
+	return run_console_command("teleport " + target)
+
+
+func test_set_floor(n: int, vast: bool) -> void:
+	test_vast_floor = vast
+	enter_floor(maxi(1, n), true)
+
+
+func test_toggle(flag: String) -> bool:
+	match flag:
+		"god":
+			player.god_mode = not player.god_mode
+			return player.god_mode
+		"ai":
+			test_ai_frozen = not test_ai_frozen
+			return test_ai_frozen
+		"clock":
+			test_clock_paused = not test_clock_paused
+			return test_clock_paused
+		"resources":
+			test_infinite_resources = not test_infinite_resources
+			return test_infinite_resources
+		"camera":
+			player.toggle_camera_mode()
+			return player.camera_mode == "third_person"
+	return false
+

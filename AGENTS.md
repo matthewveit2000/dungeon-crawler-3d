@@ -53,6 +53,7 @@ Because this repository must be seamlessly usable by **any AI tool** across sess
 2. **Maintain Changelogs for Everything:** Every meaningful change (documentation, design decisions, code, tests, art assets, tooling) MUST be recorded in [`CHANGELOG.md`](CHANGELOG.md) and, when applicable, the corresponding domain changelog under [`docs/changelogs/`](docs/changelogs/README.md).
 3. **Keep Tool Entry Points Synchronized:** Never duplicate detailed rules in `CLAUDE.md`, `.cursorrules`, or `.github/copilot-instructions.md`. Update `AGENTS.md` and `docs/` so every AI tool reads the exact same truth.
 4. **Never Leave Stale Docs:** If a change alters architecture, controls, systems, or status, update the affected docs in the same commit/PR.
+5. **Log Every User Comment (`D-045`):** Every comment, request, bug report or direction from the User MUST be appended to [`docs/USER_FEEDBACK_LOG.md`](docs/USER_FEEDBACK_LOG.md) (next `FB-###`, verbatim wording, one line per distinct request with status, decision id and regression guard) **before** acting on it. Before changing any system, search that log for it and keep every earlier request satisfied; add an automated regression test for each testable request so it cannot silently break again.
 
 ---
 
@@ -66,6 +67,7 @@ Because this repository must be seamlessly usable by **any AI tool** across sess
   - Are HUD elements, menus, typography, spacing, and tutorials clean, stylish, readable, and high-QoL?
   - Never ship a visual change you haven't personally scrutinized from the player's seat.
 - **Visual Overhaul v2 Standards (`D-031`–`D-036`):** New art must come from the procedural pipeline (`art/pipeline/` for textures & UI art, `art/blender/dclib` for models) and use material names defined in `game/data/materials.json` (never embed images in `.glb`). Characters must ship the standard animation clips. UI must be built with `UiTheme` helpers. `./scripts/run-visual-qa.sh` captures the Vulkan Forward+ renderer by default (`RENDER=opengl3` for the fallback, `QA_ONLY=...` for subsets). See [`docs/ART_PIPELINE.md`](docs/ART_PIPELINE.md).
+- **Test Mode & Feedback Guards (`D-045`, `D-047`):** Use Test Mode (title screen, F1 tools; `GameMain.test_*` API in scripts) to reproduce and verify gameplay changes, and add a regression test for every testable User request in `docs/USER_FEEDBACK_LOG.md`.
 - **Hybrid World & Low-Friction Tutorial Standards (`D-029`, `D-030`):** Rooms and encounters combine procedural layouts with handcrafted signature setpieces/boss arenas; every new mechanic must integrate with the toggleable, non-intrusive first-time Tutorial Mode.
 
 ---
@@ -73,14 +75,15 @@ Because this repository must be seamlessly usable by **any AI tool** across sess
 ## 6. Essential Reading Order for New AI Sessions
 
 1. `AGENTS.md` (this file)
-2. `docs/ROLES_AND_GOVERNANCE.md`
-3. `docs/VISION_AND_CONSTRAINTS.md`
-4. `docs/GAME_DESIGN.md`
-5. `docs/ARCHITECTURE.md`
-6. `docs/ART_PIPELINE.md`
-7. `docs/TESTING_STRATEGY.md`
-8. `docs/PLAYTEST_GUIDE.md`
-9. `docs/ROADMAP.md`
-10. `docs/DECISION_LOG.md`
-11. `docs/ALIGNMENT_LOG.md`
-12. `CHANGELOG.md` and `docs/changelogs/`
+2. `docs/USER_FEEDBACK_LOG.md` (every User request so far — never regress one)
+3. `docs/ROLES_AND_GOVERNANCE.md`
+4. `docs/VISION_AND_CONSTRAINTS.md`
+5. `docs/GAME_DESIGN.md`
+6. `docs/ARCHITECTURE.md`
+7. `docs/ART_PIPELINE.md`
+8. `docs/TESTING_STRATEGY.md`
+9. `docs/PLAYTEST_GUIDE.md`
+10. `docs/ROADMAP.md`
+11. `docs/DECISION_LOG.md`
+12. `docs/ALIGNMENT_LOG.md`
+13. `CHANGELOG.md` and `docs/changelogs/`

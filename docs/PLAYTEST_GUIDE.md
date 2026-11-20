@@ -16,6 +16,18 @@ Everything mechanical has already been verified by automated tests, so this play
 
 ---
 
+## 1b. Test Mode — Spawn Anything (`D-047`)
+
+Choose **Test Mode** on the title screen. You start on a compact floor with every room type (entrance, combat halls, safe room, boss arena + treasure vault, stairwell) and no regular enemies; it uses its own save file, so your real expedition is never touched. Press **F1** for the tools:
+
+| Tab | What you can do |
+|---|---|
+| **Enemies** | Spawn any enemy (including the Iron Warden) 1, 3 or 5 at a time in front of you; kill nearby / all; remove all; freeze AI. |
+| **Items** | Pick a rarity, then add any item to your bag (or every item at once); +1,000 gold; health potions; open the inventory. |
+| **World** | Place chests (standard / rare / vault), crates, urns, trap levers, spike traps, braziers, lights, a stairwell, a full safe-room kit (vendor, quest board, ward) or any handcrafted room setpiece where you are looking. |
+| **Player** | God mode, infinite stamina & magicka, +1 / +5 levels, full heal, first / third person, die (tests the floor reset). |
+| **Floor** | Teleport to every room type, open the boss + vault gates, pause / run the floor clock, advance a day, collapse the floor, rebuild the test floor, jump to a real vast floor, next / previous floor. |
+
 ## 2. Controls Cheat Sheet (Skyrim-Inspired)
 
 | Input | Action |
