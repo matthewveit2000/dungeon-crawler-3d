@@ -76,3 +76,7 @@ See [`docs/TESTING_STRATEGY.md`](../TESTING_STRATEGY.md) and [`docs/DECISION_LOG
 - `game/tests/test_fp_viewmodel.gd`: elbows never swing out ahead of the fists through every sword/axe attack; the axe edge faces forward at rest and leads the opening chop; both fists sit centred on the axe's leather wraps; the sword blade extends away from the camera at impact; spell palms face the target (idle and mid-cast); the drawn bow stands upright left of the crosshair with the arrow nocked only while drawing.
 - Updated `test_power_attack_charge_continuity_and_bow_sightline_alignment`: no arrow is nocked at idle; it appears on draw and aims along the sightline.
 - New iteration tool `./scripts/fp-pose-probe.sh` (`game/scenes/fp_pose_probe.tscn`): renders sampled first-person frames as [player view | side | top] strips in ~6 s.
+
+## 2026-11-20 — Treasure Vault Access Test (`D-042`)
+
+- `test_vault_is_walkable_after_boss_defeat`: for four seeds, enter the arena (seals), kill the boss, then physically walk from mid-arena through the vault gate to the treasure; confirmed to fail when the gate stays shut.

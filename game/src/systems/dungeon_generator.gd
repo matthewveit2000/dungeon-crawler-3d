@@ -338,12 +338,15 @@ static func _populate_contents(
 					rng.next_int_range("gen", rect.position.y + 1, maxi(rect.position.y + 1, rect.end.y - 2))
 				)
 				layout.chests.append({"tile": ct, "tier": "standard", "room_id": r["id"]})
-			# Crates & urns along room corners
-			var corner := Vector2i(rect.position.x, rect.position.y)
-			layout.containers.append({
-				"tile": corner,
-				"kind": "crate" if rng.next_float("gen") < 0.5 else "urn",
-			})
+			# Crates & urns tucked into room corners (denser floors: up to containers_per_room_max)
+			var corners := [rect.position, Vector2i(rect.end.x - 1, rect.position.y), Vector2i(rect.position.x, rect.end.y - 1),
+				Vector2i(rect.end.x - 1, rect.end.y - 1)]
+			var n_cont := rng.next_int_range("gen", 1, int(lab_cfg.get("containers_per_room_max", 1)))
+			for ci in range(mini(n_cont, corners.size())):
+				layout.containers.append({
+					"tile": corners[ci],
+					"kind": "crate" if rng.next_float("gen") < 0.5 else "urn",
+				})
 			if rng.next_float("gen") < float(lab_cfg.get("trap_corridor_chance", 0.12)) * 2.0:
 				layout.traps.append(center)
 		elif role == "stairs":
@@ -387,6 +390,13 @@ static func _populate_contents(
 			"label": "Boss Gate",
 			"icon": "B",
 			"world_pos": layout.tile_to_world(layout.boss_gate_tile),
+			"discovered": false,
+		},
+		{
+			"id": "vault",
+			"label": "Treasure Vault",
+			"icon": "V",
+			"world_pos": layout.tile_to_world(layout.rooms[layout.vault_room_id]["center"]),
 			"discovered": false,
 		},
 		{

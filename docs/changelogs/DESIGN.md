@@ -53,3 +53,8 @@ Detailed record of gameplay systems, rules, tuning, and DCC flavor implemented f
 
 - Every playthrough uses run seed `20261118`. Layout, dressing, enemies, vendor stock and all container/enemy loot are identical on every attempt at a floor; loot no longer depends on open/kill order.
 - Known gap (pre-existing): opened containers are not recorded in the save file, so save-and-quit then Continue refills them — now with the identical items. To be addressed separately.
+
+## 2026-11-20 — Larger, Denser Floors (`D-042`)
+
+- 72x72 grid, 28-36 rooms, more loops, ~2x enemies (30 / 38), 1-3 containers per combat room, chest chance 0.6, prop density 0.6. Default seed: 30 rooms, ~17,200 m2, 31 enemies, 17 chests, 45 containers.
+- Treasure Vault now has a compass/map landmark and is force-opened whenever the boss is dead.
