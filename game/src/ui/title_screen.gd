@@ -10,7 +10,7 @@ const TIPS := [
 	"Safe Rooms are sanctuaries — nothing hostile may follow you inside.",
 	"Your floor-entry snapshot means death costs the floor, never the run.",
 	"The compass reveals landmarks as you draw near them.",
-	"Sponsored Mythic loot is ridiculous. Equip it anyway.",
+	"Legendary loot comes with sponsor deals that are ridiculous. Equip it anyway.",
 	"Press M to open your hand-inked dungeon map.",
 ]
 

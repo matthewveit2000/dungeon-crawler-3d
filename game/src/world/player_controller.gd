@@ -124,8 +124,9 @@ const FP_ELBOW_GRIP := Vector3(0.03, -0.141, 0.271)
 const FP_ELBOW_OPEN := Vector3(0.0, -0.097, 0.226)
 
 # One-handed blade (right hand; the off-hand uses the mirror image)
-const FP_SWORD_REST := [Vector3(0.27, -0.29, -0.50), Vector3(-0.10, 0.88, -0.46), Vector3(1.0, 0.0, 0.0)]
-const FP_SWORD_SPRINT := [Vector3(0.24, -0.38, -0.44), Vector3(0.30, 0.55, -0.78), Vector3(1.0, 0.0, 0.0)]
+## FB-014 standing rule: blades face away from the player — at rest and sprinting the cutting edge points forward
+const FP_SWORD_REST := [Vector3(0.27, -0.29, -0.50), Vector3(-0.10, 0.88, -0.46), Vector3(0.0, 0.46, -0.88)]
+const FP_SWORD_SPRINT := [Vector3(0.24, -0.38, -0.44), Vector3(0.30, 0.55, -0.78), Vector3(0.0, 0.82, 0.58)]
 ## Forehand: cocked over the right shoulder -> cuts out in front, high-right to low-left -> follows through low-left
 const FP_SWORD_LIGHT_1 := [
 	[Vector3(0.35, -0.05, -0.36), Vector3(0.30, 0.70, 0.65), Vector3(-0.45, -0.30, -0.84)],
@@ -148,8 +149,8 @@ const FP_SWORD_POWER := [
 # Two-handed axe: keys are for the TOP (right) hand; the left hand rides lower on the haft.
 const FP_AXE_HAND_R := 0.47  ## right fist on the upper leather wrap (model units along the haft)
 const FP_AXE_HAND_L := -0.11  ## left fist on the lower leather wrap
-const FP_AXE_REST := [Vector3(0.30, -0.26, -0.50), Vector3(0.30, 0.80, -0.52), Vector3(-0.60, 0.0, -0.80)]
-const FP_AXE_SPRINT := [Vector3(0.24, -0.34, -0.42), Vector3(0.62, 0.62, -0.48), Vector3(-0.30, 0.0, -0.95)]
+const FP_AXE_REST := [Vector3(0.30, -0.26, -0.50), Vector3(0.30, 0.80, -0.52), Vector3(-0.25, 0.0, -0.97)]
+const FP_AXE_SPRINT := [Vector3(0.24, -0.34, -0.42), Vector3(0.62, 0.62, -0.48), Vector3(-0.15, 0.0, -0.99)]
 ## Diagonal chop: axe hoisted over the right shoulder -> head drives down-left through the crosshair
 const FP_AXE_LIGHT_1 := [
 	[Vector3(0.36, 0.02, -0.34), Vector3(0.28, 0.55, 0.79), Vector3(0.0, 0.82, -0.57)],
@@ -206,6 +207,9 @@ var _hitstop: float = 0.0
 var _shake: float = 0.0
 var _shake_phase: float = 0.0
 var _tp_action_lock: float = 0.0
+var _tp_cast_right_t: float = -10.0
+var _tp_aim_blend: float = 0.0
+var _tp_cast_left_t: float = -10.0
 
 var _callbacks: Dictionary = {}
 var _rng: SeededRng = null
@@ -347,6 +351,11 @@ func _update_third_person_camera() -> void:
 	var cam_cfg: Dictionary = player_cfg["camera"]
 	var off: Array = cam_cfg["third_person_offset"]
 	var desired_local := Vector3(float(off[0]), float(off[1]) - float(player_cfg["movement"]["eye_height"]), float(off[2]))
+	# FB-014: while drawing a bow the camera eases in over the right shoulder so the bow and arrow line stay
+	# in view left of the head instead of hidden behind the archer's turned body
+	var aim_off: Array = cam_cfg.get("third_person_aim_offset", [1.0, 1.75, 2.1])
+	var aim_local := Vector3(float(aim_off[0]), float(aim_off[1]) - float(player_cfg["movement"]["eye_height"]), float(aim_off[2]))
+	desired_local = desired_local.lerp(aim_local, _tp_aim_blend)
 	var resolved_local := desired_local
 	if is_inside_tree() and get_world_3d() != null:
 		var origin := head_pivot.global_position
@@ -444,8 +453,13 @@ func equip_from_inventory(inv_index: int, preferred_hand: String = "") -> bool:
 	return true
 
 
-## Moves a ring saved under the old "ring" key (D-046 bug) into a real ring slot.
+## Repairs older saves: a ring stored under the old "ring" key (D-046 bug) moves to a real ring slot, and the old
+## "sponsored" rarity becomes "legendary" (FB-014).
 func normalize_equipment() -> void:
+	# FB-014: the old "sponsored" (Sponsored Mythic) rarity is now "legendary"
+	for it in equipment.values() + inventory:
+		if str((it as Dictionary).get("rarity", "")) == "sponsored":
+			(it as Dictionary)["rarity"] = "legendary"
 	if equipment.has("ring"):
 		var r: Dictionary = equipment["ring"]
 		equipment.erase("ring")
@@ -570,10 +584,13 @@ func step_simulation(delta: float, is_paused: bool, input_override: Dictionary =
 		right_attack_hold += delta
 		var rh: Dictionary = equipment.get("right_hand", {})
 		if str(rh.get("weapon_type", "")) == "archery":
+			if not is_bow_drawing and tp_visual != null and tp_visual.visible and tp_visual.has_anim("bow_draw"):
+				tp_visual.play_action("bow_draw", 0.1, 1.0)  # FB-014: raise, nock and pull, then draw_hold loops
 			is_bow_drawing = true
 			bow_draw_time = right_attack_hold
 
 	_update_procedural_animations(delta, move_vec.length(), is_sprinting)
+	_tp_aim_blend = move_toward(_tp_aim_blend, 1.0 if is_bow_drawing else 0.0, delta * 4.0)
 	if camera_mode == "third_person":
 		_update_third_person_camera()
 	_update_interaction_raycast()
@@ -909,7 +926,9 @@ func _refresh_tp_weapons() -> void:
 			gl.add_child(VfxFactory.make_glow(Color.html(str(lh.get("color", "#ff6a22"))), 0.3, 1.6))
 		elif not lh.is_empty() and str(lh.get("category", "")) == "weapon":
 			var lw := ModelLoader.instantiate_model(str(lh.get("model", "")), Vector3(0.05, 0.9, 0.05))
-			lw.rotation_degrees = Vector3(0.0, 90.0, 0.0)
+			# Exact mirror of the right-hand weapon in GripR (FB-014): the cutting edge is GripL -X after this turn,
+			# matching the dual-wield clips (edge_is_neg_y in char_anims.py)
+			lw.rotation_degrees = Vector3(0.0, -90.0, 0.0)
 			gl.add_child(lw)
 
 
@@ -1008,6 +1027,10 @@ func _update_procedural_animations(delta: float, move_amount: float, is_sprintin
 		var trem := maxf(0.0, charge - 0.6) / 0.4
 		r_key = [(r_key[0] as Vector3) + Vector3(sin(_anim_time * 36.0), cos(_anim_time * 43.0), 0.0) * 0.0025 * trem, r_key[1], r_key[2]]
 
+	# FB-014 standing rule: at rest / sprinting the cutting edge faces straight away from the player's eye
+	if _right_swing_t <= 0.0 and not is_right_holding and not is_bow and not r_spell and not r_shield:
+		r_key = _away_edge(r_key, 0.45 if is_two_hand else 0.55)
+
 	# The live pose right before a swing starts, so a swing (incl. a released charge) never snaps
 	if _right_swing_t <= 0.0 or _swing_start_key.is_empty():
 		_swing_start_key = r_key
@@ -1058,7 +1081,7 @@ func _update_procedural_animations(delta: float, move_amount: float, is_sprintin
 			l_key = _sample_keys(u2, [l_key] + _mirror_keys(FP_SPELL_CAST_R) + [l_key], FP_CAST_TIMES, FP_CAST_CURVES)
 	elif not lh.is_empty():
 		# Dual-wield off-hand weapon: the right-hand sword library mirrored across the screen
-		l_key = _mirror_key(FP_SWORD_REST)
+		l_key = _away_edge(_mirror_key(FP_SWORD_REST), 0.55)
 		if _left_action_t > 0.0:
 			var u3 := 1.0 - (_left_action_t / maxf(0.01, _left_action_dur))
 			var sw3 := sin(u3 * PI)
@@ -1127,6 +1150,8 @@ func _update_procedural_animations(delta: float, move_amount: float, is_sprintin
 		var horiz_spd := Vector2(velocity.x, velocity.z).length()
 		var armed := not rh.is_empty() or not lh.is_empty()
 		var st := "idle_combat" if (armed and tp_visual.has_anim("idle_combat")) else "idle"
+		if _tp_dual_wield() and tp_visual.has_anim("idle_dual"):
+			st = "idle_dual"
 		var play_spd := 1.0
 		if is_blocking and horiz_spd < 2.2:
 			st = "block"
@@ -1139,6 +1164,14 @@ func _update_procedural_animations(delta: float, move_amount: float, is_sprintin
 			play_spd = clampf(horiz_spd / (3.4 if use_run else 1.85), 0.75, 1.65)
 		tp_visual.play_state(st, 0.18, play_spd)
 		_update_tp_bowstring()
+
+
+## Third person: one-handed weapon in each hand (FB-014 dual-wield clips).
+func _tp_dual_wield() -> bool:
+	var rh: Dictionary = equipment.get("right_hand", {})
+	var lh: Dictionary = equipment.get("left_hand", {})
+	return str(rh.get("category", "")) == "weapon" and str(lh.get("category", "")) == "weapon" \
+		and str(rh.get("weapon_type", "")) != "archery" and not bool(rh.get("two_handed", false))
 
 
 func _update_tp_bowstring() -> void:
@@ -1197,6 +1230,14 @@ static func _fist_basis(hand: Vector3, grip_dir: Vector3, left: bool, pole_overr
 	var shoulder := Vector3(FP_SHOULDER.x * s, FP_SHOULDER.y, FP_SHOULDER.z)
 	var pole := pole_override if pole_override != Vector3.ZERO else Vector3(FP_ELBOW_POLE.x * s, FP_ELBOW_POLE.y, FP_ELBOW_POLE.z)
 	return _hand_basis(grip_dir, _ik_elbow(shoulder, hand, pole) - hand)
+
+
+## Replaces a key's edge with the direction from the eye (rig origin) to the blade, so the blade is seen edge-on,
+## facing away from the player (FB-014). `reach` = how far along the blade/haft the edge is judged (blade middle /
+## axe head).
+static func _away_edge(k: Array, reach: float) -> Array:
+	var blade_mid := (k[0] as Vector3) + (k[1] as Vector3).normalized() * reach
+	return [k[0], k[1], blade_mid.normalized()]
 
 
 static func _mirror_key(k: Array) -> Array:
@@ -1471,6 +1512,10 @@ func _perform_melee_attack(weapon: Dictionary, is_right: bool, is_power: bool) -
 	var is_two_hand := bool(weapon.get("two_handed", false))
 	if tp_visual != null and tp_visual.visible:
 		var tp_clip := "attack_2h" if (is_two_hand and tp_visual.has_anim("attack_2h")) else "attack"
+		if not is_right and tp_visual.has_anim("attack_l"):
+			tp_clip = "attack_l"  # FB-014: the left blade swings, mirrored
+		elif is_right and _tp_dual_wield() and tp_visual.has_anim("attack_dual"):
+			tp_clip = "attack_dual"  # right swing with the left blade held on guard
 		tp_visual.play_action(tp_clip, 0.08, 1.15 if not is_power else 0.92)
 	if is_right:
 		_right_cooldown = cd
@@ -1584,7 +1629,20 @@ func _cast_spell(spell: Dictionary, is_right: bool) -> void:
 	_camera_kick = 0.24
 
 	if tp_visual != null and tp_visual.visible:
-		tp_visual.play_action("cast", 0.08, 1.15)
+		# FB-014: the casting hand thrusts (left = "cast", right = mirrored "cast_r"); both hands within a
+		# moment of each other (dual spells) thrust together
+		var clip := "cast_r" if is_right else "cast"
+		var other_t := _tp_cast_left_t if is_right else _tp_cast_right_t
+		if _anim_time - other_t < 0.25 and tp_visual.has_anim("cast_dual"):
+			clip = "cast_dual"
+		if is_right:
+			_tp_cast_right_t = _anim_time
+		else:
+			_tp_cast_left_t = _anim_time
+		if not tp_visual.has_anim(clip):
+			clip = "cast"
+		if clip != "cast_dual" or tp_visual.oneshot != "cast_dual":
+			tp_visual.play_action(clip, 0.08, 1.15)
 	var kind := str(spell.get("spell_kind", "projectile"))
 	var skill_name := str(spell.get("weapon_type", "destruction"))
 	var prog_bonuses := progression.get_derived_bonuses() if progression != null else {}

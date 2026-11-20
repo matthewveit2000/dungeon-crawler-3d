@@ -82,7 +82,7 @@ Skyrim-inspired **left-hand / right-hand equipping** supporting four classic pla
   - **Skyrim Use-to-Improve:** Swinging melee weapons, casting spells, blocking, and firing bows steadily improve those skill proficiencies through use.
 - **Skyrim Equipment Slots + Chaotic Affixes:**
   - Familiar slots: Left Hand, Right Hand, Head, Chest, Hands, Feet, Ring(s), Amulet.
-  - Items roll across rarity tiers (**Common → Uncommon → Rare → Epic → Sponsored/Mythic**) with scalable stats and wild build-changing affixes (especially on Sponsored/Mythic drops).
+  - Items roll across rarity tiers (**Common → Uncommon → Rare → Epic → Legendary**, `D-048`) with scalable stats and wild build-changing affixes (especially on Legendary drops, including the DCC-style "sponsored" effects).
 - **Economy & Quests:** Sell excess loot and buy supplies/gear at Safe Room Vendors; pick up floor-specific bounties and exploration quests from Quest Boards.
 
 ---

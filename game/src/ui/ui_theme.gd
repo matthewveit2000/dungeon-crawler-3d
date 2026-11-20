@@ -30,7 +30,7 @@ const COL_DANGER := Color(0.92, 0.32, 0.24, 1.0)
 const COL_GOOD := Color(0.45, 0.86, 0.48, 1.0)
 const COL_BAD := Color(0.94, 0.38, 0.32, 1.0)
 
-const RARITY_NAMES := {"common": "Common", "uncommon": "Uncommon", "rare": "Rare", "epic": "Epic", "sponsored": "Sponsored Mythic"}
+const RARITY_NAMES := {"common": "Common", "uncommon": "Uncommon", "rare": "Rare", "epic": "Epic", "legendary": "Legendary"}
 
 static var _fonts: Dictionary = {}
 static var _tex: Dictionary = {}
@@ -404,7 +404,7 @@ static func rarity_color(rarity_id: String) -> Color:
 		"uncommon": return Color(0.44, 0.82, 0.42)
 		"rare": return Color(0.33, 0.62, 0.98)
 		"epic": return Color(0.72, 0.44, 0.98)
-		"sponsored": return Color(1.0, 0.68, 0.18)
+		"legendary": return Color(1.0, 0.68, 0.18)
 		"common": return Color(0.86, 0.83, 0.77)
 		_: return COL_TEXT
 

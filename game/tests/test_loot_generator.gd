@@ -8,8 +8,8 @@ func test_sponsored_loot_always_rolls_sponsored_effect_and_high_value() -> void:
 	var rng := SeededRng.new(404)
 
 	for i in range(15):
-		var item := LootGenerator.roll_loot(items_pack, affixes_pack, 1, rng, "sponsored", true)
-		assert_eq(str(item["rarity"]), "sponsored")
+		var item := LootGenerator.roll_loot(items_pack, affixes_pack, 1, rng, "legendary", true)
+		assert_eq(str(item["rarity"]), "legendary")
 		assert_false(str(item.get("sponsored_effect", "")).is_empty(), "Sponsored loot must have a sponsored_effect")
 		assert_gt(int(item["value"]), 100)
 

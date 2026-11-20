@@ -75,3 +75,13 @@ distinct request as its own line with its status (`Done`, `Partial`, `Open`, `Pr
 - Map locks onto / follows the player (map centred on the player + new corner minimap). — `Done` — `D-046` — Guard: `test_map_and_minimap_are_locked_on_the_player`
 - Test Mode: spawn enemies, items, rooms, props; all game testing possible there. — `Done` — `D-047` — Guard: `test_test_mode_can_spawn_anything_and_never_touches_the_real_save`
 - Log every comment, now and going forward, and check the log to avoid regressions. — `Done` — `D-045` (this file + `AGENTS.md` §4 rule)
+
+### FB-014 — "The chest and shield have holes in them. i.e. you can see inbetween the wood planks. The enemies get stuck on things. make their path finding better. Replace the rarities with normal RPG rarities. some of the weapons are still facing side ways in FPV. Note that blades face away from the player. Duel welding animations are broken in third person view. The item menu cuts off the side of the screen in some scenarios. maybe when I have too many items. The bow animation is broken in third person. The spell casting animation is broken in third person"
+- Chest and shield: no see-through gaps between planks (inner linings / backing board). — `Done` — `D-048` — Guard: manual visual QA (props/gear close-ups)
+- Enemies path around walls and props instead of getting stuck (A* + unstick). — `Done` — `D-048` — Guard: `test_enemy_paths_around_walls_to_reach_the_player`, `test_enemy_unsticks_itself_from_props_in_the_way`, `test_enemy_faces_where_it_walks_while_chasing`
+- Normal RPG rarities (Common / Uncommon / Rare / Epic / Legendary). — `Done` — `D-048` — Guard: `test_rarities_are_the_normal_rpg_tiers`, `test_old_saves_with_sponsored_items_become_legendary`
+- **Standing rule: blades face away from the player in first person** (edge forward, never the flat of a blade sideways at rest). — `Done` — `D-048` — Guard: `test_blades_face_away_from_the_player_at_rest`, `test_battleaxe_edge_faces_forward_at_rest_and_leads_the_chop`
+- Dual-wield animations in third person (left blade swings, both on guard). — `Done` — `D-048` — Guard: `test_third_person_dual_wield_swings_the_hand_that_attacks`
+- Item (inventory) menu never cuts off the screen side, however many items (cause: Interface Scale shrinking the layout space). — `Done` — `D-048` — Guard: `test_menus_fit_a_720p_screen` (incl. 150 % interface scale with a full bag)
+- Bow animation in third person (draw-up clip, aim camera over the shoulder). — `Done` — `D-048` — Guard: `test_third_person_bow_draws_up_and_the_camera_frames_the_aim`
+- Spell-casting animation in third person (casting hand thrusts; both for dual spells). — `Done` — `D-048` — Guard: `test_third_person_spells_cast_from_the_hand_holding_them`

@@ -269,6 +269,10 @@ def build_chest():
             body.append(shapes.plank(D_ - 0.06, 0.03, H_ / 3 - 0.006, (side * (W_ / 2 - 0.015), 0, 0.06 + H_ / 6 + k * H_ / 3),
                                      (math.pi / 2, 0, math.pi / 2), seed=20 + k + side, mat="wood_oak"))
     body.append(shapes.box((W_ - 0.04, D_ - 0.04, 0.04), (0, 0, 0.08), mat="wood_oak"))
+    # Solid inner lining behind the plank walls: gaps between boards show dark wood, never daylight (FB-014)
+    for side in (-1, 1):
+        body.append(shapes.box((W_ - 0.05, 0.012, H_ - 0.004), (0, side * (D_ / 2 - 0.036), 0.06 + H_ / 2), mat="wood_dark"))
+        body.append(shapes.box((0.012, D_ - 0.07, H_ - 0.004), (side * (W_ / 2 - 0.036), 0, 0.06 + H_ / 2), mat="wood_dark"))
     # feet / skids
     for sx in (-1, 1):
         body.append(shapes.box((0.12, D_ + 0.02, 0.07), (sx * (W_ / 2 - 0.08), 0, 0.035), mat="wood_dark", bevel=0.01))
@@ -300,6 +304,15 @@ def build_chest():
         p = shapes.plank(W_ - 0.02, wseg - 0.006, 0.035, (0, math.cos(am) * (r - 0.017), math.sin(am) * (r - 0.017) * 0.7),
                          (am - math.pi / 2, 0, 0), seed=40 + i, mat="wood_oak")
         lid.append(p)
+    # Inner lid shell: overlapping boards just inside the outer planks so the lid has no see-through seams
+    for i in range(n):
+        a0 = math.pi * i / n
+        a1 = math.pi * (i + 1) / n
+        am = (a0 + a1) / 2
+        ri = r - 0.045
+        wseg = 2 * ri * math.sin((a1 - a0) / 2)
+        lid.append(shapes.box((W_ - 0.05, wseg + 0.02, 0.012), (0, math.cos(am) * ri, math.sin(am) * ri * 0.7), mat="wood_dark",
+                              rot=(am - math.pi / 2, 0, 0)))
     for sx in (-1, 1):
         cap = shapes.lathe([(0.0, 0.0), (r, 0.0), (r, 0.03), (0.0, 0.03)], 20, "LidCap", "wood_oak")
         _xf(cap, (sx * (W_ / 2 - 0.01) - (0.03 if sx > 0 else 0), 0, 0), (0, math.pi / 2, 0), (1, 1, 0.7))

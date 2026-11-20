@@ -877,7 +877,7 @@ def animate(arm_ob, style, extra=()):
 
 
 CHARACTERS = {
-    "crawler": (build_crawler, {"weapon": "1h", "archetype": "crawler", "weapon_scale": 1.0}, ("block", "cast", "draw_hold", "bow_shoot", "attack_2h")),
+    "crawler": (build_crawler, {"weapon": "1h", "archetype": "crawler", "weapon_scale": 1.0}, ("block", "cast", "cast_r", "cast_dual", "dual", "draw_hold", "bow_draw", "bow_shoot", "attack_2h")),
     "draugr": (build_draugr, {"weapon": "2h", "archetype": "draugr", "hunch": 8, "weapon_scale": 1.0}, ()),
     "bone_archer": (build_bone_archer, {"weapon": "bow", "archetype": "archer", "hunch": 2}, ("shoot",)),
     "goblin_streamer": (build_goblin, {"weapon": "1h", "archetype": "goblin", "hunch": 10, "weapon_scale": 0.75}, ()),

@@ -177,7 +177,7 @@ var _stage_room: Node3D = null
 
 
 func _needs_full_game() -> bool:
-	for k in ["fp_sword_shield", "fp_battleaxe", "fp_bow", "fp_spell_dual", "tp_gameplay", "world_props"]:
+	for k in ["fp_sword_shield", "fp_battleaxe", "fp_bow", "fp_spell_dual", "tp_gameplay", "tp_combat_back", "tp_combat_side", "world_props"]:
 		if _want(k):
 			return true
 	return false
@@ -248,6 +248,10 @@ func _run() -> void:
 		await _rec_fp_bow(ent)
 	if _want("fp_spell_dual"):
 		await _rec_fp_spell_dual(ent)
+	if _want("tp_combat_back"):
+		await _rec_tp_combat(ent, "tp_combat_back")
+	if _want("tp_combat_side"):
+		await _rec_tp_combat(ent, "tp_combat_side")
 	if _want("tp_gameplay"):
 		await _rec_tp_gameplay(ent)
 
@@ -586,6 +590,89 @@ func _rec_tp_gameplay(ent: Vector3) -> void:
 
 	game.player.set_camera_mode("first_person")
 	print("[anim-review] Captured tp_gameplay (%d frames)" % f)
+
+
+## Third-person dual-wield, archery and spell casting (FB-014), seen from the game camera ("_back") or from
+## the player's front-left ("_side") so hand, weapon and spell placement can be judged.
+func _tp_equip(right_id: String, left_id: String) -> void:
+	var p := game.player
+	p.equipment.erase("right_hand")
+	p.equipment.erase("left_hand")
+	if right_id != "":
+		game.test_give_item(right_id, "rare")
+		p.equip_from_inventory(p.inventory.size() - 1, "right_hand")
+	if left_id != "":
+		game.test_give_item(left_id, "rare")
+		p.equip_from_inventory(p.inventory.size() - 1, "left_hand")
+	p.stamina = p.max_stamina
+	p.magicka = p.max_magicka
+
+
+func _rec_tp_combat(ent: Vector3, clip: String) -> void:
+	_set_stage_active(false)
+	var p := game.player
+	p.set_camera_mode("third_person")
+	_look_player(ent + Vector3(0.0, 1.62, 1.0), ent + Vector3(0.0, 1.5, -6.0))
+	var side_cam: Camera3D = null
+	if clip.ends_with("side"):
+		side_cam = Camera3D.new()
+		side_cam.fov = 40.0
+		add_child(side_cam)
+		var base := p.global_position
+		side_cam.look_at_from_position(base + Vector3(-2.6, 1.55, -2.3), base + Vector3(0.0, 1.15, 0.0))
+		side_cam.current = true
+	game.hud.clear_transient_messages()
+	var f := 0
+	var acts := [
+		["DUAL SWORDS", "iron_longsword", "iron_longsword", ["r", 0.9, "l", 0.9, "r", 0.5, "l", 0.9]],
+		["DUAL SPELLS", "spell_firebolt", "spell_chain_spark", ["r", 1.0, "l", 1.0, "rl", 1.2]],
+		["SWORD + SPELL", "iron_longsword", "spell_firebolt", ["r", 0.9, "l", 1.1]],
+		["SHIELD (R) + SPELL (L)", "nordic_kite_shield", "spell_firebolt", ["l", 1.0, "R", 1.0]],
+		["BOW", "hunting_bow", "", ["draw", 1.6, "rel", 1.0, "draw", 1.0, "rel", 0.8]],
+	]
+	var only_acts := OS.get_environment("ANIM_TP_ACTS")  # e.g. "BOW" or "DUAL SWORDS,BOW"
+	for a in acts:
+		if not only_acts.is_empty() and not only_acts.split(",").has(str(a[0])):
+			continue
+		_tp_equip(str(a[1]), str(a[2]))
+		_set_banner("THIRD PERSON — " + str(a[0]), "%s / %s" % [a[1], a[2]])
+		for _i in range(int(0.5 * fps)):
+			game.step_simulation(dt, {})
+			await _wait(1)
+			_snap(clip, f); f += 1
+		var seq: Array = a[3]
+		for k in range(0, seq.size(), 2):
+			var what := str(seq[k])
+			var dur := float(seq[k + 1])
+			p.stamina = p.max_stamina
+			p.magicka = p.max_magicka
+			p._right_cooldown = 0.0
+			p._left_cooldown = 0.0
+			var tap := what in ["r", "l", "rl"]
+			if tap and what.contains("r"):
+				p.handle_hand_press("right_hand")
+			if tap and what.contains("l"):
+				p.handle_hand_press("left_hand")
+			if what == "draw":
+				p.handle_hand_press("right_hand")
+			var held := {}
+			if what == "R":
+				held["right_held"] = true
+			for i in range(int(dur * fps)):
+				if i == 1 and tap:
+					if what.contains("r"):
+						p.handle_hand_release("right_hand")
+					if what.contains("l"):
+						p.handle_hand_release("left_hand")
+				if what == "rel" and i == 0:
+					p.handle_hand_release("right_hand")
+				game.step_simulation(dt, held)
+				await _wait(1)
+				_snap(clip, f); f += 1
+	if side_cam != null:
+		side_cam.queue_free()
+	p.set_camera_mode("first_person")
+	print("[anim-review] Captured %s (%d frames)" % [clip, f])
 
 
 # ---------------------------------------------------------------------------

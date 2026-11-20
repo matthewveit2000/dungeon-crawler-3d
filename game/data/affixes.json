@@ -37,8 +37,8 @@
       "value_multiplier": 3.8
     },
     {
-      "id": "sponsored",
-      "label": "Sponsored Mythic",
+      "id": "legendary",
+      "label": "Legendary",
       "color": "#ffae24",
       "stat_multiplier": 2.35,
       "affix_count": 3,
@@ -53,7 +53,11 @@
       "stat": "bonus_damage",
       "min": 3.0,
       "max": 8.0,
-      "applies_to": ["weapon", "armor", "accessory"]
+      "applies_to": [
+        "weapon",
+        "armor",
+        "accessory"
+      ]
     },
     {
       "id": "stalwart",
@@ -61,7 +65,11 @@
       "stat": "armor",
       "min": 4.0,
       "max": 12.0,
-      "applies_to": ["armor", "shield", "accessory"]
+      "applies_to": [
+        "armor",
+        "shield",
+        "accessory"
+      ]
     },
     {
       "id": "keen",
@@ -69,7 +77,10 @@
       "stat": "bonus_crit_chance",
       "min": 0.03,
       "max": 0.09,
-      "applies_to": ["weapon", "accessory"]
+      "applies_to": [
+        "weapon",
+        "accessory"
+      ]
     },
     {
       "id": "arcane",
@@ -77,7 +88,11 @@
       "stat": "bonus_magicka",
       "min": 12.0,
       "max": 32.0,
-      "applies_to": ["spell", "armor", "accessory"]
+      "applies_to": [
+        "spell",
+        "armor",
+        "accessory"
+      ]
     },
     {
       "id": "vigorous",
@@ -85,7 +100,11 @@
       "stat": "bonus_health",
       "min": 15.0,
       "max": 40.0,
-      "applies_to": ["armor", "shield", "accessory"]
+      "applies_to": [
+        "armor",
+        "shield",
+        "accessory"
+      ]
     }
   ],
   "suffixes": [
@@ -95,7 +114,12 @@
       "stat": "bonus_stamina",
       "min": 12.0,
       "max": 30.0,
-      "applies_to": ["weapon", "armor", "shield", "accessory"]
+      "applies_to": [
+        "weapon",
+        "armor",
+        "shield",
+        "accessory"
+      ]
     },
     {
       "id": "of_the_draugr",
@@ -103,7 +127,11 @@
       "stat": "bonus_damage",
       "min": 4.0,
       "max": 10.0,
-      "applies_to": ["weapon", "spell", "accessory"]
+      "applies_to": [
+        "weapon",
+        "spell",
+        "accessory"
+      ]
     },
     {
       "id": "of_haste",
@@ -111,7 +139,11 @@
       "stat": "cooldown_reduction",
       "min": 0.06,
       "max": 0.16,
-      "applies_to": ["weapon", "spell", "accessory"]
+      "applies_to": [
+        "weapon",
+        "spell",
+        "accessory"
+      ]
     },
     {
       "id": "of_fortune",
@@ -119,7 +151,12 @@
       "stat": "gold_find_bonus",
       "min": 0.12,
       "max": 0.35,
-      "applies_to": ["weapon", "armor", "shield", "accessory"]
+      "applies_to": [
+        "weapon",
+        "armor",
+        "shield",
+        "accessory"
+      ]
     }
   ],
   "sponsored_effects": [

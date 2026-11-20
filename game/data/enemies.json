@@ -108,7 +108,7 @@
       "gold_min": 110,
       "gold_max": 180,
       "loot_drop_chance": 1.0,
-      "guaranteed_rarity": "sponsored",
+      "guaranteed_rarity": "legendary",
       "spawn_weight": 0.0,
       "model": "res://assets/models/characters/iron_warden.glb",
       "radius": 0.85,

@@ -67,3 +67,8 @@ Detailed record of gameplay systems, rules, tuning, and DCC flavor implemented f
 
 - Enemy rebalance (floor 1): draugr 210 HP / 21 dmg / 1.2 s, archer 140 / 20 / 1.8 s (range 22 m), goblin 170 / 24 / 1.0 s, Iron Warden 1600 / 48 / 1.4 s; XP raised. Aggro 22 / 30 / 24 / 24 m with line of sight; 6 m hearing; 4 s lose-sight. No player-level scaling.
 - Any one-handed blade, shield or spell in either hand; rings fill ring slots 1-2.
+
+## 2026-11-20 — FB-014: Pathfinding Enemies, RPG Rarities (`D-048`)
+
+- Enemies path around walls and props (A* over floor tiles) and unstick themselves instead of pressing into obstacles.
+- Rarity tiers are Common / Uncommon / Rare / Epic / Legendary (the old Sponsored tier is Legendary; the sponsored *effects* on specific items are unchanged).

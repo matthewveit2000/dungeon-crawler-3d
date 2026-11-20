@@ -94,3 +94,8 @@ See [`docs/TESTING_STRATEGY.md`](../TESTING_STRATEGY.md) and [`docs/DECISION_LOG
 ## 2026-11-20 — FB-013 Regression Guards (`D-045`, `D-046`, `D-047`)
 
 - `game/tests/test_feedback_fb013.gd`: rings, either-hand items, difficulty curve, enemy wandering/engagement, third-person looting, map/minimap lock, Test Mode spawning everything + separate save.
+
+## 2026-11-20 — FB-014 Regression Guards (`D-048`)
+
+- New `game/tests/test_feedback_fb014.gd`: wall pathing, barricade unsticking, facing while chasing, rarity tiers + save migration, first-person blades edge-on (sword, axe, dual), third-person dual-wield / spells / bow clips and aim camera.
+- `test_menus_fit_a_720p_screen` now fills the bag with every item ×6 and checks the inventory at 1280×720 and at 150 % interface scale (853×480) — it failed before the fix.

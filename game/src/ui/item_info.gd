@@ -152,7 +152,7 @@ static func matches_filter(item: Dictionary, f: String) -> bool:
 
 
 static func sort_items(entries: Array, mode: String) -> void:
-	var rank := {"common": 0, "uncommon": 1, "rare": 2, "epic": 3, "sponsored": 4}
+	var rank := {"common": 0, "uncommon": 1, "rare": 2, "epic": 3, "legendary": 4}
 	match mode:
 		"rarity":
 			entries.sort_custom(func(a: Array, b: Array) -> bool:

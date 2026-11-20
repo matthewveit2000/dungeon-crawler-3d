@@ -77,7 +77,7 @@ These shortcuts exist so you never have to grind to inspect any feature:
 | `collapse` | Triggers an immediate Floor Collapse reset to the Floor-Entry Snapshot |
 | `kill_player` | Triggers a Combat-Death reset to the Floor-Entry Snapshot |
 | `kill_boss` | Defeats the Floor Boss immediately to inspect the Treasure Vault unlock |
-| `spawn_loot <rarity>` | Drops a freshly rolled item (`common`, `uncommon`, `rare`, `epic`, `sponsored`) into your bag |
+| `spawn_loot <rarity>` | Drops a freshly rolled item (`common`, `uncommon`, `rare`, `epic`, `legendary`) into your bag |
 | `add_gold <N>` | Adds `<N>` Syndicate Gold for testing the Safe Room Vendor |
 | `add_xp <N>` | Grants `<N>` Character XP to test leveling, attributes & perks |
 | `god` | Toggles invincibility ON/OFF |
