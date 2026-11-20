@@ -259,3 +259,81 @@ func test_interactive_chest_quest_board_vendor_and_audit_console_shortcuts() -> 
 	assert_true(game.boss_defeated_this_floor)
 	assert_true(game.run_console_command("collapse").contains("Floor-Entry Snapshot"))
 
+
+
+func _collect_floor_loot() -> Dictionary:
+	# Opens every chest/crate/urn and "kills" the first two regular enemies, returning what dropped.
+	var containers: Array = []
+	for node in get_tree().get_nodes_in_group("interactables"):
+		var inter := node as InteractableObject
+		if inter != null and inter.kind in ["chest", "crate", "urn"] and not inter.is_queued_for_deletion():
+			containers.append(inter)
+	containers.sort_custom(func(a: InteractableObject, b: InteractableObject) -> bool: return a.interact_id < b.interact_id)
+	var opened: Dictionary = {}
+	for inter in containers:
+		var gold_before := game.player.gold
+		var bag_before := game.player.inventory.size()
+		inter.trigger(game.player)
+		opened[inter.interact_id] = {
+			"gold": game.player.gold - gold_before,
+			"items": game.player.inventory.slice(bag_before).duplicate(true),
+		}
+	var drops: Array = []
+	var killed := 0
+	for child in game.enemies_root.get_children():
+		var enemy := child as EnemyActor
+		if enemy == null or enemy.is_boss or killed >= 2:
+			continue
+		game._on_enemy_died(enemy)
+		var corpse := game.corpses_root.get_child(game.corpses_root.get_child_count() - 1) as InteractableObject
+		drops.append(corpse.payload.duplicate(true))
+		killed += 1
+	return {"containers": opened, "enemy_drops": drops}
+
+
+func test_d039_floor_reset_replays_identical_layout_and_loot() -> void:
+	var tiles_before := game.current_layout.tiles.duplicate()
+	var vendor_before := game.vendor_sys.stock.duplicate(true)
+	var first := _collect_floor_loot()
+	assert_gt(first["containers"].size(), 0, "Floor must contain lootable containers")
+	assert_eq(first["enemy_drops"].size(), 2, "Must have two regular enemies to compare drops")
+
+	game.reset_floor_to_snapshot("death")
+	await get_tree().process_frame
+
+	assert_eq(game.current_layout.tiles, tiles_before, "D-039: layout must be identical after a reset")
+	assert_eq(game.vendor_sys.stock, vendor_before, "D-039: vendor stock must be identical after a reset")
+	var second := _collect_floor_loot()
+	assert_eq(second["containers"], first["containers"], "D-039: every container must hold the same loot after a reset")
+	assert_eq(second["enemy_drops"], first["enemy_drops"], "D-039: enemies must drop the same loot after a reset")
+
+
+func test_d039_container_loot_does_not_depend_on_open_order() -> void:
+	var containers: Array = []
+	for node in get_tree().get_nodes_in_group("interactables"):
+		var inter := node as InteractableObject
+		if inter != null and inter.kind == "chest" and not inter.is_queued_for_deletion():
+			containers.append(inter)
+	assert_gte(containers.size(), 2, "Need at least two chests")
+	var last: InteractableObject = containers[containers.size() - 1]
+	var target_id := last.interact_id
+	var bag_before := game.player.inventory.size()
+	last.trigger(game.player)
+	var item_first: Dictionary = game.player.inventory[bag_before]
+
+	game.reset_floor_to_snapshot("collapse")
+	await get_tree().process_frame
+	# Open the other chests first this time, then the same chest.
+	var target: InteractableObject = null
+	for node in get_tree().get_nodes_in_group("interactables"):
+		var inter := node as InteractableObject
+		if inter == null or inter.kind != "chest" or inter.is_queued_for_deletion():
+			continue
+		if inter.interact_id == target_id:
+			target = inter
+		else:
+			inter.trigger(game.player)
+	assert_not_null(target)
+	var bag_mid := game.player.inventory.size()
+	target.trigger(game.player)
+	assert_eq(game.player.inventory[bag_mid], item_first, "D-039: a chest's loot must not depend on which chests were opened first")

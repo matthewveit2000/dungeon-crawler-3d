@@ -2,7 +2,7 @@
 
 > **Status:** `Active Living Design Specification (v0.1+)`  
 > **North Star:** **Feels like Skyrim**, fused with the dark-humor multi-floor dungeon premise of ***Dungeon Crawler Carl***.  
-> **Decision References:** `D-001` through `D-038` in [`docs/DECISION_LOG.md`](DECISION_LOG.md).
+> **Decision References:** `D-001` through `D-039` in [`docs/DECISION_LOG.md`](DECISION_LOG.md).
 
 ---
 
@@ -41,6 +41,7 @@
 - **The central challenge:** Can the player power-scale fast enough to survive the end of the floor? Every floor ramps up in difficulty, so the player must **level up heavily and secure strong gear** on each floor and between floors — falling behind the curve makes later floors unwinnable.
 - **Everything feeds the race:** XP, use-to-improve skills, perks, loot rarity/affixes, vendor purchases, quests, and optional Boss Arenas + Treasure Vaults are the player's tools for keeping ahead of the difficulty ramp; the 5-day clock forces the trade-off between farming power and pushing for the staircase.
 - **Reset to Any Floor:** The player can **always reset their progress to the start of any floor they have reached**, restoring that floor's Floor-Entry Snapshot. If they descend under-powered, they can go back to an earlier floor and rebuild rather than being permanently stuck.
+- **Same Floor Every Attempt (`D-039`):** Every playthrough uses one fixed seed. When the player dies or the floor collapses, the floor comes back **exactly the same** — same layout, enemies, vendor stock, and the same loot in every chest, crate, urn and enemy drop (regardless of the order things are opened). Players can learn a floor and plan the fastest route to the gear they need.
 - **Still to design:** the per-floor difficulty curve (enemy stats, density, elites, boss scaling), how the floor-select/reset is presented to the player, and how many floor snapshots are stored in the save.
 
 ---

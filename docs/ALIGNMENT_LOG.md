@@ -92,3 +92,5 @@ This document records each Q&A alignment round between the Project Owner (User) 
 **User Direction:** "I want the main gimmick of the game to be a challenge to see if the player can power scale enough by end of the floor. They should always be able to reset their progress to any floor and each floor will ramp up in difficulty so it's important that they get good gear and level up heavily in between floors and not get behind."
 
 **Outcome (logged as `D-038`):** Power-scaling against an escalating per-floor difficulty curve is the core identity of the game, and players can always reset to the start of any floor they have reached. Difficulty curve, reset UI and snapshot storage remain to be designed.
+
+**Follow-up (2026-11-20, logged as `D-039`):** User: "Every play through should use the same seed so the layout, loot, etc should be the same if they die and the floor resets." Implemented and covered by automated tests.

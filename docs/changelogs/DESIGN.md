@@ -48,3 +48,8 @@ Detailed record of gameplay systems, rules, tuning, and DCC flavor implemented f
 - The game's central challenge is power-scaling fast enough to survive the end of each floor; every floor ramps up in difficulty, so leveling heavily and securing good gear between floors is essential.
 - Players can always reset their progress to the start of any floor they have reached (restoring that floor's Floor-Entry Snapshot).
 - Not yet implemented: per-floor difficulty curve, floor-select/reset UI, and multi-floor snapshot storage.
+
+## 2026-11-20 — One Fixed Seed: Same Floor Every Attempt (`D-039`)
+
+- Every playthrough uses run seed `20261118`. Layout, dressing, enemies, vendor stock and all container/enemy loot are identical on every attempt at a floor; loot no longer depends on open/kill order.
+- Known gap (pre-existing): opened containers are not recorded in the save file, so save-and-quit then Continue refills them — now with the identical items. To be addressed separately.
