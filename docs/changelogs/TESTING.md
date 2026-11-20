@@ -71,3 +71,8 @@ See [`docs/TESTING_STRATEGY.md`](../TESTING_STRATEGY.md) and [`docs/DECISION_LOG
 - `test_d039_floor_reset_replays_identical_layout_and_loot`: layout, vendor stock, every container's loot and enemy drops match before and after a death reset.
 - `test_d039_container_loot_does_not_depend_on_open_order`: a chest gives the same item whether opened first or last.
 - Both confirmed failing on the pre-fix code. Suite: 64/64 tests, 5,751 assertions.
+## 2026-11-20 — First-Person Viewmodel Regression Tests (`D-040`)
+
+- `game/tests/test_fp_viewmodel.gd`: elbows never swing out ahead of the fists through every sword/axe attack; the axe edge faces forward at rest and leads the opening chop; both fists sit centred on the axe's leather wraps; the sword blade extends away from the camera at impact; spell palms face the target (idle and mid-cast); the drawn bow stands upright left of the crosshair with the arrow nocked only while drawing.
+- Updated `test_power_attack_charge_continuity_and_bow_sightline_alignment`: no arrow is nocked at idle; it appears on draw and aims along the sightline.
+- New iteration tool `./scripts/fp-pose-probe.sh` (`game/scenes/fp_pose_probe.tscn`): renders sampled first-person frames as [player view | side | top] strips in ~6 s.

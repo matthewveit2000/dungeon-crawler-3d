@@ -72,3 +72,8 @@ Every screenshot and the 40-frame combat clip from the full Forward+ capture wer
 - **Preview Updated:** Regenerated [`art/previews/batch3_characters.png`](../../art/previews/batch3_characters.png) showcasing the new natural stances.
 
 
+
+## 2026-11-20 — First-Person Animation Pass v3 (`D-040`)
+
+- New gear model `fp_upper_arm` (quilted dark gambeson sleeve with a leather cuff band, unit length, 852 tris) built by `build_gear.py`; the game stretches it from each first-person forearm's elbow to the shoulder.
+- First-person viewmodel animation rebuilt as a weapon-first pose library with arm IK and edge-leading cuts (battleaxe, sword, dual-wield, spells, bow). The open-hand arm meshes are turned palm-to-target and used mirror-swapped (`fp_arm_open_l` is the anatomical right hand once facing away). Reviewed frame-by-frame from the player's view with `./scripts/fp-pose-probe.sh` and in-game with `./scripts/record-anim-review.sh`.

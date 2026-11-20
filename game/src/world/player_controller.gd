@@ -46,7 +46,6 @@ var _block_blend: float = 0.0
 var _draw_blend: float = 0.0
 var _bow_reach_blend: float = 0.0
 var _bow_twang_t: float = 0.0
-var _bow_nock_slide: float = 1.0
 var _equip_raise: float = 0.0
 var _look_sway: Vector2 = Vector2.ZERO
 var _cam_swing_rot: Vector3 = Vector3.ZERO
@@ -55,11 +54,7 @@ var _right_swing_t: float = 0.0
 var _right_swing_dur: float = 0.44
 var _right_swing_power: bool = false
 var _right_combo_step: int = 0
-var _swing_start_pos: Vector3 = Vector3.ZERO
-var _swing_start_quat: Quaternion = Quaternion.IDENTITY
 var _swing_was_charged: bool = false
-var _last_r_pos: Vector3 = Vector3(0.30, -0.32, -0.52)
-var _last_r_quat: Quaternion = Quaternion.IDENTITY
 
 var _left_action_t: float = 0.0
 var _left_action_dur: float = 0.38
@@ -100,11 +95,110 @@ var _offhand_axe: bool = false
 var _trail: MeshInstance3D = null
 var _trail_pts: Array = []
 const TRAIL_LIFE := 0.095
-const TWO_HAND_LEFT_ROLL := -40.0
-## Two-handed carry: haft held across the body at chest height, fist low-centre, head to the right
-const TWO_HAND_POS := Vector3(0.05, -0.32, -0.54)
-const TWO_HAND_GRIP := Vector3(0.68, 0.56, -0.47)
-const TWO_HAND_FOREARM := Vector3(0.38, -0.46, 0.80)
+var _swing_start_key: Array = []
+var _last_right_attack_t: float = -10.0
+var _last_left_attack_t: float = -10.0
+var _fp_upper_r: Node3D = null
+var _fp_upper_l: Node3D = null
+var _elbow_local_r: Vector3 = Vector3.ZERO  ## where this hand's forearm mesh ends (ZERO = no arm shown)
+var _elbow_local_l: Vector3 = Vector3.ZERO
+var _right_single_edge: bool = false
+var _left_single_edge: bool = false
+
+# ---------------------------------------------------------------------------
+# First-person pose library (D-040)
+# Rig space = camera space: +X right, +Y up, -Z forward into the world.
+# A weapon key is [fist position, blade/haft direction out of the fist, cutting-edge direction]. The edge
+# direction is where the cut travels: the weapon is rolled in the fist so its edge always leads, while the
+# forearm's roll comes from a 2-bone arm solve toward the shoulder, so wrists never twist unnaturally.
+# Spell keys are [palm position, palm-facing direction, finger direction]. Bow keys are
+# [bow-hand position, bow limb axis, direction the back of the bow faces].
+# ---------------------------------------------------------------------------
+const FP_SHOULDER := Vector3(0.20, -0.30, 0.12)
+const FP_ELBOW_POLE := Vector3(0.6, -1.0, 0.15)
+const FP_UPPER_ARM := 0.31
+const FP_FOREARM := 0.30
+## End of the forearm meshes (anchor space), where the upper-arm sleeve tucks in
+const FP_ELBOW_GRIP := Vector3(0.03, -0.141, 0.271)
+const FP_ELBOW_OPEN := Vector3(0.0, -0.097, 0.226)
+
+# One-handed blade (right hand; the off-hand uses the mirror image)
+const FP_SWORD_REST := [Vector3(0.27, -0.29, -0.50), Vector3(-0.10, 0.88, -0.46), Vector3(1.0, 0.0, 0.0)]
+const FP_SWORD_SPRINT := [Vector3(0.24, -0.38, -0.44), Vector3(0.30, 0.55, -0.78), Vector3(1.0, 0.0, 0.0)]
+## Forehand: cocked over the right shoulder -> cuts out in front, high-right to low-left -> follows through low-left
+const FP_SWORD_LIGHT_1 := [
+	[Vector3(0.35, -0.05, -0.36), Vector3(0.30, 0.70, 0.65), Vector3(-0.45, -0.30, -0.84)],
+	[Vector3(0.06, -0.15, -0.60), Vector3(-0.62, 0.22, -0.75), Vector3(-0.35, -0.93, 0.10)],
+	[Vector3(-0.10, -0.33, -0.54), Vector3(-0.70, -0.38, -0.60), Vector3(-0.30, -0.60, 0.74)],
+]
+## Backhand: coiled across the body low-left -> rising cut out in front -> finishes high-right
+const FP_SWORD_LIGHT_2 := [
+	[Vector3(-0.06, -0.32, -0.44), Vector3(-0.75, -0.10, 0.25), Vector3(0.40, 0.20, -0.90)],
+	[Vector3(0.08, -0.15, -0.62), Vector3(0.55, 0.30, -0.78), Vector3(0.30, 0.92, 0.25)],
+	[Vector3(0.36, -0.04, -0.44), Vector3(0.62, 0.62, -0.10), Vector3(0.20, 0.40, 0.90)],
+]
+const FP_SWORD_CHARGE := [Vector3(0.32, 0.0, -0.36), Vector3(0.20, 0.80, 0.55), Vector3(-0.20, -0.50, -0.84)]
+## Power cleave: from the coiled charge, a committed downward-diagonal cut through the crosshair
+const FP_SWORD_POWER := [
+	[Vector3(0.10, -0.10, -0.64), Vector3(-0.55, 0.12, -0.83), Vector3(-0.40, -0.92, 0.0)],
+	[Vector3(-0.08, -0.33, -0.54), Vector3(-0.62, -0.45, -0.64), Vector3(-0.20, -0.55, 0.80)],
+]
+
+# Two-handed axe: keys are for the TOP (right) hand; the left hand rides lower on the haft.
+const FP_AXE_HAND_R := 0.47  ## right fist on the upper leather wrap (model units along the haft)
+const FP_AXE_HAND_L := -0.11  ## left fist on the lower leather wrap
+const FP_AXE_REST := [Vector3(0.30, -0.26, -0.50), Vector3(0.30, 0.80, -0.52), Vector3(-0.60, 0.0, -0.80)]
+const FP_AXE_SPRINT := [Vector3(0.24, -0.34, -0.42), Vector3(0.62, 0.62, -0.48), Vector3(-0.30, 0.0, -0.95)]
+## Diagonal chop: axe hoisted over the right shoulder -> head drives down-left through the crosshair
+const FP_AXE_LIGHT_1 := [
+	[Vector3(0.36, 0.02, -0.34), Vector3(0.28, 0.55, 0.79), Vector3(0.0, 0.82, -0.57)],
+	[Vector3(0.08, -0.20, -0.58), Vector3(-0.50, 0.25, -0.83), Vector3(-0.45, -0.89, 0.0)],
+	[Vector3(-0.12, -0.34, -0.50), Vector3(-0.72, -0.28, -0.64), Vector3(-0.20, -0.60, 0.77)],
+]
+## Backhand sweep: head out to the left -> sweeps across the front -> carries out to the right
+const FP_AXE_LIGHT_2 := [
+	[Vector3(-0.14, -0.18, -0.40), Vector3(-0.82, 0.30, 0.20), Vector3(0.10, 0.10, -1.0)],
+	[Vector3(0.06, -0.14, -0.62), Vector3(0.05, 0.25, -0.97), Vector3(1.0, 0.0, 0.0)],
+	[Vector3(0.32, -0.10, -0.46), Vector3(0.86, 0.25, -0.05), Vector3(0.0, 0.0, 1.0)],
+]
+const FP_AXE_CHARGE := [Vector3(0.26, 0.10, -0.30), Vector3(0.10, 0.55, 0.83), Vector3(0.0, 0.83, -0.55)]
+## Overhead slam: the head comes up and over the top of the view, then drives down the centre line while the
+## hands finish low at the belly (a forward-pointing haft at face height would put the lower fist in the lens)
+const FP_AXE_POWER := [
+	[Vector3(0.16, -0.04, -0.46), Vector3(-0.12, 0.85, -0.52), Vector3(-0.40, -0.45, -0.80)],
+	[Vector3(0.10, -0.26, -0.56), Vector3(-0.30, 0.10, -0.95), Vector3(-0.45, -0.89, 0.0)],
+	[Vector3(0.0, -0.40, -0.50), Vector3(-0.36, -0.25, -0.90), Vector3(-0.30, -0.90, 0.30)],
+]
+const FP_AXE_POWER_TIMES := [0.0, 0.16, 0.30, 0.48, 1.0]
+const FP_AXE_POWER_CURVES := [1.6, 0.9, 0.45, -1.8]
+
+# Spell hands: palm faces the target, back of the hand toward the player
+const FP_SPELL_REST_R := [Vector3(0.30, -0.31, -0.52), Vector3(-0.30, 0.10, -0.95), Vector3(-0.10, 0.95, 0.30)]
+const FP_SPELL_REST_L := [Vector3(-0.30, -0.31, -0.52), Vector3(0.30, 0.10, -0.95), Vector3(0.10, 0.95, 0.30)]
+## Gather (draw the palm back) -> thrust the open palm at the crosshair -> hold the release -> settle
+const FP_SPELL_CAST_R := [
+	[Vector3(0.33, -0.34, -0.42), Vector3(-0.40, 0.30, -0.87), Vector3(0.0, 0.95, 0.30)],
+	[Vector3(0.14, -0.17, -0.72), Vector3(-0.10, 0.0, -1.0), Vector3(0.0, 0.95, -0.30)],
+	[Vector3(0.17, -0.19, -0.66), Vector3(-0.15, 0.05, -0.99), Vector3(0.0, 0.97, -0.20)],
+]
+
+# Bow: canted low carry -> raised vertical just left of the crosshair, the arrow under the eye (an archer's view)
+const FP_BOW_IDLE := [Vector3(-0.30, -0.36, -0.56), Vector3(0.42, 0.84, -0.34), Vector3(0.25, -0.20, -0.95)]
+const FP_BOW_AIM := [Vector3(-0.07, -0.125, -0.62), Vector3(-0.04, 0.998, -0.04), Vector3(0.06, 0.0, -1.0)]
+## Full-draw nock relative to the arrow rest: drawn back to the right cheek, so the string and arrow slant in from
+## the lower right and the arrow tip settles just below-left of the crosshair (the nock stays ~10 cm off the lens)
+const FP_BOW_ANCHOR := Vector3(0.085, -0.035, 0.52)
+const FP_BOW_HOOK := Vector3(0.03, -0.035, 0.035)  ## drawing fist relative to the nock (fingers hooked on the string)
+const FP_BOW_HAND_REST := Vector3(0.38, -0.60, -0.28)  ## drawing hand relaxed below the frame
+
+const FP_SWING_TIMES := [0.0, 0.22, 0.42, 0.60, 1.0]
+const FP_SWING_TIMES_2H := [0.0, 0.26, 0.46, 0.64, 1.0]
+## wind-up decelerates into the coil, the strike accelerates into impact, follow-through bleeds off, recovery eases
+const FP_SWING_CURVES := [0.7, 1.4, 0.5, -1.8]
+const FP_POWER_TIMES := [0.0, 0.30, 0.50, 1.0]
+const FP_POWER_CURVES := [1.9, 0.45, -1.8]
+const FP_CAST_TIMES := [0.0, 0.22, 0.42, 0.62, 1.0]
+const FP_CAST_CURVES := [-1.6, 1.8, 0.5, -1.8]
 var _blade_tip: Node3D = null
 var _blade_base: Node3D = null
 var _hitstop: float = 0.0
@@ -160,6 +254,14 @@ func setup(p_cfg: Dictionary, p_prog: ProgressionSystem, p_rng: SeededRng, callb
 	fp_left_anchor = Node3D.new()
 	fp_left_anchor.name = "LeftHandAnchor"
 	fp_rig.add_child(fp_left_anchor)
+
+	# Upper-arm sleeves run from each forearm's elbow back to the shoulder (no floating elbow guards)
+	_fp_upper_r = _arm("fp_upper_arm")
+	_fp_upper_r.name = "RightUpperArm"
+	fp_rig.add_child(_fp_upper_r)
+	_fp_upper_l = _arm("fp_upper_arm")
+	_fp_upper_l.name = "LeftUpperArm"
+	fp_rig.add_child(_fp_upper_l)
 
 	# Soft "presence" fill: keeps hands, weapons and nearby stone readable in dark corridors
 	var fp_rim := OmniLight3D.new()
@@ -570,6 +672,19 @@ func _arm(model_name: String) -> Node3D:
 	return a
 
 
+## Open spell-casting arm. The fp_arm_open models are authored palm-forward in Blender's frame, which lands
+## palm-toward-camera in Godot, so the mesh is turned to face the target (palm along the anchor's -Z). Turned
+## around, the "_l" mesh is the anatomically right hand (thumb toward the body) and vice versa.
+func _open_arm(side: String) -> Node3D:
+	var a := _arm("fp_arm_open_" + ("l" if side == "r" else "r"))
+	a.rotation_degrees = Vector3(0.0, 180.0, 0.0)
+	return a
+
+
+static func _is_single_edged(model_path: String) -> bool:
+	return model_path.contains("axe") or model_path.contains("cleaver")
+
+
 func _disable_shadows(n: Node) -> void:
 	if n is GeometryInstance3D:
 		(n as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -596,6 +711,10 @@ func refresh_hand_visuals() -> void:
 	_blade_tip = null
 	_blade_base = null
 	_offhand_axe = false
+	_right_single_edge = false
+	_left_single_edge = false
+	_elbow_local_r = Vector3.ZERO
+	_elbow_local_l = Vector3.ZERO
 	if fp_right_anchor == null:
 		return
 
@@ -609,33 +728,33 @@ func refresh_hand_visuals() -> void:
 		_fp_right_weapon_holder = Node3D.new()
 		fp_right_anchor.add_child(_fp_right_weapon_holder)
 		if str(rh.get("category", "")) == "spell":
-			fp_right_anchor.add_child(_arm("fp_arm_open_r"))
+			fp_right_anchor.add_child(_open_arm("r"))
+			_elbow_local_r = FP_ELBOW_OPEN
 			_attach_spell_fx(_fp_right_weapon_holder, rh)
 		else:
 			fp_right_anchor.add_child(_arm("fp_arm_grip_r"))
+			_elbow_local_r = FP_ELBOW_GRIP
 			if not is_bow:
 				var w_model := ModelLoader.instantiate_model(str(rh.get("model", "")), Vector3(0.05, 0.9, 0.05))
-				if is_two_hand:
-					w_model.position.y = -0.22
+				_right_single_edge = _is_single_edged(str(rh.get("model", "")))
 				_disable_shadows(w_model)
 				_fp_right_weapon_holder.add_child(w_model)
-				var tip_len := 0.78 if is_two_hand else 0.9
+				# Streak only along the outer part of the blade / the axe's cutting edge, so it reads as a glint
 				_blade_base = Node3D.new()
-				# Streak only along the outer part of the blade / the axe head, so it reads as a glint, not a wedge
-				_blade_base.position = Vector3(0, 0.72 if is_two_hand else 0.68, 0)
+				_blade_base.position = Vector3(0.21, 0.80, 0.0) if is_two_hand else Vector3(0.0, 0.68, 0.0)
 				_fp_right_weapon_holder.add_child(_blade_base)
 				_blade_tip = Node3D.new()
-				_blade_tip.position = Vector3(0, tip_len + (0.14 if is_two_hand else 0.0), 0)
+				_blade_tip.position = Vector3(0.25, 1.0, 0.0) if is_two_hand else Vector3(0.0, 0.9, 0.0)
 				_fp_right_weapon_holder.add_child(_blade_tip)
 				if is_two_hand:
 					_offhand_axe = true
-					_fp_right_weapon_holder.basis = _two_hand_holder_basis()
 
 	# --- LEFT HAND ---
 	if is_bow:
 		_fp_left_weapon_holder = Node3D.new()
 		fp_left_anchor.add_child(_fp_left_weapon_holder)
 		fp_left_anchor.add_child(_arm("fp_arm_grip_l"))
+		_elbow_local_l = FP_ELBOW_GRIP * Vector3(-1.0, 1.0, 1.0)
 		_bow_node = ModelLoader.instantiate_model(str(rh.get("model", "")), Vector3(0.05, 1.4, 0.1))
 		_bow_node.rotation_degrees = Vector3(0.0, 180.0, 0.0)
 		_disable_shadows(_bow_node)
@@ -652,30 +771,34 @@ func refresh_hand_visuals() -> void:
 		fp_left_anchor.add_child(_fp_nocked_arrow)
 	elif _offhand_axe:
 		fp_left_anchor.add_child(_arm("fp_arm_grip_l"))
+		_elbow_local_l = FP_ELBOW_GRIP * Vector3(-1.0, 1.0, 1.0)
 	elif not lh.is_empty():
 		_fp_left_weapon_holder = Node3D.new()
 		fp_left_anchor.add_child(_fp_left_weapon_holder)
 		var lcat := str(lh.get("category", ""))
 		if lcat == "shield":
 			fp_left_anchor.add_child(_arm("fp_arm_grip_l"))
+			_elbow_local_l = FP_ELBOW_GRIP * Vector3(-1.0, 1.0, 1.0)
 			var sh := ModelLoader.instantiate_model(str(lh.get("model", "")), Vector3(0.8, 0.8, 0.1))
 			sh.rotation_degrees = Vector3(0.0, 180.0, 0.0)
 			sh.scale = Vector3.ONE * 0.62
 			_disable_shadows(sh)
 			_fp_left_weapon_holder.add_child(sh)
 		elif lcat == "spell":
-			fp_left_anchor.add_child(_arm("fp_arm_open_l"))
+			fp_left_anchor.add_child(_open_arm("l"))
+			_elbow_local_l = FP_ELBOW_OPEN
 			_attach_spell_fx(_fp_left_weapon_holder, lh)
 		else:
 			fp_left_anchor.add_child(_arm("fp_arm_grip_l"))
+			_elbow_local_l = FP_ELBOW_GRIP * Vector3(-1.0, 1.0, 1.0)
 			var lw := ModelLoader.instantiate_model(str(lh.get("model", "")), Vector3(0.05, 0.9, 0.05))
+			_left_single_edge = _is_single_edged(str(lh.get("model", "")))
 			_disable_shadows(lw)
 			_fp_left_weapon_holder.add_child(lw)
 
 	_equip_raise = 1.0
 	_bow_reach_blend = 0.0
 	_bow_twang_t = 0.0
-	_bow_nock_slide = 1.0
 	_refresh_tp_weapons()
 	_update_procedural_animations(0.016, 0.0, false)
 
@@ -789,8 +912,6 @@ func _update_procedural_animations(delta: float, move_amount: float, is_sprintin
 	_bow_reach_blend = lerpf(_bow_reach_blend, target_reach, clampf(dt * (12.0 if target_reach > 0.5 else 7.5), 0.0, 1.0))
 	_bow_twang_t = maxf(0.0, _bow_twang_t - dt)
 	_bow_release_recoil = maxf(0.0, _bow_release_recoil - dt * 3.4)
-	if _bow_release_recoil < 0.35:
-		_bow_nock_slide = minf(1.0, _bow_nock_slide + dt * 4.5)
 	_look_sway = _look_sway.lerp(Vector2.ZERO, clampf(dt * 8.5, 0.0, 1.0))
 	_camera_kick = maxf(0.0, _camera_kick - dt * 4.2)
 	_shake = maxf(0.0, _shake - dt * 3.2)
@@ -828,168 +949,66 @@ func _update_procedural_animations(delta: float, move_amount: float, is_sprintin
 	fp_rig.position = Vector3(breathe_x + walk_x + _look_sway.x, breathe_y + walk_y + _look_sway.y - _sprint_blend * 0.03 - equip_drop, 0.0)
 	fp_rig.rotation_degrees = Vector3(_look_sway.y * 38.0 - ease(_equip_raise, 2.0) * 16.0, _look_sway.x * 46.0, -_look_sway.x * 28.0 - walk_x * 45.0)
 
-	# --- RIGHT HAND rest pose -------------------------------------------------------
-	var r_pos := Vector3(0.30, -0.32, -0.52)
-	var r_quat := Basis.from_euler(Vector3(-20.0, -8.0, 16.0) * (PI / 180.0)).get_rotation_quaternion()
-	if is_two_hand:
-		r_pos = TWO_HAND_POS
-		r_quat = _hand_basis(TWO_HAND_GRIP, TWO_HAND_FOREARM).get_rotation_quaternion()
-	elif is_bow:
-		# Out-of-frame resting draw hand shares exact forearm hemisphere (pointing outward-right & downward)
-		# so raising onto the string NEVER brings the vambrace elbow cop into the camera view!
-		r_pos = Vector3(0.42, -0.54, -0.34)
-		r_quat = _hand_basis(Vector3(0.0, 0.96, -0.28), Vector3(0.84, -0.40, 0.36)).get_rotation_quaternion()
-	elif r_spell:
-		r_pos = Vector3(0.28, -0.30, -0.50)
-		r_quat = Basis.from_euler(Vector3(-10.0, 10.0, 0.0) * (PI / 180.0)).get_rotation_quaternion()
+	# --- RIGHT HAND ----------------------------------------------------------------
+	# Weapon keys are [fist position, blade/haft direction, cutting-edge direction] in rig space (see FP_* consts).
+	var r_key: Array = FP_AXE_REST if is_two_hand else FP_SWORD_REST
+	if r_spell:
+		r_key = FP_SPELL_REST_R
+	var sprint_key: Array = FP_AXE_SPRINT if is_two_hand else FP_SWORD_SPRINT
+	if _sprint_blend > 0.01 and _right_swing_t <= 0.0 and not is_bow and not r_spell:
+		var sp_pump := sin(_walk_bob_phase) * bob_k
+		var pumped := [
+			(sprint_key[0] as Vector3) + Vector3(sp_pump * 0.03, cos(_walk_bob_phase * 2.0) * 0.015 * bob_k, -sp_pump * 0.025),
+			(sprint_key[1] as Vector3) + Vector3(0.0, 0.0, sp_pump * 0.12),
+			sprint_key[2],
+		]
+		r_key = _blend_keys(r_key, pumped, ease(_sprint_blend, -1.5))
 
-	# Sprinting rhythmic weapon pump (when not swinging or bow-drawing)
-	if _sprint_blend > 0.01 and _right_swing_t <= 0.0 and not is_bow:
-		var sp_pump := sin(_walk_bob_phase) * _sprint_blend * bob_k
-		var sp_pos := Vector3(-0.04 + sp_pump * 0.025, -0.09 + cos(_walk_bob_phase * 2.0) * 0.012 * _sprint_blend * bob_k, 0.05 - sp_pump * 0.02)
-		var sp_q := Basis.from_euler(Vector3(-20.0 + sp_pump * 6.0, 16.0, 18.0) * (PI / 180.0)).get_rotation_quaternion()
-		r_pos += sp_pos * _sprint_blend
-		r_quat = r_quat.slerp(r_quat * sp_q, _sprint_blend)
-
-	# Power-attack wind-up charge hold (smoothly lifts weapon into high ready cleave!)
+	# Power-attack charge: weapon coils high over the right shoulder, trembling as the charge completes
 	if is_right_holding and not is_bow and str(rh.get("category", "")) == "weapon" and _right_swing_t <= 0.0:
 		var charge := clampf(right_attack_hold / float(player_cfg["combat"]["power_attack_hold_sec"]), 0.0, 1.0)
-		var ce := ease(charge, -1.6)
-		var chg_key: Array
-		if is_two_hand:
-			# Lift heavy battleaxe high-right pitched slightly forward while keeping forearms tucked low off bottom edge!
-			chg_key = _swing_key(Vector3(0.18, -0.18, -0.50), Vector3(-0.16, 0.78, -0.60), Vector3(0.24, -0.78, 0.58))
-		else:
-			# Raise longsword high right-back coiled for an explosive power cleave
-			chg_key = _swing_key(Vector3(0.36, -0.04, -0.40), Vector3(-0.32, 0.86, 0.39), Vector3(0.46, -0.68, 0.57))
-		r_pos = r_pos.lerp(chg_key[0] as Vector3, ce)
-		r_quat = r_quat.slerp(chg_key[1] as Quaternion, ce)
-		# Subtle muscular tension tremor near full charge
-		var trem := maxf(0.0, charge - 0.55) / 0.45
-		r_pos += Vector3(sin(_anim_time * 36.0), cos(_anim_time * 43.0), 0.0) * 0.0022 * trem
+		r_key = _blend_keys(r_key, FP_AXE_CHARGE if is_two_hand else FP_SWORD_CHARGE, ease(charge, -1.8))
+		var trem := maxf(0.0, charge - 0.6) / 0.4
+		r_key = [(r_key[0] as Vector3) + Vector3(sin(_anim_time * 36.0), cos(_anim_time * 43.0), 0.0) * 0.0025 * trem, r_key[1], r_key[2]]
 
-	# Track live pose right before swing evaluation so releasing a charge never snaps back to rest!
-	if _right_swing_t <= 0.0:
-		_last_r_pos = r_pos
-		_last_r_quat = r_quat
+	# The live pose right before a swing starts, so a swing (incl. a released charge) never snaps
+	if _right_swing_t <= 0.0 or _swing_start_key.is_empty():
+		_swing_start_key = r_key
 
 	var target_cam_swing := Vector3.ZERO
 	if _right_swing_t > 0.0:
 		var u := 1.0 - (_right_swing_t / maxf(0.01, _right_swing_dur))
+		var sw := sin(u * PI)
+		var keys: Array = []
+		var times: Array = FP_SWING_TIMES
+		var curves: Array = FP_SWING_CURVES
 		if r_spell:
-			# 3-phase spell cast: 0..0.24 gather back -> 0.24..0.48 crisp palm thrust -> 0.48..1.0 recover
-			var rest_k := [r_pos, r_quat]
-			var gather_q := Basis.from_euler(Vector3(8.0, 22.0, -10.0) * (PI / 180.0)).get_rotation_quaternion()
-			var thrust_q := Basis.from_euler(Vector3(-28.0, 4.0, 8.0) * (PI / 180.0)).get_rotation_quaternion()
-			var recoil_q := Basis.from_euler(Vector3(-18.0, 8.0, 4.0) * (PI / 180.0)).get_rotation_quaternion()
-			var keys := [
-				rest_k,
-				[r_pos + Vector3(0.07, -0.05, 0.10), gather_q],
-				[r_pos + Vector3(-0.10, 0.06, -0.24), thrust_q],
-				[r_pos + Vector3(-0.07, 0.09, -0.18), recoil_q],
-				rest_k,
-			]
-			var spose := _swing_pose(u, keys, [0.0, 0.24, 0.46, 0.62, 1.0], [-1.6, 2.0, 0.45, -1.8])
-			r_pos = spose[0] as Vector3
-			r_quat = spose[1] as Quaternion
+			keys = [_swing_start_key] + FP_SPELL_CAST_R + [r_key]
+			times = FP_CAST_TIMES
+			curves = FP_CAST_CURVES
+		elif _right_swing_power:
+			keys = [_swing_start_key] + (FP_AXE_POWER if is_two_hand else FP_SWORD_POWER) + [r_key]
+			times = FP_AXE_POWER_TIMES if is_two_hand else FP_POWER_TIMES
+			curves = FP_AXE_POWER_CURVES if is_two_hand else FP_POWER_CURVES
+			target_cam_swing = Vector3(-3.2 * sw, 0.4 * sw, 1.0 * sw)
+		elif _right_combo_step % 2 == 1:
+			keys = [_swing_start_key] + (FP_AXE_LIGHT_1 if is_two_hand else FP_SWORD_LIGHT_1) + [r_key]
+			target_cam_swing = Vector3(-1.2 * sw, 1.6 * sw, 1.6 * sw)
 		else:
-			var rest_key := [r_pos, r_quat]
-			var start_key := [_swing_start_pos, _swing_start_quat]
-			var keys: Array = []
-			var times: Array = []
-			var curves: Array = []
-			if _right_swing_power:
-				# Power Attack Overhead Cleave: if already charged, strikes straight FROM raised charge pose!
-				var high_key: Array = _swing_key(Vector3(0.18, -0.16, -0.50), Vector3(-0.16, 0.78, -0.60), Vector3(0.24, -0.78, 0.58)) if is_two_hand \
-					else _swing_key(Vector3(0.24, 0.05, -0.36), Vector3(-0.20, 0.86, 0.46), Vector3(0.30, -0.78, 0.54))
-				var mid_cut: Array = _swing_key(Vector3(0.04, -0.18, -0.62), Vector3(-0.18, 0.12, -0.97), Vector3(0.32, -0.42, 0.85))
-				var follow_key: Array = _swing_key(Vector3(-0.14, -0.44, -0.52), Vector3(-0.28, -0.62, -0.73), Vector3(0.45, -0.22, 0.86))
-				if _swing_was_charged:
-					keys = [start_key, high_key, mid_cut, follow_key, rest_key]
-					times = [0.0, 0.12, 0.34, 0.54, 1.0]
-					curves = [0.5, 2.2, 0.42, -1.9]
-				else:
-					keys = [start_key, high_key, mid_cut, follow_key, rest_key]
-					times = [0.0, 0.26, 0.46, 0.64, 1.0]
-					curves = [-1.6, 2.2, 0.42, -1.9]
-				target_cam_swing = Vector3(sin(u * PI) * -2.6, 0.0, sin(u * PI) * 1.4)
-			elif is_two_hand and _right_combo_step % 2 == 0:
-				# 2H Battleaxe Light #1: Heavy diagonal right-high to left-low cleave right across crosshair
-				keys = [
-					start_key,
-					_swing_key(Vector3(0.28, -0.10, -0.52), Vector3(0.32, 0.74, -0.58), Vector3(0.42, -0.62, 0.66)),
-					_swing_key(Vector3(0.04, -0.22, -0.62), Vector3(-0.82, 0.18, -0.54), Vector3(0.48, -0.42, 0.77)),
-					_swing_key(Vector3(-0.22, -0.40, -0.52), Vector3(-0.70, -0.56, -0.44), Vector3(0.68, -0.18, 0.71)),
-					rest_key,
-				]
-				times = [0.0, 0.24, 0.46, 0.64, 1.0]
-				curves = [-1.6, 2.1, 0.42, -1.9]
-				target_cam_swing = Vector3(-0.9 * sin(u * PI), 1.8 * sin(u * PI), 1.6 * sin(u * PI))
-			elif is_two_hand:
-				# 2H Battleaxe Light #2: Heavy rising cross-cleave left-low to right-high (bearded head arcs across screen!)
-				keys = [
-					start_key,
-					_swing_key(Vector3(-0.24, -0.34, -0.52), Vector3(-0.78, -0.16, -0.60), Vector3(0.58, -0.45, 0.68)),
-					_swing_key(Vector3(0.04, -0.20, -0.64), Vector3(0.84, 0.20, -0.50), Vector3(0.24, -0.54, 0.80)),
-					_swing_key(Vector3(0.26, -0.12, -0.54), Vector3(0.72, 0.46, -0.52), Vector3(0.04, -0.68, 0.73)),
-					rest_key,
-				]
-				times = [0.0, 0.24, 0.46, 0.64, 1.0]
-				curves = [-1.6, 2.1, 0.42, -1.9]
-				target_cam_swing = Vector3(0.7 * sin(u * PI), -1.8 * sin(u * PI), -1.5 * sin(u * PI))
-			elif _right_combo_step % 2 == 0:
-				# 1H Forehand Diagonal Slash: right-high -> crisp cut across center -> left-low follow-through
-				keys = [
-					start_key,
-					_swing_key(Vector3(0.36, -0.06, -0.44), Vector3(-0.18, 0.90, 0.39), Vector3(0.50, -0.62, 0.60)),
-					_swing_key(Vector3(0.06, -0.20, -0.60), Vector3(-0.88, 0.14, -0.45), Vector3(0.56, -0.38, 0.73)),
-					_swing_key(Vector3(-0.22, -0.38, -0.50), Vector3(-0.62, -0.58, 0.12), Vector3(0.76, -0.10, 0.64)),
-					rest_key,
-				]
-				times = [0.0, 0.22, 0.44, 0.60, 1.0]
-				curves = [-1.5, 2.0, 0.42, -1.8]
-				target_cam_swing = Vector3(-0.5 * sin(u * PI), 1.3 * sin(u * PI), 1.1 * sin(u * PI))
-			else:
-				# 1H Backhand Riposte: coiled left-low -> rising whip across center -> high-right flourish
-				keys = [
-					start_key,
-					_swing_key(Vector3(-0.16, -0.34, -0.46), Vector3(-0.74, 0.32, 0.59), Vector3(0.62, -0.52, 0.58)),
-					_swing_key(Vector3(0.08, -0.19, -0.60), Vector3(0.88, 0.26, -0.39), Vector3(0.14, -0.58, 0.80)),
-					_swing_key(Vector3(0.36, -0.08, -0.42), Vector3(0.58, 0.62, 0.53), Vector3(-0.10, -0.78, 0.62)),
-					rest_key,
-				]
-				times = [0.0, 0.22, 0.44, 0.60, 1.0]
-				curves = [-1.5, 2.0, 0.42, -1.8]
-				target_cam_swing = Vector3(0.4 * sin(u * PI), -1.3 * sin(u * PI), -1.1 * sin(u * PI))
-			var pose := _swing_pose(u, keys, times, curves)
-			r_pos = pose[0] as Vector3
-			r_quat = pose[1] as Quaternion
+			keys = [_swing_start_key] + (FP_AXE_LIGHT_2 if is_two_hand else FP_SWORD_LIGHT_2) + [r_key]
+			target_cam_swing = Vector3(-0.6 * sw, -1.8 * sw, -1.2 * sw)
+		if is_two_hand and not r_spell and not _right_swing_power:
+			times = FP_SWING_TIMES_2H
+		r_key = _sample_keys(u, keys, times, curves)
 
-	r_pos.y += sin(_walk_bob_phase + 0.6) * 0.006 * _move_blend * bob_k
+	r_key = [(r_key[0] as Vector3) + Vector3(0.0, sin(_walk_bob_phase + 0.6) * 0.006 * _move_blend * bob_k, 0.0), r_key[1], r_key[2]]
 
 	# --- LEFT HAND ------------------------------------------------------------------
+	var l_key: Array = []
 	var l_pos := Vector3(-0.36, -0.38, -0.56)
 	var l_quat := Basis.from_euler(Vector3(-6.0, 22.0, -6.0) * (PI / 180.0)).get_rotation_quaternion()
 	var lcat := str(lh.get("category", ""))
-	if is_bow:
-		# Bow arm: relaxed canted carry -> smoothly steadies near center-left sightline on draw; damped recoil on loose
-		var rec_k := ease(_bow_release_recoil, 0.5)
-		var recoil_pos := Vector3(-0.015, 0.022, 0.055) * rec_k
-		var draw_e := ease(_draw_blend, 0.75)
-		var aim_e := ease(maxf(_draw_blend, _bow_reach_blend * 0.65), -1.4)
-		l_pos = Vector3(-0.30, -0.28, -0.68).lerp(Vector3(-0.12, -0.14, -0.74), aim_e) + recoil_pos
-		if _sprint_blend > 0.01 and _draw_blend < 0.05:
-			l_pos += Vector3(0.08, -0.10, 0.06) * _sprint_blend
-		var rest_b := _hand_basis(Vector3(0.42, 0.90, -0.10), Vector3(-0.32, -0.46, 0.83))
-		var draw_b := _hand_basis(Vector3(0.14, 0.988, 0.0), Vector3(-0.44, -0.42, 0.79))
-		var rec_b := _hand_basis(Vector3(0.22, 0.96, 0.16), Vector3(-0.44, -0.45, 0.78))
-		l_quat = rest_b.get_rotation_quaternion().slerp(draw_b.get_rotation_quaternion(), aim_e)
-		if rec_k > 0.01:
-			l_quat = l_quat.slerp(rec_b.get_rotation_quaternion(), rec_k * 0.55)
-		# Subtle full-draw bow tension breathing
-		if draw_e > 0.7:
-			l_pos += Vector3(sin(_anim_time * 2.1), cos(_anim_time * 1.7), 0.0) * 0.0025 * (draw_e - 0.7) / 0.3
-	elif _offhand_axe:
+	if is_bow or _offhand_axe:
 		pass
 	elif lcat == "shield":
 		# Rest: compact edge-on lower-left. Block: decisive raise across left-of-center; impact shove-back on hit.
@@ -1010,57 +1029,21 @@ func _update_procedural_animations(delta: float, move_amount: float, is_sprintin
 			var imp_q := Basis.from_euler(Vector3(16.0, 12.0, -8.0) * imp * (PI / 180.0)).get_rotation_quaternion()
 			l_quat = l_quat * imp_q
 	elif lcat == "spell":
-		l_pos = Vector3(-0.30, -0.30, -0.50)
-		l_quat = Basis.from_euler(Vector3(-8.0, -10.0, 0.0) * (PI / 180.0)).get_rotation_quaternion()
+		l_key = FP_SPELL_REST_L
 		if _left_action_t > 0.0:
-			# 3-phase left-hand spell cast: gather -> crisp forward thrust & palm flick -> settle
 			var u2 := 1.0 - (_left_action_t / maxf(0.01, _left_action_dur))
-			var rest_lk := [l_pos, l_quat]
-			var gather_lq := Basis.from_euler(Vector3(10.0, -24.0, 10.0) * (PI / 180.0)).get_rotation_quaternion()
-			var thrust_lq := Basis.from_euler(Vector3(-26.0, -4.0, -8.0) * (PI / 180.0)).get_rotation_quaternion()
-			var recoil_lq := Basis.from_euler(Vector3(-16.0, -8.0, -4.0) * (PI / 180.0)).get_rotation_quaternion()
-			var lkeys := [
-				rest_lk,
-				[l_pos + Vector3(-0.06, -0.05, 0.10), gather_lq],
-				[l_pos + Vector3(0.11, 0.06, -0.25), thrust_lq],
-				[l_pos + Vector3(0.08, 0.09, -0.19), recoil_lq],
-				rest_lk,
-			]
-			var lpose := _swing_pose(u2, lkeys, [0.0, 0.24, 0.46, 0.62, 1.0], [-1.6, 2.0, 0.45, -1.8])
-			l_pos = lpose[0] as Vector3
-			l_quat = lpose[1] as Quaternion
+			l_key = _sample_keys(u2, [l_key] + _mirror_keys(FP_SPELL_CAST_R) + [l_key], FP_CAST_TIMES, FP_CAST_CURVES)
 	elif not lh.is_empty():
-		# Dual-wield left-hand weapon: mirrored _hand_basis keys so left elbow ALWAYS trails cleanly off bottom-left!
-		l_pos = Vector3(-0.32, -0.32, -0.52)
-		l_quat = _hand_basis(Vector3(0.14, 0.90, -0.40), Vector3(-0.42, -0.52, 0.74)).get_rotation_quaternion()
+		# Dual-wield off-hand weapon: the right-hand sword library mirrored across the screen
+		l_key = _mirror_key(FP_SWORD_REST)
 		if _left_action_t > 0.0:
 			var u3 := 1.0 - (_left_action_t / maxf(0.01, _left_action_dur))
-			var rest_dw := [l_pos, l_quat]
-			var dw_keys: Array
-			if _left_combo_step % 2 == 0:
-				# Left-high to right-low diagonal forehand cut
-				dw_keys = [
-					rest_dw,
-					_swing_key(Vector3(-0.36, -0.08, -0.44), Vector3(0.20, 0.90, 0.38), Vector3(-0.50, -0.60, 0.62)),
-					_swing_key(Vector3(-0.06, -0.20, -0.60), Vector3(0.88, 0.14, -0.45), Vector3(-0.56, -0.38, 0.73)),
-					_swing_key(Vector3(0.20, -0.38, -0.50), Vector3(0.62, -0.56, 0.15), Vector3(-0.76, -0.12, 0.64)),
-					rest_dw,
-				]
-				target_cam_swing += Vector3(-0.4 * sin(u3 * PI), -1.2 * sin(u3 * PI), -1.0 * sin(u3 * PI))
-			else:
-				# Right-low to left-high rising left-hand riposte (sweeps prominently across center crosshair)
-				dw_keys = [
-					rest_dw,
-					_swing_key(Vector3(0.16, -0.28, -0.48), Vector3(0.74, 0.36, 0.56), Vector3(-0.62, -0.52, 0.58)),
-					_swing_key(Vector3(-0.06, -0.13, -0.58), Vector3(-0.88, 0.28, -0.38), Vector3(-0.18, -0.58, 0.79)),
-					_swing_key(Vector3(-0.34, -0.06, -0.44), Vector3(-0.58, 0.62, 0.53), Vector3(0.06, -0.78, 0.62)),
-					rest_dw,
-				]
-				target_cam_swing += Vector3(0.4 * sin(u3 * PI), 1.2 * sin(u3 * PI), 1.0 * sin(u3 * PI))
-			var dw_pose := _swing_pose(u3, dw_keys, [0.0, 0.22, 0.44, 0.60, 1.0], [-1.5, 2.0, 0.42, -1.8])
-			l_pos = dw_pose[0] as Vector3
-			l_quat = dw_pose[1] as Quaternion
-
+			var sw3 := sin(u3 * PI)
+			var lib: Array = FP_SWORD_LIGHT_1 if _left_combo_step % 2 == 1 else FP_SWORD_LIGHT_2
+			l_key = _sample_keys(u3, [l_key] + _mirror_keys(lib) + [l_key], FP_SWING_TIMES, FP_SWING_CURVES)
+			target_cam_swing += Vector3(-1.0 * sw3, -1.4 * sw3, -1.4 * sw3) if _left_combo_step % 2 == 1 else Vector3(-0.5 * sw3, 1.6 * sw3, 1.1 * sw3)
+	if not l_key.is_empty():
+		l_key = [(l_key[0] as Vector3) + Vector3(0.0, sin(_walk_bob_phase + 2.2) * 0.006 * _move_blend * bob_k, 0.0), l_key[1], l_key[2]]
 	l_pos.y += sin(_walk_bob_phase + 2.2) * 0.006 * _move_blend * bob_k
 
 	# Apply camera bob, shake & subtle melee swing coupling in first-person
@@ -1078,64 +1061,26 @@ func _update_procedural_animations(delta: float, move_amount: float, is_sprintin
 			-head_bob_x * 20.0 + sin(_shake_phase) * _shake * 1.5 + _cam_swing_rot.z
 		)
 
-	fp_right_anchor.transform = Transform3D(Basis(r_quat), r_pos)
-	if _offhand_axe:
-		# Left hand tracks the lower grip wrap of the battleaxe haft cleanly throughout idle, walk, and cleave
-		var hold := fp_right_anchor.transform * Transform3D(Basis(Vector3.UP, deg_to_rad(TWO_HAND_LEFT_ROLL)), Vector3(0.0, -0.17, 0.0))
-		fp_left_anchor.transform = hold
+	# --- Pose the rig -----------------------------------------------------------------
+	if is_bow:
+		_pose_bow()
+	elif is_two_hand:
+		_pose_two_hand(r_key)
+	elif r_spell:
+		_pose_palm(fp_right_anchor, r_key)
+	elif not rh.is_empty():
+		_pose_fist(fp_right_anchor, _fp_right_weapon_holder, r_key, false, _right_single_edge)
 	else:
-		fp_left_anchor.transform = Transform3D(Basis(l_quat), l_pos)
-
-	# --- Bowstring pull (with taut release twang!), sightline-aligned arrow & clean drawing hand ----
-	if is_bow and _bow_node != null:
-		var bow_to_anchor := _fp_left_weapon_holder.transform * _bow_node.transform
-		var bow_to_cam := fp_left_anchor.transform * bow_to_anchor
-		# Rest nocking point sits level with the inner arrow rest (-0.026, +0.055) so the arrow points DEAD STRAIGHT!
-		var rest_nock_cam := bow_to_cam * Vector3(-0.026, 0.055, _string_rest_z)
-		# Pull straight back beneath player's right eye so arrow aligns straight down the crosshair!
-		var cheek := Vector3(-0.08, -0.09, -0.30)
-		var nock_cam := rest_nock_cam.lerp(cheek, ease(_draw_blend, 0.82))
-		# Taut bowstring spring twang right after firing!
-		if _bow_twang_t > 0.0 and _draw_blend < 0.08:
-			var tw_u := 0.32 - _bow_twang_t
-			var vib := sin(tw_u * 75.0) * exp(-tw_u * 13.0) * 0.038
-			nock_cam += (bow_to_cam.basis * Vector3(0.0, 0.0, -vib))
-		var nock_local := bow_to_cam.affine_inverse() * nock_cam
-		if _string_top != null and _string_bot != null:
-			_aim_segment(_string_top, _string_tip_top, nock_local)
-			_aim_segment(_string_bot, _string_tip_bot, nock_local)
-		if _fp_nocked_arrow != null:
-			var show_arrow := _bow_release_recoil <= 0.35
-			_fp_nocked_arrow.visible = show_arrow
-			if show_arrow:
-				# Bow is rotated Y=180 so inner (right/+X) arrow rest sits at local (-0.026, 0.055, 0.0)
-				var rest_pt := bow_to_cam * Vector3(-0.026, 0.055, 0.0)
-				var dir := (rest_pt - nock_cam).normalized()
-				# Smooth slide-in from lower right when re-nocking a fresh arrow
-				var slide := 1.0 - ease(_bow_nock_slide, 0.5)
-				var mid_cam := nock_cam + dir * (0.36 - slide * 0.16) + Vector3(0.06, -0.08, 0.04) * slide
-				var anchor_inv := fp_left_anchor.transform.affine_inverse()
-				var y_axis := anchor_inv.basis * dir
-				var x_axis := y_axis.cross(Vector3.UP).normalized()
-				if x_axis.length() < 0.1:
-					x_axis = Vector3.RIGHT
-				var z_axis := x_axis.cross(y_axis).normalized()
-				_fp_nocked_arrow.transform = Transform3D(Basis(x_axis, y_axis, z_axis), anchor_inv * mid_cam)
-		# Drawing hand: glides in smoothly with draw_blend so ONLY gloved fingers pinch string & nock
-		# while the vambrace/elbow stays cleanly off the bottom-right corner at every frame!
-		var hook_q := _hand_basis(Vector3(0.0, 0.96, -0.28), Vector3(0.84, -0.40, 0.36)).get_rotation_quaternion()
-		var loose_pos := cheek + Vector3(0.14, -0.04, 0.14)
-		var loose_q := _hand_basis(Vector3(0.08, 0.94, -0.32), Vector3(0.86, -0.38, 0.34)).get_rotation_quaternion()
-		if _bow_release_recoil > 0.08 and not is_bow_drawing:
-			# Natural archery back-tension release follow-through, then smooth lower out of frame
-			var rk := ease(clampf((_bow_release_recoil - 0.08) / 0.92, 0.0, 1.0), 0.65)
-			fp_right_anchor.position = r_pos.lerp(loose_pos, rk)
-			fp_right_anchor.basis = Basis(r_quat.slerp(loose_q, rk))
+		fp_right_anchor.transform = Transform3D(_fist_basis(FP_SWORD_REST[0], FP_SWORD_REST[1], false), FP_SWORD_REST[0])
+	if not is_bow and not is_two_hand:
+		if lcat == "spell":
+			_pose_palm(fp_left_anchor, l_key)
+		elif not l_key.is_empty():
+			_pose_fist(fp_left_anchor, _fp_left_weapon_holder, l_key, true, _left_single_edge)
 		else:
-			var draw_reach := ease(clampf(_draw_blend * 1.65, 0.0, 1.0), -1.3)
-			var hand_on_string := nock_cam + Vector3(0.048, -0.022, 0.020)
-			fp_right_anchor.position = r_pos.lerp(hand_on_string, draw_reach)
-			fp_right_anchor.basis = Basis(r_quat.slerp(hook_q, draw_reach))
+			fp_left_anchor.transform = Transform3D(Basis(l_quat), l_pos)
+	_pose_upper_arm(_fp_upper_r, fp_right_anchor, _elbow_local_r, false)
+	_pose_upper_arm(_fp_upper_l, fp_left_anchor, _elbow_local_l, true)
 
 	# --- Spell glow breathing --------------------------------------------------------
 	if _spell_fx != null and is_instance_valid(_spell_fx):
@@ -1204,31 +1149,184 @@ static func _hand_basis(grip_dir: Vector3, forearm_dir: Vector3) -> Basis:
 	return Basis(y.cross(z).normalized(), y, z)
 
 
-## Rolls a two-handed weapon around its haft inside the fist so that, in the carry pose, the head's flat
-## face turns toward the camera (otherwise the axe head is seen edge-on and vanishes).
-static func _two_hand_holder_basis() -> Basis:
-	var g := TWO_HAND_GRIP.normalized()
-	var v := (TWO_HAND_POS + g * 0.95).normalized()
-	var n := (g * v.dot(g) - v).normalized()
-	var weapon_b := Basis(g.cross(n).normalized(), g, n)
-	return _hand_basis(TWO_HAND_GRIP, TWO_HAND_FOREARM).inverse() * weapon_b
+## 2-bone arm solve: where the elbow sits for a hand at `hand`, bending toward `pole` (rig space).
+static func _ik_elbow(shoulder: Vector3, hand: Vector3, pole: Vector3) -> Vector3:
+	var d := hand - shoulder
+	var dist := maxf(d.length(), 0.0001)
+	var dir := d / dist
+	dist = clampf(dist, 0.05, (FP_UPPER_ARM + FP_FOREARM) * 0.999)
+	var cos_a := (FP_UPPER_ARM * FP_UPPER_ARM + dist * dist - FP_FOREARM * FP_FOREARM) / (2.0 * FP_UPPER_ARM * dist)
+	var sin_a := sqrt(maxf(0.0, 1.0 - cos_a * cos_a))
+	var bend := pole - dir * pole.dot(dir)
+	if bend.length() < 0.001:
+		bend = Vector3.DOWN
+	return shoulder + (dir * cos_a + bend.normalized() * sin_a) * FP_UPPER_ARM
 
 
-## One first-person swing key: fist position + where its grip axis and forearm point (rig space).
-static func _swing_key(pos: Vector3, grip_dir: Vector3, forearm_dir: Vector3) -> Array:
-	return [pos, _hand_basis(grip_dir, forearm_dir).get_rotation_quaternion()]
+## Fist orientation for a grip direction, rolled so the forearm runs back to a solved elbow (left = mirrored).
+static func _fist_basis(hand: Vector3, grip_dir: Vector3, left: bool, pole_override: Vector3 = Vector3.ZERO) -> Basis:
+	var s := -1.0 if left else 1.0
+	var shoulder := Vector3(FP_SHOULDER.x * s, FP_SHOULDER.y, FP_SHOULDER.z)
+	var pole := pole_override if pole_override != Vector3.ZERO else Vector3(FP_ELBOW_POLE.x * s, FP_ELBOW_POLE.y, FP_ELBOW_POLE.z)
+	return _hand_basis(grip_dir, _ik_elbow(shoulder, hand, pole) - hand)
 
 
-## Samples keyed fist poses at u (0..1): positions lerp, orientations slerp, each segment with its own ease.
-static func _swing_pose(u: float, keys: Array, times: Array, curves: Array) -> Array:
-	for i in range(times.size() - 1):
-		if u <= float(times[i + 1]) or i == times.size() - 2:
-			var span := maxf(0.0001, float(times[i + 1]) - float(times[i]))
-			var k := ease(clampf((u - float(times[i])) / span, 0.0, 1.0), float(curves[i]))
-			var a: Array = keys[i]
-			var b: Array = keys[i + 1]
-			return [(a[0] as Vector3).lerp(b[0] as Vector3, k), (a[1] as Quaternion).slerp(b[1] as Quaternion, k)]
-	return keys[keys.size() - 1]
+static func _mirror_key(k: Array) -> Array:
+	var m := Vector3(-1.0, 1.0, 1.0)
+	return [(k[0] as Vector3) * m, (k[1] as Vector3) * m, (k[2] as Vector3) * m]
+
+
+static func _mirror_keys(keys: Array) -> Array:
+	var out: Array = []
+	for k in keys:
+		out.append(_mirror_key(k))
+	return out
+
+
+static func _blend_keys(a: Array, b: Array, t: float) -> Array:
+	return [
+		(a[0] as Vector3).lerp(b[0] as Vector3, t),
+		(a[1] as Vector3).normalized().slerp((b[1] as Vector3).normalized(), t),
+		(a[2] as Vector3).normalized().slerp((b[2] as Vector3).normalized(), t),
+	]
+
+
+## Samples keyed poses at u (0..1) along a Catmull-Rom curve (smooth arcs, no straight-line kinks between
+## keys), with a per-segment ease so wind-ups settle, strikes accelerate and follow-throughs bleed off.
+static func _sample_keys(u: float, keys: Array, times: Array, curves: Array) -> Array:
+	var n := keys.size()
+	var i := 0
+	while i < n - 2 and u > float(times[i + 1]):
+		i += 1
+	var span := maxf(0.0001, float(times[i + 1]) - float(times[i]))
+	var k := ease(clampf((u - float(times[i])) / span, 0.0, 1.0), float(curves[i]))
+	var a: Array = keys[maxi(i - 1, 0)]
+	var b: Array = keys[i]
+	var c: Array = keys[i + 1]
+	var d: Array = keys[mini(i + 2, n - 1)]
+	var out: Array = [(b[0] as Vector3).cubic_interpolate(c[0], a[0], d[0], k)]
+	for j in [1, 2]:
+		var bj := (b[j] as Vector3).normalized()
+		var cj := (c[j] as Vector3).normalized()
+		var v := bj.cubic_interpolate(cj, (a[j] as Vector3).normalized(), (d[j] as Vector3).normalized(), k)
+		out.append(v.normalized() if v.length() > 0.05 else bj.slerp(cj, k).normalized())
+	return out
+
+
+## Stretches an upper-arm sleeve from the end of a forearm mesh back to that side's shoulder.
+func _pose_upper_arm(sleeve: Node3D, anchor: Node3D, elbow_local: Vector3, left: bool) -> void:
+	if sleeve == null:
+		return
+	sleeve.visible = elbow_local != Vector3.ZERO
+	if not sleeve.visible:
+		return
+	var e := anchor.transform * elbow_local
+	var d := Vector3(FP_SHOULDER.x * (-1.0 if left else 1.0), FP_SHOULDER.y, FP_SHOULDER.z) - e
+	var ln := maxf(d.length(), 0.01)
+	var y := d / ln
+	var x := y.cross(Vector3.FORWARD)
+	x = x.normalized() if x.length() > 0.1 else y.cross(Vector3.UP).normalized()
+	sleeve.transform = Transform3D(Basis(x, y * ln, x.cross(y)), e)
+
+
+## Places a one-handed fist and rolls its weapon inside the grip so the cutting edge faces key[2].
+func _pose_fist(anchor: Node3D, holder: Node3D, key: Array, left: bool, single_edge: bool) -> void:
+	var pos: Vector3 = key[0]
+	var b := _fist_basis(pos, key[1], left)
+	anchor.transform = Transform3D(b, pos)
+	if holder == null or not is_instance_valid(holder):
+		return
+	var e := b.inverse() * (key[2] as Vector3)
+	if not single_edge and e.x < 0.0:
+		e = -e  # double-edged: use whichever edge needs the least roll
+	if Vector2(e.x, e.z).length() < 0.001:
+		holder.basis = Basis()
+	else:
+		holder.basis = Basis(Vector3.UP, atan2(-e.z, e.x))
+
+
+## Two-handed weapon: the axe is posed as one object (top hand position, haft direction, edge direction)
+## and BOTH fists are placed on its leather wraps, each rolled toward its own shoulder.
+func _pose_two_hand(key: Array) -> void:
+	var h := (key[1] as Vector3).normalized()
+	var e := key[2] as Vector3
+	e = e - h * e.dot(h)
+	if e.length() < 0.001:
+		e = Vector3.FORWARD.cross(h)
+	e = e.normalized()
+	var pr: Vector3 = key[0]
+	var pl := pr - h * (FP_AXE_HAND_R - FP_AXE_HAND_L)
+	fp_right_anchor.transform = Transform3D(_fist_basis(pr, h, false), pr)
+	fp_left_anchor.transform = Transform3D(_fist_basis(pl, h, true), pl)
+	if _fp_right_weapon_holder != null:
+		var w := Transform3D(Basis(e, h, e.cross(h)), pr - h * FP_AXE_HAND_R)
+		_fp_right_weapon_holder.transform = fp_right_anchor.transform.affine_inverse() * w
+
+
+## Open spell hand: palm toward key[1], fingers toward key[2] (the open-hand arm is turned to face away).
+func _pose_palm(anchor: Node3D, key: Array) -> void:
+	var palm := (key[1] as Vector3).normalized()
+	var fingers := key[2] as Vector3
+	fingers = (fingers - palm * fingers.dot(palm)).normalized()
+	var z := -palm
+	anchor.transform = Transform3D(Basis(fingers.cross(z), fingers, z), key[0])
+
+
+## Bow: left fist raises the bow from a canted carry to vertical just left of the crosshair; the right hand
+## hooks the string at the bow, then draws the nock straight back under the cheek so the arrow runs down the
+## sightline. On the loose the string snaps forward and twangs, the bow kicks, and the hand follows through.
+func _pose_bow() -> void:
+	var reach := ease(clampf(_bow_reach_blend, 0.0, 1.0), -1.6)
+	var rec := clampf(_bow_release_recoil, 0.0, 1.0)
+	var raise := maxf(reach, ease(rec, 0.5))
+	var pull := ease(clampf(_draw_blend, 0.0, 1.0), 0.85) * reach
+	var k := _blend_keys(FP_BOW_IDLE, FP_BOW_AIM, raise)
+	var kick := rec * rec
+	var bow_pos: Vector3 = (k[0] as Vector3) + Vector3(-0.006, -0.012, -0.03) * kick
+	if pull > 0.75:
+		bow_pos += Vector3(sin(_anim_time * 2.1), cos(_anim_time * 1.7), 0.0) * 0.002 * (pull - 0.75) / 0.25
+	var bow_axis := ((k[1] as Vector3) + Vector3(0.0, 0.0, -0.25) * kick).normalized()
+	var lb := _fist_basis(bow_pos, bow_axis, true)
+	fp_left_anchor.transform = Transform3D(lb, bow_pos)
+	if _fp_left_weapon_holder == null or _bow_node == null:
+		return
+	var bb := lb.inverse() * (k[2] as Vector3)
+	_fp_left_weapon_holder.basis = Basis(Vector3.UP, atan2(-bb.x, -bb.z))
+
+	var bow_rig := fp_left_anchor.transform * _fp_left_weapon_holder.transform * _bow_node.transform
+	var rest_a := bow_rig * Vector3(0.026, 0.055, 0.0)
+	var rest_b := bow_rig * Vector3(-0.026, 0.055, 0.0)
+	var arrow_rest := rest_a if rest_a.x > rest_b.x else rest_b  # arrow rides the inner (crosshair) side
+	var string_rest := bow_rig * Vector3(0.0, 0.055, _string_rest_z)
+	var anchor_pt := arrow_rest + FP_BOW_ANCHOR
+	var nock := string_rest.lerp(anchor_pt, pull)
+	if _bow_twang_t > 0.0 and pull < 0.05:
+		var tw_u := 0.32 - _bow_twang_t
+		nock += (string_rest - arrow_rest).normalized() * sin(tw_u * 75.0) * exp(-tw_u * 13.0) * 0.03
+	var nock_local := bow_rig.affine_inverse() * nock
+	if _string_top != null and _string_bot != null:
+		_aim_segment(_string_top, _string_tip_top, nock_local)
+		_aim_segment(_string_bot, _string_tip_bot, nock_local)
+
+	if _fp_nocked_arrow != null:
+		var nocked := reach > 0.55 and rec < 0.05
+		_fp_nocked_arrow.visible = nocked
+		if nocked:
+			# Barely drawn, the string sits only ~4 cm behind the rest: aim the shaft along the bow's facing instead
+			var span := arrow_rest - nock
+			var dir := (k[2] as Vector3).normalized().slerp(span.normalized(), clampf(span.length() / 0.2, 0.0, 1.0)).normalized()
+			var x_axis := dir.cross(Vector3.UP)
+			x_axis = x_axis.normalized() if x_axis.length() > 0.1 else Vector3.RIGHT
+			var arrow_rig := Transform3D(Basis(x_axis, dir, x_axis.cross(dir).normalized()), nock + dir * 0.352)
+			_fp_nocked_arrow.transform = fp_left_anchor.transform.affine_inverse() * arrow_rig
+
+	# Drawing hand: rises from below the frame onto the string, then rides the nock back to the cheek
+	var hand_pos := FP_BOW_HAND_REST.lerp(nock + FP_BOW_HOOK, ease(reach, -1.4))
+	if rec > 0.01 and not is_bow_drawing:
+		# Loose: the hand flicks back past the cheek, then sinks out of frame
+		hand_pos = FP_BOW_HAND_REST.lerp(anchor_pt + FP_BOW_HOOK + Vector3(0.05, 0.01, 0.09), ease(rec, 0.7))
+	var draw_pole := Vector3(1.0, -0.15, 0.6)
+	fp_right_anchor.transform = Transform3D(_fist_basis(hand_pos, bow_axis, false, draw_pole), hand_pos)
 
 
 func _aim_segment(seg: Node3D, tip: Vector3, target: Vector3) -> void:
@@ -1324,21 +1422,25 @@ func _perform_melee_attack(weapon: Dictionary, is_right: bool, is_power: bool) -
 		_right_cooldown = cd
 		_right_swing_power = is_power
 		_swing_was_charged = is_power
-		_swing_start_pos = _last_r_pos
-		_swing_start_quat = _last_r_quat
 		if is_power:
 			_right_swing_dur = 0.68 if is_two_hand else 0.60
 		else:
 			_right_swing_dur = 0.58 if is_two_hand else 0.44
 		_right_swing_t = _right_swing_dur
+		if _anim_time - _last_right_attack_t > 1.2:
+			_right_combo_step = 0  # after a pause the combo restarts with the forehand opener
 		_right_combo_step = (_right_combo_step + 1) % 2
+		_last_right_attack_t = _anim_time
 		_slash_vfx_timer = 0.16
 		_camera_kick = 0.55 if is_power else 0.22
 	else:
 		_left_cooldown = cd
 		_left_action_dur = 0.42
 		_left_action_t = _left_action_dur
+		if _anim_time - _last_left_attack_t > 1.2:
+			_left_combo_step = 0
 		_left_combo_step = (_left_combo_step + 1) % 2
+		_last_left_attack_t = _anim_time
 
 	if EventBus != null:
 		EventBus.sfx_requested.emit("sword_swing")
@@ -1372,7 +1474,6 @@ func _fire_bow(bow: Dictionary, hold_sec: float) -> void:
 	_stamina_regen_delay = float(player_cfg["stats"]["regen_delay_after_spend_sec"])
 	_bow_release_recoil = 1.0
 	_bow_twang_t = 0.32
-	_bow_nock_slide = 0.0
 	_draw_blend = 0.0
 	_camera_kick = 0.32
 	if tp_visual != null and tp_visual.visible and tp_visual.has_anim("bow_shoot"):

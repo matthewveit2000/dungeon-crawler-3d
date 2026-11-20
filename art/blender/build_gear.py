@@ -635,6 +635,26 @@ def build_fp_arm(pose="grip", side="r"):
     return ob
 
 
+def build_fp_upper_arm():
+    """First-person upper arm: a quilted dark gambeson sleeve from the elbow (z=0) to the shoulder (z=1).
+    Unit length and radially symmetric: the game stretches it from the forearm's elbow back to the shoulder
+    every frame, so first-person forearms never end in a floating elbow guard."""
+    n = 16
+    prof = [(0.0, -0.012)]
+    for i in range(n + 1):
+        t = i / n
+        r = 0.046 + 0.017 * math.sin(min(1.0, t * 1.3) * math.pi / 2)
+        r += 0.0025 * math.cos(t * n * math.pi)  # quilted channels
+        prof.append((r, t))
+    prof.append((0.0, 1.0))
+    parts = [shapes.lathe(prof, 18, "Sleeve", "cloth_dark", smooth_profile=True)]
+    # stitched leather cuff band where the sleeve tucks into the vambrace
+    parts.append(shapes.torus(0.05, 0.005, (0, 0, 0.05), major=20, minor=6, mat="leather_dark", scale=(1, 1, 0.5)))
+    ob = core.join(parts, "fp_upper_arm")
+    core.finalize(ob, smooth_angle=60, uv="cyl", seed=23, weathering=0.5)
+    return ob
+
+
 GEAR = {
     "iron_sword": build_longsword,
     "ratings_cleaver": build_cleaver,
@@ -658,6 +678,7 @@ GEAR = {
     "fp_arm_grip_l": lambda: build_fp_arm("grip", "l"),
     "fp_arm_open_r": lambda: build_fp_arm("open", "r"),
     "fp_arm_open_l": lambda: build_fp_arm("open", "l"),
+    "fp_upper_arm": build_fp_upper_arm,
 }
 
 ICON_VIEWS = {

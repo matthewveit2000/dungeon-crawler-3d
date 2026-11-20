@@ -322,6 +322,22 @@
     },
     {
       "batch": "gear",
+      "name": "fp_upper_arm",
+      "path": "game/assets/models/gear/fp_upper_arm.glb",
+      "dimensions_xyz_m": [
+        0.131,
+        0.129,
+        1.012
+      ],
+      "triangles": 852,
+      "bytes": 41888,
+      "materials": [
+        "cloth_dark",
+        "leather_dark"
+      ]
+    },
+    {
+      "batch": "gear",
       "name": "health_potion",
       "path": "game/assets/models/gear/health_potion.glb",
       "dimensions_xyz_m": [
