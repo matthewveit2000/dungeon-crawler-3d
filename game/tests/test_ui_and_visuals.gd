@@ -256,3 +256,75 @@ func test_floor_entry_clears_stale_broadcasts() -> void:
 	game.hud.clear_transient_messages()
 	assert_false(game.hud._ai_card.visible, "Visible broadcast card is dismissed")
 	assert_eq(game.hud._ai_queue.size(), 0, "Queued broadcasts are dropped")
+
+
+func test_character_visual_preserves_oneshot_speed_and_crawler_clips() -> void:
+	var cv := CharacterVisual.create("crawler")
+	add_child(cv)
+	assert_true(cv.has_anim("attack_2h"), "crawler exposes dedicated 2H cleave clip")
+	assert_true(cv.has_anim("bow_shoot"), "crawler exposes dedicated bow release clip")
+	cv.play_state("walk", 0.0, 1.45)
+	assert_almost_eq(cv.anim.speed_scale, 1.45, 0.01, "locomotion speed_scale applies to loop")
+	cv.play_action("attack", 0.05, 1.0)
+	cv.play_state("walk", 0.15, 1.45)
+	assert_almost_eq(cv.anim.speed_scale, 1.0, 0.01, "play_state must not stomp active one-shot speed_scale")
+	cv._on_anim_finished("attack")
+	assert_eq(cv.oneshot, "", "one-shot cleared on finish")
+	assert_almost_eq(cv.anim.speed_scale, 1.45, 0.01, "locomotion speed_scale restored after one-shot finishes")
+	cv.queue_free()
+
+
+func test_lever_handle_pivots_independently_and_beacon_exposes_crystal() -> void:
+	var lever := InteractableObject.new()
+	lever.setup("test_lever", "lever", "Pull Lever", {}, func(_i: InteractableObject, _a: Node3D) -> bool: return true)
+	var lm := ModelLoader.instantiate_model("res://assets/models/props/lever.glb", Vector3(0.5, 1.3, 0.5))
+	lever.add_child(lm)
+	lever.visual_root = lm
+	add_child(lever)
+	var handle := lm.find_child("Handle*", true, false) as Node3D
+	assert_not_null(handle, "lever.glb exposes separate pivoted Handle child")
+	var start_rot := handle.rotation.x
+	assert_true(lever.trigger(game.player))
+	for _i in range(4):
+		await get_tree().process_frame
+	assert_almost_eq(lm.rotation.length(), 0.0, 0.001, "lever stone pedestal remains stationary when triggered")
+	assert_ne(handle.rotation.x, start_rot, "lever handle rotates on its fulcrum when triggered")
+	lever.queue_free()
+
+	var beacon := ModelLoader.instantiate_model("res://assets/models/props/safe_beacon.glb", Vector3(0.8, 2.0, 0.8))
+	assert_not_null(beacon.find_child("Crystal*", true, false), "safe_beacon.glb exposes separate floating Crystal child")
+	beacon.free()
+
+
+func test_power_attack_charge_continuity_and_bow_sightline_alignment() -> void:
+	var p := game.player
+	p.set_camera_mode("first_person")
+	p.quick_equip_preset(1)
+	p._equip_raise = 0.0
+	p.stamina = p.max_stamina
+	p.handle_hand_press("right_hand")
+	for _i in range(30):
+		p.step_simulation(1.0 / 60.0, false, {})
+	var charged_pos := p.fp_right_anchor.position
+	p.handle_hand_release("right_hand")
+	p.step_simulation(1.0 / 60.0, false, {})
+	var first_swing_pos := p.fp_right_anchor.position
+	assert_lt(charged_pos.distance_to(first_swing_pos), 0.12,
+		"releasing a charged power attack continues seamlessly from the raised pose without snapping back to rest")
+
+	# Verify bow arrow aims cleanly forward along camera sightline at rest AND at full draw
+	p.quick_equip_preset(4)
+	p._equip_raise = 0.0
+	p.step_simulation(1.0 / 60.0, false, {})
+	assert_not_null(p._fp_nocked_arrow)
+	assert_true(p._fp_nocked_arrow.visible)
+	var cam_fwd := -p.camera.global_transform.basis.z.normalized()
+	var rest_dot := p._fp_nocked_arrow.global_transform.basis.y.normalized().dot(cam_fwd)
+	assert_gt(rest_dot, 0.85, "nocked arrow aims cleanly forward at rest (dot=%.2f)" % rest_dot)
+	p.handle_hand_press("right_hand")
+	for _i in range(50):
+		p.step_simulation(1.0 / 60.0, false, {})
+	var draw_dot := p._fp_nocked_arrow.global_transform.basis.y.normalized().dot(cam_fwd)
+	assert_gt(draw_dot, 0.94, "nocked arrow aims straight along crosshair at full draw (dot=%.2f)" % draw_dot)
+	p.handle_hand_release("right_hand")
+

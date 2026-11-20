@@ -1,8 +1,10 @@
-"""Humanoid rig, skin-modifier bodies, distance-based smooth skinning and keyframe animation DSL.
+"""Humanoid rig, skin-modifier bodies, distance-based smooth skinning, analytical 2-bone IK,
+world-space orientation helpers, and sampled biomechanical animation DSL.
 
 Skeleton convention (Blender): character faces -Y, left side (+X) bones end in '_l'.
-Every bone's local Z axis is rolled to point FORWARD (-Y), so for every bone a positive local-X
-rotation swings the bone tip forward (spine bends forward, legs/arms swing forward, elbows flex).
+Every bone's local Z axis is rolled to point FORWARD (-Y) (feet point +Z up), and local +Y runs
+from head to tail. World-space helpers convert cleanly between armature space (+X left, -Y fwd, +Z up)
+and bone-local space so pelvic motion, ground contact, 2-hand grips and bow draws stay exact.
 """
 
 from __future__ import annotations
@@ -11,7 +13,7 @@ import math
 
 import bmesh
 import bpy
-from mathutils import Matrix, Vector
+from mathutils import Euler, Matrix, Quaternion, Vector
 
 from . import core
 
@@ -266,52 +268,296 @@ def bind(mesh_ob, arm_ob):
 
 
 # ---------------------------------------------------------------------------
-# Animation DSL
+# Easing & Biomechanical Curve Helpers
 # ---------------------------------------------------------------------------
 
-def _apply_pose(arm_ob, pose):
+def clamp(x: float, lo: float = 0.0, hi: float = 1.0) -> float:
+    return lo if x < lo else (hi if x > hi else x)
+
+
+def lerp(a: float, b: float, t: float) -> float:
+    return a + (b - a) * t
+
+
+def vlerp(a, b, t: float) -> Vector:
+    return Vector(a).lerp(Vector(b), t)
+
+
+def smoothstep(t: float) -> float:
+    t = clamp(t)
+    return t * t * (3.0 - 2.0 * t)
+
+
+def smootherstep(t: float) -> float:
+    t = clamp(t)
+    return t * t * t * (t * (t * 6.0 - 15.0) + 10.0)
+
+
+def apply_ease(t: float, kind: str = "in_out") -> float:
+    t = clamp(t)
+    if kind == "linear":
+        return t
+    if kind == "in":
+        return t * t
+    if kind == "in_cubic":
+        return t * t * t
+    if kind == "in_quart":
+        return t * t * t * t
+    if kind == "out":
+        u = 1.0 - t
+        return 1.0 - u * u
+    if kind == "out_cubic":
+        u = 1.0 - t
+        return 1.0 - u * u * u
+    if kind == "out_quart":
+        u = 1.0 - t
+        return 1.0 - u * u * u * u
+    if kind == "back_out":
+        c1 = 1.4
+        c3 = c1 + 1.0
+        u = t - 1.0
+        return 1.0 + c3 * u * u * u + c1 * u * u
+    if kind == "gravity":
+        # Accelerates smoothly under gravity (quadratic)
+        return t * t
+    if kind == "in_out":
+        return smootherstep(t)
+    return smoothstep(t)
+
+
+def sample_curve(frame: float, keys: list) -> float | Vector:
+    """keys: list of (frame, value[, ease_into_this_key]). Supports floats, tuples or Vectors."""
+    if frame <= keys[0][0]:
+        v = keys[0][1]
+        return Vector(v) if isinstance(v, (tuple, list, Vector)) else float(v)
+    for i in range(len(keys) - 1):
+        f0, v0 = keys[i][0], keys[i][1]
+        f1, v1 = keys[i + 1][0], keys[i + 1][1]
+        if frame <= f1 or i == len(keys) - 2:
+            ease_kind = keys[i + 1][2] if len(keys[i + 1]) > 2 else "in_out"
+            u = apply_ease((frame - f0) / max(1e-6, f1 - f0), ease_kind)
+            if isinstance(v0, (tuple, list, Vector)):
+                return Vector(v0).lerp(Vector(v1), u)
+            return float(v0) + (float(v1) - float(v0)) * u
+    v = keys[-1][1]
+    return Vector(v) if isinstance(v, (tuple, list, Vector)) else float(v)
+
+
+# ---------------------------------------------------------------------------
+# World-Space Pose & Analytical 2-Bone IK Engine
+# ---------------------------------------------------------------------------
+
+def basis_from_yz(y_dir: Vector, z_hint: Vector) -> Matrix:
+    """Right-handed 3x3 matrix with columns (X, Y, Z), Y along y_dir, Z aligned to z_hint."""
+    y = Vector(y_dir).normalized()
+    zh = Vector(z_hint)
+    z = zh - y * zh.dot(y)
+    if z.length_squared < 1e-8:
+        alt = Vector((0, -1, 0)) if abs(y.y) < 0.8 else Vector((1, 0, 0))
+        z = alt - y * alt.dot(y)
+    z = z.normalized()
+    x = y.cross(z).normalized()
+    z = x.cross(y).normalized()
+    return Matrix(((x.x, y.x, z.x), (x.y, y.y, z.y), (x.z, y.z, z.z)))
+
+
+def basis_from_zx(z_dir: Vector, x_hint: Vector) -> Matrix:
+    """Right-handed 3x3 matrix with columns (X, Y, Z), Z along z_dir, X aligned to x_hint."""
+    z = Vector(z_dir).normalized()
+    xh = Vector(x_hint)
+    x = xh - z * xh.dot(z)
+    if x.length_squared < 1e-8:
+        alt = Vector((1, 0, 0)) if abs(z.x) < 0.8 else Vector((0, 0, 1))
+        x = alt - z * alt.dot(z)
+    x = x.normalized()
+    y = z.cross(x).normalized()
+    x = y.cross(z).normalized()
+    return Matrix(((x.x, y.x, z.x), (x.y, y.y, z.y), (x.z, y.z, z.z)))
+
+
+def reset_pose(arm_ob):
     for pb in arm_ob.pose.bones:
-        pb.rotation_mode = "XYZ"
-        pb.rotation_euler = (0, 0, 0)
-        pb.location = (0, 0, 0)
-    for bname, val in pose.items():
-        if bname == "_loc":
-            pb = arm_ob.pose.bones["root"]
-            pb.location = val
-            continue
-        pb = arm_ob.pose.bones.get(bname)
-        if pb is None:
-            continue
-        pb.rotation_euler = tuple(math.radians(a) for a in val)
+        pb.rotation_mode = "QUATERNION"
+        pb.rotation_quaternion = Quaternion((1.0, 0.0, 0.0, 0.0))
+        pb.location = (0.0, 0.0, 0.0)
+        pb.scale = (1.0, 1.0, 1.0)
 
 
-def make_action(arm_ob, name, keys, interpolation="BEZIER"):
-    """keys: list of (frame, pose_dict). Bones absent from a pose are keyed at rest.
-    Each action is pushed onto its own NLA track so the glTF exporter emits it as a clip."""
-    if arm_ob.animation_data is None:
-        arm_ob.animation_data_create()
-    act = bpy.data.actions.new(name)
-    arm_ob.animation_data.action = act
-    all_bones = [pb.name for pb in arm_ob.pose.bones]
-    for frame, pose in keys:
-        _apply_pose(arm_ob, pose)
-        for bn in all_bones:
-            pb = arm_ob.pose.bones[bn]
-            pb.keyframe_insert("rotation_euler", frame=frame)
-            if bn == "root":
-                pb.keyframe_insert("location", frame=frame)
-    for fc in _fcurves(act):
-        for kp in fc.keyframe_points:
-            kp.interpolation = interpolation
-    track = arm_ob.animation_data.nla_tracks.new()
-    track.name = name
-    strip = track.strips.new(name, int(keys[0][0]), act)
-    strip.name = name
-    track.mute = True
-    arm_ob.animation_data.action = None
-    _apply_pose(arm_ob, {})
-    return act
+def _zero_rot(pb) -> Matrix:
+    r_rest = pb.bone.matrix_local.to_3x3()
+    if pb.parent is None:
+        return r_rest
+    r_par = pb.parent.matrix.to_3x3()
+    r_par_rest = pb.parent.bone.matrix_local.to_3x3()
+    return r_par @ r_par_rest.transposed() @ r_rest
 
+
+def set_bone_euler(arm_ob, bone_name: str, deg_xyz):
+    """Set bone-local XYZ rotation in degrees (stored cleanly as quaternion)."""
+    pb = arm_ob.pose.bones.get(bone_name)
+    if pb is None:
+        return
+    pb.rotation_mode = "QUATERNION"
+    e = Euler((math.radians(deg_xyz[0]), math.radians(deg_xyz[1]), math.radians(deg_xyz[2])), "XYZ")
+    pb.rotation_quaternion = e.to_quaternion()
+
+
+def set_bone_world_rot(arm_ob, bone_name: str, r_world: Matrix):
+    """Set pose bone so its armature-space 3x3 orientation equals r_world."""
+    pb = arm_ob.pose.bones[bone_name]
+    pb.rotation_mode = "QUATERNION"
+    r_zero = _zero_rot(pb)
+    pb.rotation_quaternion = (r_zero.transposed() @ r_world).to_quaternion()
+
+
+def set_bone_world_delta(arm_ob, bone_name: str, world_delta):
+    """Translate pose bone by a world/armature-space delta (dx_left, dy_back, dz_up)."""
+    pb = arm_ob.pose.bones[bone_name]
+    r_zero = _zero_rot(pb)
+    pb.location = r_zero.transposed() @ Vector(world_delta)
+
+
+def solve_2bone_ik(
+    arm_ob,
+    upper_name: str,
+    lower_name: str,
+    target_world,
+    pole_world,
+    flip_z: bool = False,
+    soft_zone: float = 0.035,
+):
+    """Exact analytical 2-bone IK in armature space.
+    Caller should call bpy.context.view_layer.update() after posing parent torso/hips first.
+    flip_z=False for legs (knee points toward +Z/pole), flip_z=True for arms (elbow points toward -Z/pole).
+    Returns (mid_joint_world, end_joint_world).
+    """
+    up_pb = arm_ob.pose.bones[upper_name]
+    lo_pb = arm_ob.pose.bones[lower_name]
+    A = up_pb.head.copy()
+    L1 = up_pb.bone.length
+    L2 = lo_pb.bone.length
+    T = Vector(target_world)
+    P = Vector(pole_world)
+
+    at = T - A
+    raw_d = at.length
+    max_reach = L1 + L2 - 0.003
+    min_reach = abs(L1 - L2) + 0.015
+    if raw_d < 1e-6:
+        dir_at = Vector((0, 0, -1))
+        d = min_reach
+    else:
+        dir_at = at / raw_d
+        # Soft IK compression near full reach prevents knee/elbow snapping
+        soft_start = max_reach * (1.0 - soft_zone)
+        if raw_d > soft_start:
+            over = raw_d - soft_start
+            span = max_reach - soft_start
+            d = soft_start + span * (1.0 - math.exp(-over / max(1e-5, span)))
+        else:
+            d = max(min_reach, raw_d)
+
+    cos_a = clamp((L1 * L1 + d * d - L2 * L2) / max(1e-6, 2.0 * L1 * d), -1.0, 1.0)
+    sin_a = math.sqrt(max(0.0, 1.0 - cos_a * cos_a))
+
+    pole_v = P - A
+    pole_perp = pole_v - dir_at * pole_v.dot(dir_at)
+    if pole_perp.length_squared < 1e-8:
+        pole_perp = Vector((0, -1, 0)) if not flip_z else Vector((0, 1, 0))
+        pole_perp = pole_perp - dir_at * pole_perp.dot(dir_at)
+    pole_perp = pole_perp.normalized()
+
+    M = A + (dir_at * cos_a + pole_perp * sin_a) * L1
+    E = A + dir_at * d
+
+    z_hint = -pole_perp if flip_z else pole_perp
+    r_up = basis_from_yz(M - A, z_hint)
+    set_bone_world_rot(arm_ob, upper_name, r_up)
+
+    # Analytically compute lower bone's zero rotation from r_up (no extra depsgraph flush needed)
+    r_up_rest = up_pb.bone.matrix_local.to_3x3()
+    r_lo_rest = lo_pb.bone.matrix_local.to_3x3()
+    r_lo_zero = r_up @ r_up_rest.transposed() @ r_lo_rest
+    r_lo = basis_from_yz(E - M, z_hint)
+    lo_pb.rotation_mode = "QUATERNION"
+    lo_pb.rotation_quaternion = (r_lo_zero.transposed() @ r_lo).to_quaternion()
+    return M, E
+
+
+def orient_foot_world(arm_ob, side_s: str, toe_pitch_deg: float = 0.0, yaw_deg: float = 0.0, roll_deg: float = 0.0):
+    """Orient foot_l / foot_r relative to flat ground contact.
+    toe_pitch_deg > 0 lifts toes (heel strike); toe_pitch_deg < 0 lifts heel (toe push-off).
+    """
+    bname = "foot_" + side_s
+    pb = arm_ob.pose.bones[bname]
+    # Rest bone matrix has the foot flat on z=0 facing -Y
+    r_flat = pb.bone.matrix_local.to_3x3()
+    # Apply pitch around world -X (+pitch lifts toes upward from -Y toward +Z), yaw around world +Z, roll around world -Y
+    r_pitch = Matrix.Rotation(math.radians(-toe_pitch_deg), 3, "X")
+    r_yaw = Matrix.Rotation(math.radians(yaw_deg), 3, "Z")
+    r_roll = Matrix.Rotation(math.radians(roll_deg), 3, "Y")
+    r_world = r_yaw @ r_roll @ r_pitch @ r_flat
+    set_bone_world_rot(arm_ob, bname, r_world)
+
+
+def grip_rest_local_matrix(arm_ob, grip_ob) -> Matrix:
+    """Constant transform of a bone-parented Grip Empty relative to its parent hand bone."""
+    hand_b = arm_ob.data.bones[grip_ob.parent_bone]
+    return hand_b.matrix_local.inverted() @ grip_ob.matrix_world
+
+
+def orient_hand_for_grip(
+    arm_ob,
+    side_s: str,
+    grip_local_mat: Matrix,
+    shaft_world,
+    edge_world,
+    edge_is_neg_y: bool = False,
+):
+    """Orient hand_l/hand_r so its Grip socket's +Z (weapon shaft/bow limbs) points along shaft_world
+    and either +X (cutting edge) or -Y (bow target back) aligns with edge_world.
+    Returns (grip_world_pos, grip_world_rot_3x3).
+    """
+    hand_name = "hand_" + side_s
+    pb = arm_ob.pose.bones[hand_name]
+    z = Vector(shaft_world).normalized()
+    if edge_is_neg_y:
+        # Bow: +Z = limbs up, -Y = forward toward target -> +Y = -edge_world
+        y = (-Vector(edge_world))
+        y = (y - z * y.dot(z)).normalized()
+        x = y.cross(z).normalized()
+        r_grip = Matrix(((x.x, y.x, z.x), (x.y, y.y, z.y), (x.z, y.z, z.z)))
+    else:
+        r_grip = basis_from_zx(z, Vector(edge_world))
+    r_h2g = grip_local_mat.to_3x3()
+    r_hand = r_grip @ r_h2g.transposed()
+    set_bone_world_rot(arm_ob, hand_name, r_hand)
+    # Exact grip position in armature space using hand head (wrist) + rotated local offset
+    grip_pos = pb.head + r_hand @ grip_local_mat.to_translation()
+    return grip_pos, r_grip
+
+
+def orient_head_look(arm_ob, look_dir_world=(0, -1, 0), up_world=(0, 0, 1), weight: float = 0.75, tilt_deg: float = 0.0):
+    """Blend head orientation toward looking along look_dir_world while respecting torso posture."""
+    pb = arm_ob.pose.bones["head"]
+    r_zero = _zero_rot(pb)
+    fwd = Vector(look_dir_world).normalized()
+    up = Vector(up_world).normalized()
+    r_target = basis_from_yz(up, fwd)
+    if abs(tilt_deg) > 1e-3:
+        r_target = r_target @ Matrix.Rotation(math.radians(tilt_deg), 3, "Z")
+    q_zero = r_zero.to_quaternion()
+    q_tgt = r_target.to_quaternion()
+    if q_zero.dot(q_tgt) < 0:
+        q_tgt = -q_tgt
+    q_blend = q_zero.slerp(q_tgt, clamp(weight))
+    pb.rotation_mode = "QUATERNION"
+    pb.rotation_quaternion = (r_zero.transposed() @ q_blend.to_matrix()).to_quaternion()
+
+
+# ---------------------------------------------------------------------------
+# Action Builders (Sampled 30fps Quaternion + Legacy Pose-Dict)
+# ---------------------------------------------------------------------------
 
 def _fcurves(act):
     try:
@@ -325,8 +571,93 @@ def _fcurves(act):
         return out
 
 
+def make_sampled_action(arm_ob, name: str, n_frames: int, pose_fn, cyclic: bool = False):
+    """Evaluates pose_fn(arm_ob, frame, phase) at every frame 0..n_frames (30fps), enforces
+    quaternion continuity, keys quaternion rotations on all bones + location on root & hips,
+    and pushes onto a clean NLA track for glTF export.
+    """
+    if arm_ob.animation_data is None:
+        arm_ob.animation_data_create()
+    act = bpy.data.actions.new(name)
+    arm_ob.animation_data.action = act
+    all_bones = [pb.name for pb in arm_ob.pose.bones]
+    prev_q: dict[str, Quaternion] = {}
+
+    for f in range(n_frames + 1):
+        phase = (f / n_frames) if n_frames > 0 else 0.0
+        if cyclic and f == n_frames:
+            phase = 0.0
+        reset_pose(arm_ob)
+        pose_fn(arm_ob, f, phase)
+        for bn in all_bones:
+            pb = arm_ob.pose.bones[bn]
+            pb.rotation_mode = "QUATERNION"
+            q = pb.rotation_quaternion.normalized()
+            if bn in prev_q and q.dot(prev_q[bn]) < 0.0:
+                q = -q
+            pb.rotation_quaternion = q
+            prev_q[bn] = q.copy()
+            pb.keyframe_insert("rotation_quaternion", frame=f)
+            if bn in ("root", "hips"):
+                pb.keyframe_insert("location", frame=f)
+
+    for fc in _fcurves(act):
+        for kp in fc.keyframe_points:
+            kp.interpolation = "LINEAR"
+
+    track = arm_ob.animation_data.nla_tracks.new()
+    track.name = name
+    strip = track.strips.new(name, 0, act)
+    strip.name = name
+    track.mute = True
+    arm_ob.animation_data.action = None
+    reset_pose(arm_ob)
+    return act
+
+
+# Legacy pose-dict helpers (preserved for compatibility)
+def _apply_pose(arm_ob, pose):
+    for pb in arm_ob.pose.bones:
+        pb.rotation_mode = "XYZ"
+        pb.rotation_euler = (0, 0, 0)
+        pb.location = (0, 0, 0)
+    for bname, val in pose.items():
+        if bname == "_loc":
+            set_bone_world_delta(arm_ob, "hips", val)
+            continue
+        pb = arm_ob.pose.bones.get(bname)
+        if pb is None:
+            continue
+        pb.rotation_euler = tuple(math.radians(a) for a in val)
+
+
+def make_action(arm_ob, name, keys, interpolation="BEZIER"):
+    if arm_ob.animation_data is None:
+        arm_ob.animation_data_create()
+    act = bpy.data.actions.new(name)
+    arm_ob.animation_data.action = act
+    all_bones = [pb.name for pb in arm_ob.pose.bones]
+    for frame, pose in keys:
+        _apply_pose(arm_ob, pose)
+        for bn in all_bones:
+            pb = arm_ob.pose.bones[bn]
+            pb.keyframe_insert("rotation_euler", frame=frame)
+            if bn in ("root", "hips"):
+                pb.keyframe_insert("location", frame=frame)
+    for fc in _fcurves(act):
+        for kp in fc.keyframe_points:
+            kp.interpolation = interpolation
+    track = arm_ob.animation_data.nla_tracks.new()
+    track.name = name
+    strip = track.strips.new(name, int(keys[0][0]), act)
+    strip.name = name
+    track.mute = True
+    arm_ob.animation_data.action = None
+    reset_pose(arm_ob)
+    return act
+
+
 def mix(a, b, t):
-    """Blend two pose dicts (missing bones treated as rest)."""
     out = {}
     for k in set(a) | set(b):
         va = a.get(k, (0, 0, 0))

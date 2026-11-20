@@ -61,27 +61,39 @@ func trigger(interactor: Node3D) -> bool:
 func _apply_consumed_visual() -> void:
 	var root := visual_root if visual_root != null else self
 	var lid := root.find_child("Lid*", true, false) as Node3D if root != null else null
+	var handle := root.find_child("Handle*", true, false) as Node3D if root != null else null
 	var animate := is_inside_tree()
 	match kind:
 		"chest":
 			if lid != null:
 				if animate:
+					# Weighted oak lid: latch pop -> smooth swing -> gentle damped hinge settle
 					var tw := create_tween()
-					tw.tween_property(lid, "rotation:x", deg_to_rad(-108.0), 0.55).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+					tw.tween_property(lid, "rotation:x", deg_to_rad(-112.0), 0.42).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+					tw.tween_property(lid, "rotation:x", deg_to_rad(-106.0), 0.16).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+					tw.tween_property(lid, "rotation:x", deg_to_rad(-108.0), 0.12).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 				else:
 					lid.rotation.x = deg_to_rad(-108.0)
 		"lever":
-			var target := root
+			var target := handle if handle != null else root
+			var throw_rad := deg_to_rad(54.0)
 			if animate:
+				# Heavy iron lever: brief resistance -> decisive throw -> small mechanical click-back
 				var tw2 := create_tween()
-				tw2.tween_property(target, "rotation:x", target.rotation.x + deg_to_rad(40.0), 0.35).set_trans(Tween.TRANS_CUBIC)
+				tw2.tween_property(target, "rotation:x", target.rotation.x + throw_rad * 1.07, 0.26).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+				tw2.tween_property(target, "rotation:x", target.rotation.x + throw_rad, 0.12).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 			else:
-				target.rotation.x += deg_to_rad(40.0)
+				target.rotation.x += throw_rad
 		"urn":
 			if animate:
+				# Natural weighted rock & settle back upright on its base (never frozen floating tilted)
+				var base_rz := root.rotation.z
 				var tw3 := create_tween()
-				tw3.tween_property(root, "rotation:z", deg_to_rad(9.0), 0.3).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+				tw3.tween_property(root, "rotation:z", base_rz + deg_to_rad(8.0), 0.14).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+				tw3.tween_property(root, "rotation:z", base_rz - deg_to_rad(4.5), 0.18).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+				tw3.tween_property(root, "rotation:z", base_rz + deg_to_rad(1.8), 0.14).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+				tw3.tween_property(root, "rotation:z", base_rz, 0.12).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 			else:
-				root.rotation.z = deg_to_rad(9.0)
+				root.rotation.z = 0.0
 		_:
 			pass

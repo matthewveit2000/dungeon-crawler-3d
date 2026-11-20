@@ -63,7 +63,7 @@ func play_state(new_state: String, blend: float = 0.2, p_speed: float = 1.0) -> 
 	if _dead:
 		return
 	speed_scale = p_speed
-	if anim != null:
+	if anim != null and oneshot.is_empty():
 		anim.speed_scale = p_speed
 	if new_state == state:
 		return
@@ -82,6 +82,8 @@ func play_action(action: String, blend: float = 0.08, p_speed: float = 1.0) -> b
 		return false
 	oneshot = action
 	anim.speed_scale = p_speed
+	if anim.current_animation == action:
+		anim.stop()
 	anim.play(action, blend)
 	if action == "death":
 		_dead = true
@@ -107,6 +109,7 @@ func _on_anim_finished(anim_name: StringName) -> void:
 	if str(anim_name) == oneshot:
 		oneshot = ""
 		if has_anim(state):
+			anim.speed_scale = speed_scale
 			anim.play(state, 0.22)
 
 

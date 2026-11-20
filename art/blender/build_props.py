@@ -554,23 +554,25 @@ def build_safe_beacon():
         pts = [(math.cos(a) * 0.3, math.sin(a) * 0.3, 1.05), (math.cos(a) * 0.42, math.sin(a) * 0.42, 1.35),
                (math.cos(a) * 0.32, math.sin(a) * 0.32, 1.75), (math.cos(a) * 0.14, math.sin(a) * 0.14, 1.95)]
         parts.append(shapes.tube(pts, radius=0.022, seg=8, mat="bronze", radii=[1.2, 1.0, 0.8, 0.5]))
-    # floating crystal (elongated octahedron with facets)
+    ob = core.join(parts, "safe_beacon")
+    core.finalize(ob, smooth_angle=30, uv="box", seed=3, weathering=0.6)
+    shapes.bake_vertex_ao(ob, rays=10, dist=0.2)
+    # floating crystal (elongated octahedron with facets) as a separate child for gentle hover/spin
     bm = bmesh.new()
     ring = []
     n = 6
     for i in range(n):
         a = i / n * math.tau
-        ring.append(bm.verts.new((math.cos(a) * 0.16, math.sin(a) * 0.16, 1.55)))
-    top = bm.verts.new((0, 0, 1.92))
-    bot = bm.verts.new((0, 0, 1.28))
+        ring.append(bm.verts.new((math.cos(a) * 0.16, math.sin(a) * 0.16, -0.03)))
+    top = bm.verts.new((0, 0, 0.34))
+    bot = bm.verts.new((0, 0, -0.30))
     for i in range(n):
         bm.faces.new((ring[i], ring[(i + 1) % n], top))
         bm.faces.new((ring[(i + 1) % n], ring[i], bot))
     crystal = core.obj_from_bmesh(bm, "Crystal", "crystal_teal")
-    parts.append(crystal)
-    ob = core.join(parts, "safe_beacon")
-    core.finalize(ob, smooth_angle=30, uv="box", seed=3, weathering=0.6)
-    shapes.bake_vertex_ao(ob, rays=10, dist=0.2)
+    core.finalize(crystal, smooth_angle=15, uv="box", seed=4, weathering=0.2)
+    crystal.location = (0, 0, 1.58)
+    crystal.parent = ob
     socket(ob, "GlowSocket", (0, 0, 1.6))
     return ob
 
@@ -725,18 +727,32 @@ def build_spike_trap():
 
 
 def build_lever():
-    parts = []
-    parts.append(shapes.stone((0.5, 0.4, 0.5), (0, 0, 0.25), seed=3, mat="stone_trim", bevel=0.04, cuts=1))
-    parts.append(shapes.box((0.34, 0.26, 0.04), (0, 0, 0.52), mat="iron_dark", bevel=0.01))
-    parts.append(shapes.box((0.06, 0.2, 0.1), (0, 0, 0.58), mat="iron_dark", bevel=0.01))
+    base_parts = []
+    base_parts.append(shapes.stone((0.5, 0.4, 0.5), (0, 0, 0.25), seed=3, mat="stone_trim", bevel=0.04, cuts=1))
+    base_parts.append(shapes.box((0.34, 0.26, 0.04), (0, 0, 0.52), mat="iron_dark", bevel=0.01))
+    # Iron fulcrum bracket with side ears holding the pivot pin
+    for sx in (-0.055, 0.055):
+        base_parts.append(shapes.box((0.025, 0.20, 0.12), (sx, 0, 0.58), mat="iron_dark", bevel=0.006))
+    base_parts.append(shapes.cylinder(0.018, 0.14, (0, 0, 0.58), segments=10, mat="iron_dark", rot=(0, math.pi / 2, 0)))
+    base_ob = finish(base_parts, "lever", 72, ao_dist=0.15, ground=0.3)
+
+    # Separate iron lever arm + grip pivoted cleanly at the fulcrum (0, 0, 0.58)
+    pivot = Vector((0, 0, 0.58))
+    handle_parts = []
     arm = shapes.cylinder(0.022, 0.75, (0, 0, 0.0), segments=8, mat="iron_dark")
-    _xf(arm, (0, -0.12, 0.9), (math.radians(-25), 0, 0))
-    parts.append(arm)
+    _xf(arm, (0, -0.15, 0.90), (math.radians(-25), 0, 0))
+    handle_parts.append(arm)
     grip = shapes.cylinder(0.035, 0.16, (0, 0, 0.0), segments=10, mat="leather_dark")
-    _xf(grip, (0, -0.27, 1.22), (math.radians(-25), 0, 0))
-    parts.append(grip)
-    parts.append(shapes.sphere(0.045, (0, -0.31, 1.31), seg=10, rings=6, mat="iron_dark"))
-    return finish(parts, "lever", 72, ao_dist=0.15, ground=0.3)
+    _xf(grip, (0, -0.30, 1.22), (math.radians(-25), 0, 0))
+    handle_parts.append(grip)
+    handle_parts.append(shapes.sphere(0.045, (0, -0.34, 1.31), seg=10, rings=6, mat="iron_dark"))
+    handle_ob = core.join(handle_parts, "Handle")
+    core.finalize(handle_ob, smooth_angle=40, uv="box", seed=73, weathering=0.6)
+    shapes.bake_vertex_ao(handle_ob, rays=10, dist=0.12)
+    handle_ob.data.transform(Matrix.Translation(-pivot))
+    handle_ob.location = pivot
+    handle_ob.parent = base_ob
+    return base_ob
 
 
 def build_rubble_pile():

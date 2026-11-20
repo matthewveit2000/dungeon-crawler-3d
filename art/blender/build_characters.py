@@ -19,7 +19,7 @@ import bmesh  # noqa: E402
 import bpy  # noqa: E402
 from mathutils import Matrix, Vector  # noqa: E402
 
-from dclib import core, render, rig, shapes  # noqa: E402
+from dclib import char_anims, core, render, rig, shapes  # noqa: E402
 from build_props import make_bone, make_skull  # noqa: E402
 
 FPS = 30
@@ -165,7 +165,12 @@ def grip_socket(arm_ob, js, side="r", name=None, offset=0.07, fwd=0.0):
     e = bpy.data.objects.new(name or ("Grip" + side.upper()), None)
     core.link(e)
     e.empty_display_size = 0.08
-    e.matrix_world = Matrix.Translation(p) @ Matrix.Rotation(math.radians(90), 4, "X")
+    # Right hand: +Z = weapon shaft forward, +X = cutting edge aligned into strike plane (down/forward).
+    # Left hand: +Z = bow/shield grip axis, +X = outer hand face (shield front), -Y = bow target face.
+    rot = Matrix.Rotation(math.radians(90), 4, "X")
+    if side == "r":
+        rot = rot @ Matrix.Rotation(math.radians(-90), 4, "Z")
+    e.matrix_world = Matrix.Translation(p) @ rot
     bpy.context.view_layer.update()
     mw = e.matrix_world.copy()
     e.parent = arm_ob
@@ -866,28 +871,18 @@ def draw_hold_keys(style):
 
 
 def animate(arm_ob, style, extra=()):
-    rig.make_action(arm_ob, "idle", idle_keys(style))
-    ci = combat_idle(style)
-    rig.make_action(arm_ob, "idle_combat", [(0, ci), (30, rig.add(ci, {"chest": (-2, 0, 0), "_loc": (0, 0, -0.01)})), (60, ci)])
-    rig.make_action(arm_ob, "walk", walk_keys(style))
-    rig.make_action(arm_ob, "run", walk_keys(style, run=True))
-    rig.make_action(arm_ob, "attack", attack_keys(style))
-    rig.make_action(arm_ob, "hit", hit_keys(style))
-    rig.make_action(arm_ob, "death", death_keys(style))
-    for e in extra:
-        fn = {"shoot": shoot_keys, "roar": roar_keys, "talk": talk_keys, "block": block_keys, "cast": cast_keys,
-              "draw_hold": draw_hold_keys, "slam": attack_keys}[e]
-        st = dict(style, slam=True) if e == "slam" else style
-        rig.make_action(arm_ob, e, fn(st))
+    grip_r = next((c for c in arm_ob.children if c.name.startswith("GripR")), None)
+    grip_l = next((c for c in arm_ob.children if c.name.startswith("GripL")), None)
+    char_anims.animate_character(arm_ob, style, extra, grip_r=grip_r, grip_l=grip_l)
 
 
 CHARACTERS = {
-    "crawler": (build_crawler, {"weapon": "1h"}, ("block", "cast", "draw_hold")),
-    "draugr": (build_draugr, {"weapon": "2h", "hunch": 8, "arm_swing": 0.6, "walk_extra": {"head": (6, 0, 0)}}, ()),
-    "bone_archer": (build_bone_archer, {"weapon": "bow"}, ("shoot",)),
-    "goblin_streamer": (build_goblin, {"weapon": "1h", "hunch": 10, "arm_swing": 1.4}, ()),
-    "iron_warden": (build_boss, {"weapon": "2h", "slam": True}, ("roar", "slam")),
-    "vendor": (build_vendor, {"weapon": "none", "hunch": 4}, ("talk",)),
+    "crawler": (build_crawler, {"weapon": "1h", "archetype": "crawler", "weapon_scale": 1.0}, ("block", "cast", "draw_hold", "bow_shoot", "attack_2h")),
+    "draugr": (build_draugr, {"weapon": "2h", "archetype": "draugr", "hunch": 8, "weapon_scale": 1.0}, ()),
+    "bone_archer": (build_bone_archer, {"weapon": "bow", "archetype": "archer", "hunch": 2}, ("shoot",)),
+    "goblin_streamer": (build_goblin, {"weapon": "1h", "archetype": "goblin", "hunch": 10, "weapon_scale": 0.75}, ()),
+    "iron_warden": (build_boss, {"weapon": "2h", "archetype": "boss", "hunch": 3, "weapon_scale": 2.1}, ("roar", "slam")),
+    "vendor": (build_vendor, {"weapon": "none", "archetype": "vendor", "hunch": 4}, ("talk",)),
 }
 
 
