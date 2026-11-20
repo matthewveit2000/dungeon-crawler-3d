@@ -38,7 +38,12 @@ func _ready() -> void:
 
 
 func _build_backdrop() -> void:
-	var world_pack := DataLoader.get_world()
+	# The backdrop only needs a small corner of dungeon, not a vast floor (D-044)
+	var world_pack: Dictionary = DataLoader.get_world().duplicate(true)
+	world_pack["grid"]["width_tiles"] = 60
+	world_pack["grid"]["height_tiles"] = 60
+	world_pack["labyrinth"]["stairs_count"] = 1
+	world_pack["labyrinth"]["safe_room_regions"] = 1
 	var layout := DungeonGenerator.generate(world_pack, DataLoader.get_enemies_pack(), 1, 7331)
 	builder = DungeonBuilder.new()
 	add_child(builder)

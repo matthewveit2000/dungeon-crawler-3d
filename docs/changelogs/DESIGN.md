@@ -58,3 +58,7 @@ Detailed record of gameplay systems, rules, tuning, and DCC flavor implemented f
 
 - 72x72 grid, 28-36 rooms, more loops, ~2x enemies (30 / 38), 1-3 containers per combat room, chest chance 0.6, prop density 0.6. Default seed: 30 rooms, ~17,200 m2, 31 enemies, 17 chests, 45 containers.
 - Treasure Vault now has a compass/map landmark and is force-opened whenever the boss is dead.
+
+## 2026-11-20 — Vast Floors (`D-044`)
+
+- 336x336-tile floors (~650 rooms, ~430,000 m2) so a run cannot realistically explore 25%. Sparse landmarks: entrance near a corner, boss arena + vault far away (single gated corridor), 3 stairwells far apart, 9 safe rooms (one per ninth). Compass always hints the nearest undiscovered stairwell and the boss gate. Enemy budget 440 / 530.
