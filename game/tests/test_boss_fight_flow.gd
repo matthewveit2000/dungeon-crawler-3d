@@ -43,7 +43,7 @@ func test_real_boss_fight_opens_both_gates() -> void:
 	game.set_physics_process(false)
 	game.player.god_mode = true
 	# The boss is out of reach for a fresh crawler by design (D-046); fight it the way a scaled-up player would
-	var blade := game.test_give_item("iron_longsword", "sponsored")
+	var blade := game.test_give_item("iron_longsword", "legendary")
 	game.player.equip_from_inventory(game.player.inventory.find(blade), "right_hand")
 	for c in game.enemies_root.get_children():
 		if c != game.boss_actor:

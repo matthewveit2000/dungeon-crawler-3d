@@ -23,7 +23,7 @@ var _equip_right: VBoxContainer = null
 var _hands_row: HBoxContainer = null
 var _grid: GridContainer = null
 var _detail: VBoxContainer = null
-var _actions: HBoxContainer = null
+var _actions: HFlowContainer = null
 var _summary: VBoxContainer = null
 var _gold_lbl: Label = null
 var _count_lbl: Label = null
@@ -37,6 +37,11 @@ var _portrait_vp: SubViewport = null
 var _portrait_char: CharacterVisual = null
 var _filter_btns: Dictionary = {}
 var _points_badge: Label = null
+var _margin: MarginContainer = null
+var _c1: PanelContainer = null
+var _c3: VBoxContainer = null
+var _portrait_box: SubViewportContainer = null
+var _bag_scroll: ScrollContainer = null
 
 
 func _ready() -> void:
@@ -75,6 +80,8 @@ func _build_ui() -> void:
 	margin.add_theme_constant_override("margin_top", 26)
 	margin.add_theme_constant_override("margin_bottom", 22)
 	root.add_child(margin)
+	_margin = margin
+	root.resized.connect(_fit_layout)
 	var outer := VBoxContainer.new()
 	outer.add_theme_constant_override("separation", 10)
 	margin.add_child(outer)
@@ -117,6 +124,7 @@ func _build_ui() -> void:
 
 	# --- Column 1: portrait + equipment ---------------------------------------------
 	var c1 := PanelContainer.new()
+	_c1 = c1
 	c1.custom_minimum_size.x = 340
 	c1.add_theme_stylebox_override("panel", UiTheme.panel_style("frame"))
 	_inv_page.add_child(c1)
@@ -132,6 +140,7 @@ func _build_ui() -> void:
 	_equip_left.add_theme_constant_override("separation", 6)
 	doll.add_child(_equip_left)
 	var svc := SubViewportContainer.new()
+	_portrait_box = svc
 	svc.stretch = true
 	svc.custom_minimum_size = Vector2(170, 300)
 	svc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -195,8 +204,11 @@ func _build_ui() -> void:
 		_filter_btns[key] = fb
 		filters.add_child(fb)
 	var scroll := ScrollContainer.new()
+	_bag_scroll = scroll
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	# FB-014: SHOW_NEVER (not DISABLED) so the grid's width never props the menu wider than the screen
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	scroll.custom_minimum_size.x = 3 * (SLOT_SIZE + 8.0)
 	c2v.add_child(scroll)
 	_grid = GridContainer.new()
 	_grid.columns = 4
@@ -214,7 +226,9 @@ func _build_ui() -> void:
 
 	# --- Column 3: details + summary ----------------------------------------------------
 	var c3 := VBoxContainer.new()
+	_c3 = c3
 	c3.custom_minimum_size.x = 350
+	c3.clip_contents = true
 	c3.add_theme_constant_override("separation", 12)
 	_inv_page.add_child(c3)
 	var dp := PanelContainer.new()
@@ -226,13 +240,15 @@ func _build_ui() -> void:
 	dp.add_child(dpv)
 	var dscroll := ScrollContainer.new()
 	dscroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	dscroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	dscroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	dscroll.custom_minimum_size.x = 320
 	dpv.add_child(dscroll)
 	_detail = VBoxContainer.new()
 	_detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	dscroll.add_child(_detail)
-	_actions = HBoxContainer.new()
-	_actions.add_theme_constant_override("separation", 8)
+	_actions = HFlowContainer.new()  # wraps instead of widening the column
+	_actions.add_theme_constant_override("h_separation", 8)
+	_actions.add_theme_constant_override("v_separation", 8)
 	dpv.add_child(_actions)
 	var sp3 := PanelContainer.new()
 	sp3.add_theme_stylebox_override("panel", UiTheme.panel_style("soft"))
@@ -307,7 +323,29 @@ func _show_tab(i: int) -> void:
 		_refresh_skills()
 
 
+## FB-014: fit the three columns into whatever width is available (small windows, Interface Scale up to 160%):
+## when space is tight the 3D portrait steps aside and the columns use their compact minimums.
+func _fit_layout() -> void:
+	if root == null or _c1 == null:
+		return
+	var w := root.size.x if root.size.x > 1.0 else get_viewport().get_visible_rect().size.x
+	var compact := w < 1150.0
+	_portrait_box.visible = not compact
+	_c1.custom_minimum_size.x = 170.0 if compact else 340.0
+	_c3.custom_minimum_size.x = 290.0 if compact else 350.0
+	_bag_scroll.custom_minimum_size.x = 2.0 * (SLOT_SIZE + 8.0) if compact else 3.0 * (SLOT_SIZE + 8.0)
+	# Guarantee: if even the compact layout needs more room than there is, the whole menu scales down to fit
+	var avail := Vector2(w, root.size.y if root.size.y > 1.0 else get_viewport().get_visible_rect().size.y)
+	var need := _margin.get_combined_minimum_size()
+	var k := minf(1.0, minf(avail.x / maxf(need.x, 1.0), avail.y / maxf(need.y, 1.0)))
+	_margin.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_margin.position = Vector2.ZERO
+	_margin.scale = Vector2(k, k)
+	_margin.size = avail / k
+
+
 func refresh() -> void:
+	_fit_layout()
 	if _player == null:
 		return
 	_gold_lbl.text = "%d" % _player.gold

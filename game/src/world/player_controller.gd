@@ -124,8 +124,9 @@ const FP_ELBOW_GRIP := Vector3(0.03, -0.141, 0.271)
 const FP_ELBOW_OPEN := Vector3(0.0, -0.097, 0.226)
 
 # One-handed blade (right hand; the off-hand uses the mirror image)
-const FP_SWORD_REST := [Vector3(0.27, -0.29, -0.50), Vector3(-0.10, 0.88, -0.46), Vector3(1.0, 0.0, 0.0)]
-const FP_SWORD_SPRINT := [Vector3(0.24, -0.38, -0.44), Vector3(0.30, 0.55, -0.78), Vector3(1.0, 0.0, 0.0)]
+## FB-014 standing rule: blades face away from the player — at rest and sprinting the cutting edge points forward
+const FP_SWORD_REST := [Vector3(0.27, -0.29, -0.50), Vector3(-0.10, 0.88, -0.46), Vector3(0.0, 0.46, -0.88)]
+const FP_SWORD_SPRINT := [Vector3(0.24, -0.38, -0.44), Vector3(0.30, 0.55, -0.78), Vector3(0.0, 0.82, 0.58)]
 ## Forehand: cocked over the right shoulder -> cuts out in front, high-right to low-left -> follows through low-left
 const FP_SWORD_LIGHT_1 := [
 	[Vector3(0.35, -0.05, -0.36), Vector3(0.30, 0.70, 0.65), Vector3(-0.45, -0.30, -0.84)],
@@ -148,8 +149,8 @@ const FP_SWORD_POWER := [
 # Two-handed axe: keys are for the TOP (right) hand; the left hand rides lower on the haft.
 const FP_AXE_HAND_R := 0.47  ## right fist on the upper leather wrap (model units along the haft)
 const FP_AXE_HAND_L := -0.11  ## left fist on the lower leather wrap
-const FP_AXE_REST := [Vector3(0.30, -0.26, -0.50), Vector3(0.30, 0.80, -0.52), Vector3(-0.60, 0.0, -0.80)]
-const FP_AXE_SPRINT := [Vector3(0.24, -0.34, -0.42), Vector3(0.62, 0.62, -0.48), Vector3(-0.30, 0.0, -0.95)]
+const FP_AXE_REST := [Vector3(0.30, -0.26, -0.50), Vector3(0.30, 0.80, -0.52), Vector3(-0.25, 0.0, -0.97)]
+const FP_AXE_SPRINT := [Vector3(0.24, -0.34, -0.42), Vector3(0.62, 0.62, -0.48), Vector3(-0.15, 0.0, -0.99)]
 ## Diagonal chop: axe hoisted over the right shoulder -> head drives down-left through the crosshair
 const FP_AXE_LIGHT_1 := [
 	[Vector3(0.36, 0.02, -0.34), Vector3(0.28, 0.55, 0.79), Vector3(0.0, 0.82, -0.57)],
@@ -444,8 +445,13 @@ func equip_from_inventory(inv_index: int, preferred_hand: String = "") -> bool:
 	return true
 
 
-## Moves a ring saved under the old "ring" key (D-046 bug) into a real ring slot.
+## Repairs older saves: a ring stored under the old "ring" key (D-046 bug) moves to a real ring slot, and the old
+## "sponsored" rarity becomes "legendary" (FB-014).
 func normalize_equipment() -> void:
+	# FB-014: the old "sponsored" (Sponsored Mythic) rarity is now "legendary"
+	for it in equipment.values() + inventory:
+		if str((it as Dictionary).get("rarity", "")) == "sponsored":
+			(it as Dictionary)["rarity"] = "legendary"
 	if equipment.has("ring"):
 		var r: Dictionary = equipment["ring"]
 		equipment.erase("ring")
@@ -1008,6 +1014,10 @@ func _update_procedural_animations(delta: float, move_amount: float, is_sprintin
 		var trem := maxf(0.0, charge - 0.6) / 0.4
 		r_key = [(r_key[0] as Vector3) + Vector3(sin(_anim_time * 36.0), cos(_anim_time * 43.0), 0.0) * 0.0025 * trem, r_key[1], r_key[2]]
 
+	# FB-014 standing rule: at rest / sprinting the cutting edge faces straight away from the player's eye
+	if _right_swing_t <= 0.0 and not is_right_holding and not is_bow and not r_spell and not r_shield:
+		r_key = _away_edge(r_key, 0.45 if is_two_hand else 0.55)
+
 	# The live pose right before a swing starts, so a swing (incl. a released charge) never snaps
 	if _right_swing_t <= 0.0 or _swing_start_key.is_empty():
 		_swing_start_key = r_key
@@ -1058,7 +1068,7 @@ func _update_procedural_animations(delta: float, move_amount: float, is_sprintin
 			l_key = _sample_keys(u2, [l_key] + _mirror_keys(FP_SPELL_CAST_R) + [l_key], FP_CAST_TIMES, FP_CAST_CURVES)
 	elif not lh.is_empty():
 		# Dual-wield off-hand weapon: the right-hand sword library mirrored across the screen
-		l_key = _mirror_key(FP_SWORD_REST)
+		l_key = _away_edge(_mirror_key(FP_SWORD_REST), 0.55)
 		if _left_action_t > 0.0:
 			var u3 := 1.0 - (_left_action_t / maxf(0.01, _left_action_dur))
 			var sw3 := sin(u3 * PI)
@@ -1197,6 +1207,14 @@ static func _fist_basis(hand: Vector3, grip_dir: Vector3, left: bool, pole_overr
 	var shoulder := Vector3(FP_SHOULDER.x * s, FP_SHOULDER.y, FP_SHOULDER.z)
 	var pole := pole_override if pole_override != Vector3.ZERO else Vector3(FP_ELBOW_POLE.x * s, FP_ELBOW_POLE.y, FP_ELBOW_POLE.z)
 	return _hand_basis(grip_dir, _ik_elbow(shoulder, hand, pole) - hand)
+
+
+## Replaces a key's edge with the direction from the eye (rig origin) to the blade, so the blade is seen edge-on,
+## facing away from the player (FB-014). `reach` = how far along the blade/haft the edge is judged (blade middle /
+## axe head).
+static func _away_edge(k: Array, reach: float) -> Array:
+	var blade_mid := (k[0] as Vector3) + (k[1] as Vector3).normalized() * reach
+	return [k[0], k[1], blade_mid.normalized()]
 
 
 static func _mirror_key(k: Array) -> Array:

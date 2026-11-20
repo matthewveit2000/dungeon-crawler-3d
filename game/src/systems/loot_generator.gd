@@ -31,7 +31,7 @@ static func roll_loot(
 		if exclude_consumables and str(item.get("category", "")) == "consumable":
 			continue
 		# Reserve unique forced-sponsored items for sponsored rolls
-		if str(item.get("forced_rarity", "")) == "sponsored" and forced_rarity != "sponsored":
+		if str(item.get("forced_rarity", "")) == "legendary" and forced_rarity != "legendary":
 			continue
 		candidates.append(item)
 	if candidates.is_empty():
@@ -57,10 +57,10 @@ static func roll_loot(
 
 	# On Sponsored roll, 50% chance to pick a named Sponsored unique if available
 	var base_def: Dictionary = {}
-	if str(chosen_rarity["id"]) == "sponsored" and forced_item_id.is_empty():
+	if str(chosen_rarity["id"]) == "legendary" and forced_item_id.is_empty():
 		var uniques: Array = []
 		for item in items_pack.get("items", []):
-			if str(item.get("forced_rarity", "")) == "sponsored":
+			if str(item.get("forced_rarity", "")) == "legendary":
 				uniques.append(item)
 		if not uniques.is_empty() and rng.next_float("loot") < 0.5:
 			base_def = rng.pick_array("loot", uniques)
@@ -116,22 +116,22 @@ static func roll_loot(
 		elif pool == suffixes and suffix_label.is_empty():
 			suffix_label = str(picked["label"])
 
-	# Sponsored/Mythic rolls always carry a game-changing sponsored_effect
-	if r_id == "sponsored" and str(inst.get("sponsored_effect", "")).is_empty():
+	# Legendary rolls always carry a game-changing sponsored_effect
+	if r_id == "legendary" and str(inst.get("sponsored_effect", "")).is_empty():
 		var effs: Array = affixes_pack.get("sponsored_effects", [])
 		if not effs.is_empty():
 			var chosen_eff: Dictionary = rng.pick_array("loot", effs)
 			inst["sponsored_effect"] = str(chosen_eff["id"])
 			inst["sponsored_label"] = str(chosen_eff["label"])
 
-	if str(base_def.get("forced_rarity", "")) != "sponsored":
+	if str(base_def.get("forced_rarity", "")) != "legendary":
 		var base_name := str(base_def["name"])
 		var full_name := base_name
 		if not prefix_label.is_empty():
 			full_name = "%s %s" % [prefix_label, full_name]
 		if not suffix_label.is_empty():
 			full_name = "%s %s" % [full_name, suffix_label]
-		if r_id == "sponsored":
+		if r_id == "legendary":
 			full_name = "Sponsored: %s" % full_name
 		inst["name"] = full_name
 

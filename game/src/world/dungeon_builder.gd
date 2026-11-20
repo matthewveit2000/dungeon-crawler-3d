@@ -421,7 +421,7 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 		var c: Dictionary = layout.chests[idx]
 		var wpos := layout.tile_to_world(c["tile"])
 		var tier := str(c.get("tier", "standard"))
-		var label := "Open Vault Treasure Chest" if tier == "vault_sponsored" else "Open Iron-Bound Chest"
+		var label := "Open Vault Treasure Chest" if tier == "vault_legendary" else "Open Iron-Bound Chest"
 		var inter := InteractableObject.new()
 		inter.setup("chest_%d" % idx, "chest", label, c, interact_cb, Vector3(1.2, 1.0, 0.85))
 		inter.position = wpos
@@ -429,7 +429,7 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 		var model := ModelLoader.instantiate_model(PROPS + "chest.glb", Vector3(1.1, 0.8, 0.7))
 		inter.add_child(model)
 		inter.visual_root = model
-		if tier == "vault_sponsored":
+		if tier == "vault_legendary":
 			_add_light(inter, Vector3(0.0, 1.3, 0.6), Color(1.0, 0.8, 0.38), 1.6, 6.0, false)
 		_world_root.add_child(inter)
 
@@ -502,9 +502,9 @@ func spawn_test_object(kind: String, pos: Vector3, yaw: float, interact_cb: Call
 	var tid := "test_%s_%d" % [kind.replace(":", "_"), _test_counter]
 	match kind:
 		"chest", "rare_chest", "vault_chest":
-			var tier: String = {"chest": "standard", "rare_chest": "rare", "vault_chest": "vault_sponsored"}[kind]
+			var tier: String = {"chest": "standard", "rare_chest": "rare", "vault_chest": "vault_legendary"}[kind]
 			var inter := InteractableObject.new()
-			inter.setup(tid, "chest", "Open Vault Treasure Chest" if tier == "vault_sponsored" else "Open Iron-Bound Chest",
+			inter.setup(tid, "chest", "Open Vault Treasure Chest" if tier == "vault_legendary" else "Open Iron-Bound Chest",
 				{"tier": tier}, interact_cb, Vector3(1.2, 1.0, 0.85))
 			inter.position = pos
 			inter.rotation.y = yaw
@@ -852,6 +852,8 @@ func _dress_room(room: Dictionary, wall_slots: Array[Dictionary], rng: SeededRng
 		if kind in ["barrel", "urn", "crate", "rubble_pile", "bone_pile", "candle_cluster"]:
 			rot += rng.next_float_range("gen", -0.6, 0.6)
 		_spawn_dressing(kind, p, rot, rng)
+		if DRESSING_COLLIDE.has(kind):
+			layout.nav_weights[t] = maxf(float(layout.nav_weights.get(t, 1.0)), 3.0 if kind in ["sarcophagus", "table", "weapon_rack"] else 2.0)
 		if kind == "barrel" and rng.next_float("gen") < 0.6:
 			_spawn_dressing("barrel", p + along * 0.82 + inward * rng.next_float_range("gen", -0.1, 0.15), rot + 1.3, rng)
 		elif kind == "crate" and rng.next_float("gen") < 0.4:

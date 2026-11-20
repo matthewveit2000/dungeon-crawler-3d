@@ -75,3 +75,13 @@ distinct request as its own line with its status (`Done`, `Partial`, `Open`, `Pr
 - Map locks onto / follows the player (map centred on the player + new corner minimap). — `Done` — `D-046` — Guard: `test_map_and_minimap_are_locked_on_the_player`
 - Test Mode: spawn enemies, items, rooms, props; all game testing possible there. — `Done` — `D-047` — Guard: `test_test_mode_can_spawn_anything_and_never_touches_the_real_save`
 - Log every comment, now and going forward, and check the log to avoid regressions. — `Done` — `D-045` (this file + `AGENTS.md` §4 rule)
+
+### FB-014 — "The chest and shield have holes in them. i.e. you can see inbetween the wood planks. The enemies get stuck on things. make their path finding better. Replace the rarities with normal RPG rarities. some of the weapons are still facing side ways in FPV. Note that blades face away from the player. Duel welding animations are broken in third person view. The item menu cuts off the side of the screen in some scenarios. maybe when I have too many items. The bow animation is broken in third person. The spell casting animation is broken in third person"
+- Chest and shield: no see-through gaps between planks. — see `D-048`
+- Enemies path around walls and props instead of getting stuck. — see `D-048`
+- Normal RPG rarities (Common / Uncommon / Rare / Epic / Legendary). — see `D-048`
+- **Standing rule: blades face away from the player in first person** (edge forward, never the flat of a blade sideways at rest). — see `D-048`
+- Dual-wield animations in third person. — see `D-048`
+- Item (inventory) menu never cuts off the screen side, however many items. — see `D-048`
+- Bow animation in third person. — see `D-048`
+- Spell-casting animation in third person. — see `D-048`

@@ -35,6 +35,41 @@ class FloorLayout:
 	var traps: Array[Vector2i] = []
 	var enemy_spawns: Array[Dictionary] = []
 	var landmarks: Array[Dictionary] = []
+	var nav: AStarGrid2D = null  ## tile-level navigation grid (FB-014 pathfinding), built on first use
+	var nav_weights: Dictionary = {}  ## Vector2i -> extra path cost (tiles cluttered by props), filled by the builder
+
+	## Tile path from a to b around walls and blocked props (empty if unreachable). Built lazily once per floor.
+	func find_path(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
+		if nav == null:
+			_build_nav()
+		var out: Array[Vector2i] = []
+		if not nav.is_in_boundsv(a) or not nav.is_in_boundsv(b):
+			return out
+		var ids := nav.get_id_path(a, b, true)
+		for p in ids:
+			out.append(p)
+		return out
+
+	func _build_nav() -> void:
+		nav = AStarGrid2D.new()
+		nav.region = Rect2i(0, 0, width, height)
+		nav.cell_size = Vector2(1, 1)
+		# 4-way moves only: straight segments between tile centres stay clear of pillars on tile corners
+		nav.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_NEVER
+		nav.default_compute_heuristic = AStarGrid2D.HEURISTIC_MANHATTAN
+		nav.default_estimate_heuristic = AStarGrid2D.HEURISTIC_MANHATTAN
+		nav.update()
+		nav.fill_solid_region(nav.region, true)
+		for y in range(height):
+			for x in range(width):
+				if tiles[y * width + x] != TILE_VOID:
+					nav.set_point_solid(Vector2i(x, y), false)
+		# Chests stand on tile centres and props clutter wall tiles: prefer routes around them
+		for c in chests:
+			nav_weights[c["tile"]] = maxf(float(nav_weights.get(c["tile"], 1.0)), 6.0)
+		for t in nav_weights:
+			if nav.is_in_boundsv(t) and not nav.is_point_solid(t):
+				nav.set_point_weight_scale(t, float(nav_weights[t]))
 
 	func get_tile(x: int, y: int) -> int:
 		if x < 0 or y < 0 or x >= width or y >= height:
@@ -432,7 +467,7 @@ static func _populate_contents(
 		var rect: Rect2i = r["rect"]
 		var center: Vector2i = r["center"]
 		if role == "vault":
-			layout.chests.append({"tile": center, "tier": "vault_sponsored", "room_id": r["id"]})
+			layout.chests.append({"tile": center, "tier": "vault_legendary", "room_id": r["id"]})
 			layout.chests.append({"tile": center + Vector2i(1, 0), "tier": "rare", "room_id": r["id"]})
 		elif role == "combat":
 			combat_rooms.append(r)

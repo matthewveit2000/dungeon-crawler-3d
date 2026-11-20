@@ -80,6 +80,17 @@ var _wander_pause: float = 0.0
 var _unseen_t: float = 0.0
 var _los_timer: float = 0.0
 var _los_cached: bool = false
+# Pathfinding (FB-014): enemies follow a tile path around walls/props and unstick themselves
+var _path: Array[Vector2i] = []
+var _path_i: int = 0
+var _path_goal: Vector2i = Vector2i(-9999, -9999)
+var _repath_t: float = 0.0
+var _stuck_t: float = 0.0
+var _sidestep_t: float = 0.0
+var _sidestep_dir: Vector3 = Vector3.ZERO
+var _last_pos: Vector3 = Vector3.ZERO
+var _walk_timer: float = 0.0
+var _walk_cached: bool = true
 var _player_ref: Node3D = null
 var _rng: SeededRng = null
 var _on_attack_player: Callable = Callable()
@@ -325,8 +336,9 @@ func step_ai(delta: float, is_paused: bool) -> void:
 		retreat_dir.y = 0.0
 		if retreat_dir.length() > 0.6:
 			var spd := move_speed * 1.15
-			velocity.x = retreat_dir.normalized().x * spd
-			velocity.z = retreat_dir.normalized().z * spd
+			retreat_dir = _steer_toward(spawn_pos, retreat_dir.length(), delta)
+			velocity.x = retreat_dir.x * spd
+			velocity.z = retreat_dir.z * spd
 			_face_dir(retreat_dir, delta)
 		else:
 			velocity.x = 0.0
@@ -366,9 +378,8 @@ func step_ai(delta: float, is_paused: bool) -> void:
 	var eff_speed := move_speed * (enrage_speed_mult if enraged else 1.0)
 	if visual != null and visual.oneshot == "roar":
 		eff_speed = 0.0
-	_face_dir(flat_to_player, delta)
-
 	if dist <= attack_range:
+		_face_dir(flat_to_player, delta)
 		state = AiState.ATTACK
 		if archetype == "ranged" and dist < preferred_distance * 0.65:
 			var back := -flat_to_player.normalized()
@@ -386,7 +397,8 @@ func step_ai(delta: float, is_paused: bool) -> void:
 			_perform_attack(flat_to_player)
 	else:
 		state = AiState.CHASE
-		var dir := flat_to_player.normalized()
+		var dir := _steer_toward(player_pos, dist, delta)
+		_face_dir(dir if dir.length() > 0.01 else flat_to_player, delta)
 		var next_probe := global_position + dir * 1.1
 		if not is_boss and _layout != null and _layout.is_world_in_safe_room(next_probe):
 			state = AiState.FLEE_SAFE_ZONE
@@ -399,6 +411,72 @@ func step_ai(delta: float, is_paused: bool) -> void:
 	velocity.y = -6.0 if not is_on_floor() else 0.0
 	move_and_slide()
 	_update_animation(delta, Vector2(velocity.x, velocity.z).length())
+
+
+## Direction to move toward `target`: straight when close with a clear view, otherwise along an A* tile path
+## around walls and props; sidesteps and re-plans when it stops making progress (FB-014).
+func _steer_toward(target: Vector3, dist: float, delta: float) -> Vector3:
+	var flat := Vector3(target.x - global_position.x, 0.0, target.z - global_position.z)
+	# progress / stuck tracking
+	var moved := Vector2(global_position.x - _last_pos.x, global_position.z - _last_pos.z).length()
+	_last_pos = global_position
+	_stuck_t = _stuck_t + delta if moved < move_speed * delta * 0.25 else maxf(0.0, _stuck_t - delta * 2.0)
+	if _sidestep_t > 0.0:
+		_sidestep_t -= delta
+		return _sidestep_dir
+	if _stuck_t > 0.8:
+		_stuck_t = 0.0
+		_sidestep_t = 0.45
+		var side := Vector3(-flat.z, 0.0, flat.x).normalized()
+		_sidestep_dir = side * (1.0 if (_rng == null or _rng.next_float("ai") < 0.5) else -1.0)
+		_path.clear()
+		return _sidestep_dir
+	var my_t := _layout.world_to_tile(global_position) if _layout != null else Vector2i.ZERO
+	var goal_t := _layout.world_to_tile(target) if _layout != null else Vector2i.ZERO
+	var tile_gap := absi(goal_t.x - my_t.x) + absi(goal_t.y - my_t.y)
+	if _layout == null or tile_gap > 40 or (dist < 9.0 and _walk_clear(target, delta)):
+		_path.clear()
+		return flat.normalized() if flat.length() > 0.01 else Vector3.ZERO
+	_repath_t -= delta
+	if _path.is_empty() or goal_t != _path_goal or _repath_t <= 0.0:
+		_path = _layout.find_path(my_t, goal_t)
+		_path_i = 1
+		_path_goal = goal_t
+		_repath_t = 0.6 + (float(get_instance_id() % 7) * 0.03)
+	while _path_i < _path.size():
+		var wp := _layout.tile_to_world(_path[_path_i])
+		if Vector2(wp.x - global_position.x, wp.z - global_position.z).length() > 0.7:
+			var d := Vector3(wp.x - global_position.x, 0.0, wp.z - global_position.z)
+			return d.normalized()
+		_path_i += 1
+	return flat.normalized() if flat.length() > 0.01 else Vector3.ZERO
+
+
+## True when a body-height sweep (centre + both shoulders) to `target` hits no wall or prop: walk straight.
+func _walk_clear(target: Vector3, delta: float) -> bool:
+	_walk_timer -= delta
+	if _walk_timer > 0.0:
+		return _walk_cached
+	_walk_timer = 0.25
+	if not is_inside_tree():
+		_walk_cached = true
+		return true
+	var space := get_world_3d().direct_space_state
+	var to := Vector3(target.x, global_position.y, target.z) - global_position
+	var side := Vector3(-to.z, 0.0, to.x).normalized() * maxf(0.3, body_radius * 0.85)
+	var ex: Array[RID] = [get_rid()]
+	if _player_ref is CollisionObject3D:
+		ex.append((_player_ref as CollisionObject3D).get_rid())
+	_walk_cached = true
+	for off in [Vector3.ZERO, side, -side]:
+		var a: Vector3 = global_position + Vector3(0.0, 0.45, 0.0) + off
+		var q := PhysicsRayQueryParameters3D.create(a, a + to, 1)
+		q.exclude = ex
+		var hit := space.intersect_ray(q)
+		if not hit.is_empty() and not (hit.get("collider") is EnemyActor):
+			_walk_cached = false
+			break
+	return _walk_cached
 
 
 ## Idle roaming inside the enemy's own room: walk to a random spot, pause, repeat.

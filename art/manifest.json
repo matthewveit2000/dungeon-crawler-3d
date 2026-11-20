@@ -494,13 +494,14 @@
         0.109,
         0.83
       ],
-      "triangles": 5270,
-      "bytes": 353432,
+      "triangles": 5458,
+      "bytes": 366956,
       "materials": [
         "iron_dark",
         "leather_brown",
         "leather_dark",
         "wood_beam",
+        "wood_dark",
         "wood_oak"
       ]
     },
@@ -917,12 +918,12 @@
       "name": "chest",
       "path": "game/assets/models/props/chest.glb",
       "dimensions_xyz_m": [
-        1.133,
+        1.132,
         0.753,
         0.85
       ],
-      "triangles": 9258,
-      "bytes": 545848,
+      "triangles": 9378,
+      "bytes": 575952,
       "materials": [
         "iron_dark",
         "void_black",

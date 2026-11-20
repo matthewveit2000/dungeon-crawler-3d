@@ -269,10 +269,10 @@ func reset_floor_to_snapshot(reason: String) -> void:
 		run_seed = int(snap.get("run_seed", run_seed))
 		player.gold = int(snap.get("gold", 75))
 		player.equipment = snap.get("equipment", {}).duplicate(true)
-		player.normalize_equipment()
 		player.inventory.clear()
 		for item in snap.get("inventory", []):
 			player.inventory.append(item.duplicate(true))
+		player.normalize_equipment()
 		progression.from_dict(snap.get("progression", {}))
 		player.refresh_hand_visuals()
 
@@ -329,10 +329,10 @@ func load_saved_session() -> bool:
 	floor_number = int(session.get("floor_number", 1))
 	player.gold = int(session.get("gold", 75))
 	player.equipment = session.get("equipment", {}).duplicate(true)
-	player.normalize_equipment()
 	player.inventory.clear()
 	for item in session.get("inventory", []):
 		player.inventory.append(item.duplicate(true))
+	player.normalize_equipment()
 	progression.from_dict(session.get("progression", {}))
 	if tutorial_sys != null and session.has("tutorials"):
 		tutorial_sys.from_dict(session["tutorials"])
@@ -851,7 +851,7 @@ func _on_interactable_triggered(inter: InteractableObject, _actor: Node3D) -> bo
 	match inter.kind:
 		"chest":
 			var tier := str(inter.payload.get("tier", "standard"))
-			var forced := "sponsored" if tier == "vault_sponsored" else ("rare" if tier == "rare" else "")
+			var forced := "legendary" if tier == "vault_legendary" else ("rare" if tier == "rare" else "")
 			var chest_rng := _loot_rng_for(inter.interact_id)
 			var rolled := LootGenerator.roll_loot(DataLoader.get_items_pack(), DataLoader.get_affixes_pack(), floor_number, chest_rng, forced, true)
 			var gold_gain := chest_rng.next_int_range("loot", 25, 65) * floor_number
@@ -914,7 +914,7 @@ func _grant_loot(item: Dictionary, gold_gain: int) -> void:
 		player.inventory.append(item)
 		if EventBus != null:
 			EventBus.item_acquired.emit(item)
-		if str(item.get("rarity", "")) == "sponsored":
+		if str(item.get("rarity", "")) == "legendary":
 			_announce_ai("sponsored_loot", {"item_name": str(item.get("name", "Mythic Gear"))}, "warning")
 	player.emit_stats()
 
@@ -1145,7 +1145,7 @@ func _cmd_advance_days(args: Array[String]) -> String:
 
 
 func _cmd_spawn_loot(args: Array[String]) -> String:
-	var rarity := args[0].to_lower() if not args.is_empty() else "sponsored"
+	var rarity := args[0].to_lower() if not args.is_empty() else "legendary"
 	var rolled := LootGenerator.roll_loot(DataLoader.get_items_pack(), DataLoader.get_affixes_pack(), floor_number, rng, rarity, true)
 	if rolled.is_empty():
 		return "Failed to roll loot."

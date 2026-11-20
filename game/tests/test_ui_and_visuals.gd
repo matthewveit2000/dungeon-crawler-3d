@@ -218,13 +218,29 @@ func _assert_fits(ctrl: Control, bounds: Rect2, what: String) -> void:
 
 func test_menus_fit_a_720p_screen() -> void:
 	var bounds := Rect2(Vector2.ZERO, Vector2(1280, 720))
-	game.run_console_command("spawn_loot sponsored")
+	game.run_console_command("spawn_loot legendary")
 	game.run_console_command("spawn_loot epic")
+	# FB-014: a stuffed pack with long legendary names must never push the menu off screen
+	for _i in range(6):
+		game.test_give_all_items("legendary")
 	game.open_exclusive_menu("inventory")
 	_force_size(game.inventory_menu.root, bounds.size)
 	for _i in range(4):
 		await get_tree().process_frame
 	_assert_fits(game.inventory_menu._inv_page, bounds, "Inventory columns")
+	game.inventory_menu._selected_idx = game.player.inventory.size() - 3
+	game.inventory_menu.refresh()
+	for _i in range(4):
+		await get_tree().process_frame
+	_assert_fits(game.inventory_menu._inv_page, bounds, "Inventory columns with a legendary item selected (%d items)" % game.player.inventory.size())
+	_assert_fits(game.inventory_menu._actions, bounds, "Item action buttons")
+	# Interface Scale 150% leaves ~853x480 of layout space on a 1280x720 window
+	var scaled := Rect2(Vector2.ZERO, Vector2(853, 480))
+	_force_size(game.inventory_menu.root, scaled.size)
+	game.inventory_menu.refresh()
+	for _i in range(4):
+		await get_tree().process_frame
+	_assert_fits(game.inventory_menu._inv_page, scaled, "Inventory at 150% interface scale")
 	var tabs := game.inventory_menu._tabs
 	assert_true(tabs.get_tab_rect(1).end.x <= tabs.size.x + 1.0, "Both character tabs are fully visible")
 	game.open_exclusive_menu("pause")
