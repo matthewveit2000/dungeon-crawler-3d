@@ -65,3 +65,9 @@ See [`docs/TESTING_STRATEGY.md`](../TESTING_STRATEGY.md) and [`docs/DECISION_LOG
   - Export-time corpse ground-contact assertion inside `art/blender/dclib/char_anims.py` (`hips`, `chest`, `head` `z >= 0.04m` at final death frame).
 - **Totals:** 12 test scripts, **62/62 passing tests**, **5,742 assertions** — all 5 automated layers green.
 
+
+## 2026-11-20 — First-Person Viewmodel Regression Tests (`D-040`)
+
+- `game/tests/test_fp_viewmodel.gd`: elbows never swing out ahead of the fists through every sword/axe attack; the axe edge faces forward at rest and leads the opening chop; both fists sit centred on the axe's leather wraps; the sword blade extends away from the camera at impact; spell palms face the target (idle and mid-cast); the drawn bow stands upright left of the crosshair with the arrow nocked only while drawing.
+- Updated `test_power_attack_charge_continuity_and_bow_sightline_alignment`: no arrow is nocked at idle; it appears on draw and aims along the sightline.
+- New iteration tool `./scripts/fp-pose-probe.sh` (`game/scenes/fp_pose_probe.tscn`): renders sampled first-person frames as [player view | side | top] strips in ~6 s.
