@@ -23,4 +23,4 @@
 | 2026-11-20 | `337cf05` (PR #13) | Feedback log, rings, difficulty, either-hand items, enemy AI, 3P looting, minimap, Test Mode | FB-013, `D-045`–`D-047` | `git revert -m 1 337cf05` |
 | 2026-11-20 | `d6f6529` (PR #14) | Chest/shield holes, enemy pathfinding, RPG rarities, edge-forward blades, 3P dual-wield/bow/spells, inventory fit | FB-014, `D-048` | `git revert -m 1 d6f6529` |
 | 2026-11-20 | `295f1c7` (PR #15) | Discovery & Mastery: varied all-Common loot, item mastery abilities, unique leveled enemies, Bestiary | FB-015, FB-016, `D-049` | `git revert -m 1 295f1c7` |
-| 2026-11-20 | *(this commit — see `git log -1 --grep "D-050"`)* | Workflow switched to direct commits on `main`; this work log added | FB-017, `D-050` | `git revert <sha>` |
+| 2026-11-20 | `17892bf` | Workflow switched to direct commits on `main`; this work log added | FB-017, `D-050` | `git revert 17892bf` |
