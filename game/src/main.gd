@@ -571,12 +571,18 @@ func _check_zone_triggers(delta: float) -> void:
 		if EventBus != null:
 			EventBus.safe_room_exited.emit()
 
-	# Once the boss is down the vault must be open, whatever path got us here (kill, load, reset ordering)
-	if boss_defeated_this_floor and not dungeon_builder.vault_unlocked:
+	# Boss gate watchdog: once the boss is dead or gone by any route, the arena and vault must be open
+	if not boss_defeated_this_floor and not _boss_alive():
+		_on_boss_defeated()
+	elif boss_defeated_this_floor and (dungeon_builder.boss_arena_sealed or not dungeon_builder.vault_unlocked):
 		dungeon_builder.unlock_boss_and_vault()
+	elif _boss_alive() and boss_actor.global_position.y < -3.0:
+		# A boss that slipped out of the world would keep the arena sealed forever: put it back on its dais
+		boss_actor.global_position = current_layout.tile_to_world(current_layout.rooms[current_layout.boss_room_id]["center"]) + Vector3(0.0, 0.45, 0.0)
+		boss_actor.velocity = Vector3.ZERO
 
-	# Boss Arena threshold lockdown (D-022)
-	if not boss_defeated_this_floor and not dungeon_builder.boss_arena_sealed:
+	# Boss Arena threshold lockdown (D-022) — only ever with a living boss inside
+	if not boss_defeated_this_floor and not dungeon_builder.boss_arena_sealed and _boss_alive():
 		if current_layout.is_world_in_boss_arena(player.global_position):
 			dungeon_builder.seal_boss_arena()
 			if boss_actor != null and is_instance_valid(boss_actor):
@@ -725,6 +731,10 @@ func _spawn_hit_feedback(pos: Vector3, dmg: float, crit: bool) -> void:
 
 
 func _on_enemy_died(enemy: EnemyActor) -> void:
+	# The boss's gates are opened FIRST, so nothing later in this handler (loot, corpse, VFX) can leave the
+	# player sealed in the arena or locked out of the vault
+	if enemy.is_boss:
+		_on_boss_defeated()
 	var eq_totals := LootGenerator.aggregate_equipment_stats(player.equipment)
 	var sponsored: Array = eq_totals["sponsored_effects"]
 
@@ -768,9 +778,6 @@ func _on_enemy_died(enemy: EnemyActor) -> void:
 	_announce_ai("first_kill", {}, "info", true)
 
 	if enemy.is_boss:
-		boss_defeated_this_floor = true
-		boss_actor = null
-		dungeon_builder.unlock_boss_and_vault()
 		_complete_tutorial("boss_arena")
 		if EventBus != null:
 			EventBus.boss_defeated.emit(enemy.display_name)
@@ -882,6 +889,19 @@ func _spawn_floor_enemies(enemies_pack: Dictionary) -> void:
 		})
 		if enemy.is_boss:
 			boss_actor = enemy
+
+
+## Marks the floor boss beaten and opens the arena and vault gates (idempotent).
+func _on_boss_defeated() -> void:
+	boss_defeated_this_floor = true
+	boss_actor = null
+	dungeon_builder.unlock_boss_and_vault()
+
+
+## True while the floor boss is alive and fightable inside its arena.
+func _boss_alive() -> bool:
+	return boss_actor != null and is_instance_valid(boss_actor) and not boss_actor.is_queued_for_deletion() \
+		and boss_actor.state != EnemyActor.AiState.DEAD and boss_actor.current_health > 0.0
 
 
 func _on_player_died() -> void:
