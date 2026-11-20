@@ -11,6 +11,7 @@ class MapCanvas extends Control:
 	var landmarks: Array = []
 	var zoom: float = 1.0
 	var pan: Vector2 = Vector2.ZERO
+	const VIEW_TILES := 70  ## tiles across the shorter side at zoom 1
 	var _drag: bool = false
 	var paper: Texture2D = null
 
@@ -21,13 +22,21 @@ class MapCanvas extends Control:
 				zoom = clampf(zoom * 1.15, 0.6, 4.0)
 				queue_redraw()
 			elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and mb.pressed:
-				zoom = clampf(zoom / 1.15, 0.6, 4.0)
+				zoom = clampf(zoom / 1.15, 0.25, 4.0)
 				queue_redraw()
 			elif mb.button_index == MOUSE_BUTTON_LEFT:
 				_drag = mb.pressed
+		elif ev is InputEventKey and (ev as InputEventKey).pressed and (ev as InputEventKey).keycode == KEY_SPACE:
+			pan = Vector2.ZERO
+			queue_redraw()
 		elif ev is InputEventMouseMotion and _drag:
 			pan += (ev as InputEventMouseMotion).relative
 			queue_redraw()
+
+	## Screen position of a tile-space point; the player's tile maps to the centre (plus any drag offset).
+	func tile_to_screen(t: Vector2) -> Vector2:
+		var cell := clampf(minf(size.x, size.y) / float(VIEW_TILES) * zoom, 3.0, 64.0)
+		return size * 0.5 - (player_tile_f + Vector2(0.5, 0.5)) * cell + pan + t * cell
 
 	func _draw() -> void:
 		var r := Rect2(Vector2.ZERO, size)
@@ -38,20 +47,9 @@ class MapCanvas extends Control:
 		draw_rect(r, Color(0.25, 0.18, 0.1, 0.25), true)
 		if layout == null:
 			return
-		# bounds of explored area (fallback: whole grid)
-		var mn := Vector2i(layout.width, layout.height)
-		var mx := Vector2i(0, 0)
-		for t in seen.keys():
-			mn = Vector2i(mini(mn.x, t.x), mini(mn.y, t.y))
-			mx = Vector2i(maxi(mx.x, t.x), maxi(mx.y, t.y))
-		if seen.is_empty():
-			mn = Vector2i(0, 0)
-			mx = Vector2i(layout.width - 1, layout.height - 1)
-		var span := Vector2(mx - mn) + Vector2(5, 5)
-		var cell := minf(size.x / span.x, size.y / span.y) * zoom
-		cell = clampf(cell, 4.0, 64.0)
-		var center := (Vector2(mn + mx) + Vector2.ONE) * 0.5
-		var origin := size * 0.5 - center * cell + pan
+		# D-046: the map is locked onto the player (centred on the crawler; drag to look around, Space to snap back)
+		var cell := clampf(minf(size.x, size.y) / float(VIEW_TILES) * zoom, 3.0, 64.0)
+		var origin := size * 0.5 - (player_tile_f + Vector2(0.5, 0.5)) * cell + pan
 		var ink := Color(0.16, 0.1, 0.05, 0.95)
 		var room_fill := Color(0.5, 0.4, 0.27, 0.55)
 		var corr_fill := Color(0.42, 0.33, 0.22, 0.45)
@@ -191,7 +189,7 @@ func _build_ui() -> void:
 	var spc := Control.new()
 	spc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(spc)
-	v.add_child(UiTheme.label("Mouse wheel  ·  zoom\nDrag  ·  pan", 15, UiTheme.COL_FAINT, UiTheme.font_ui()))
+	v.add_child(UiTheme.label("Centred on you\nMouse wheel  ·  zoom\nDrag  ·  look around  ·  Space  ·  re-centre", 15, UiTheme.COL_FAINT, UiTheme.font_ui()))
 	var close := UiTheme.button("Close  [M]", 0, 18)
 	close.pressed.connect(func() -> void:
 		if _close_cb.is_valid():

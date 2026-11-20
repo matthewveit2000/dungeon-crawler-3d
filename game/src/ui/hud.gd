@@ -172,6 +172,8 @@ class Crosshair extends Control:
 var _root: Control = null
 var _compass: CompassStrip = null
 var _floor_lbl: Label = null
+var _test_tag: Label = null
+var minimap: MiniMap = null
 var _clock_lbl: Label = null
 var _zone_pill: PanelContainer = null
 var _zone_lbl: Label = null
@@ -299,6 +301,20 @@ func _build_ui() -> void:
 	_vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_vignette.modulate = Color(0, 0, 0, 0.38)
 	_root.add_child(_vignette)
+
+	# --- Minimap locked onto the player (D-046) ---------------------------------
+	minimap = MiniMap.new()
+	minimap.name = "MiniMap"
+	minimap.position = Vector2(18, 18)
+	minimap.size = Vector2(190, 190)
+	minimap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	minimap.modulate.a = 0.92
+	_root.add_child(minimap)
+	_test_tag = UiTheme.label("TEST MODE  ·  F1 tools", 15, UiTheme.COL_GOLD_BRIGHT, UiTheme.font_heading())
+	_test_tag.position = Vector2(20, 214)
+	_test_tag.visible = false
+	_test_tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_test_tag)
 
 	# --- Compass & floor clock -------------------------------------------------
 	var top := VBoxContainer.new()
@@ -687,6 +703,16 @@ func update_clock(floor_num: int, floor_name: String, formatted_clock: String) -
 		days_left = parts[1].strip_edges().to_float()
 	var urgent := days_left < 1.0
 	_clock_lbl.add_theme_color_override("font_color", UiTheme.COL_DANGER if urgent else UiTheme.COL_MUTED)
+
+
+func set_test_mode(on: bool) -> void:
+	if _test_tag != null:
+		_test_tag.visible = on
+
+
+func update_minimap(layout: DungeonGenerator.FloorLayout, seen: Dictionary, player_pos: Vector3, yaw: float) -> void:
+	if minimap != null:
+		minimap.refresh(layout, seen, player_pos, yaw)
 
 
 func update_compass(player_yaw_rad: float, markers: Array) -> void:

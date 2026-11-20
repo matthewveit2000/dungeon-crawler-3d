@@ -69,6 +69,16 @@ var _stride_walk_mps: float = 1.65
 var _stride_run_mps: float = 4.2
 
 var _layout: DungeonGenerator.FloorLayout = null
+# Wandering & awareness (D-046): idle enemies roam their room; they engage on sight (or hearing range) from far
+# away, and give up after losing sight of the player for a while
+const HEARING_RADIUS := 6.0
+const LOSE_SIGHT_SEC := 4.0
+const LEASH_MULT := 2.2
+var _wander_target: Vector3 = Vector3.INF
+var _wander_pause: float = 0.0
+var _unseen_t: float = 0.0
+var _los_timer: float = 0.0
+var _los_cached: bool = false
 var _player_ref: Node3D = null
 var _rng: SeededRng = null
 var _on_attack_player: Callable = Callable()
@@ -333,15 +343,23 @@ func step_ai(delta: float, is_paused: bool) -> void:
 		state = AiState.IDLE
 
 	if state == AiState.IDLE:
-		if dist <= aggro_radius:
+		if dist <= HEARING_RADIUS or (dist <= aggro_radius and _sees_player(delta)):
 			state = AiState.CHASE
+			_unseen_t = 0.0
+			_wander_target = Vector3.INF
 		else:
-			velocity.x = 0.0
-			velocity.z = 0.0
-			velocity.y = -4.0 if not is_on_floor() else 0.0
-			move_and_slide()
-			_update_animation(delta, 0.0)
+			_wander(delta)
 			return
+	else:
+		# Lose interest once the player is out of sight for a while or far beyond engagement range
+		if not is_boss:
+			_unseen_t = 0.0 if _sees_player(delta) else _unseen_t + delta
+			if _unseen_t > LOSE_SIGHT_SEC or dist > aggro_radius * LEASH_MULT:
+				state = AiState.IDLE
+				_wander_pause = 1.0
+				_attack_anim_started = false
+				_wander(delta)
+				return
 
 	var eff_speed := move_speed * (enrage_speed_mult if enraged else 1.0)
 	if visual != null and visual.oneshot == "roar":
@@ -362,7 +380,7 @@ func step_ai(delta: float, is_paused: bool) -> void:
 			_attack_anim_started = true
 			if visual != null:
 				visual.play_action(_attack_clip, 0.1, _anim_speed())
-		if _attack_timer <= 0.0:
+		if _attack_timer <= 0.0 and (archetype != "ranged" or _sees_player(delta)):
 			_perform_attack(flat_to_player)
 	else:
 		state = AiState.CHASE
@@ -379,6 +397,69 @@ func step_ai(delta: float, is_paused: bool) -> void:
 	velocity.y = -6.0 if not is_on_floor() else 0.0
 	move_and_slide()
 	_update_animation(delta, Vector2(velocity.x, velocity.z).length())
+
+
+## Idle roaming inside the enemy's own room: walk to a random spot, pause, repeat.
+func _wander(delta: float) -> void:
+	var speed := 0.0
+	if _wander_pause > 0.0:
+		_wander_pause -= delta
+		velocity.x = 0.0
+		velocity.z = 0.0
+	else:
+		if _wander_target == Vector3.INF:
+			_wander_target = _pick_wander_target()
+		var to_t := _wander_target - global_position
+		to_t.y = 0.0
+		if to_t.length() < 0.6:
+			_wander_target = Vector3.INF
+			_wander_pause = _rng.next_float_range("ai", 1.2, 3.8) if _rng != null else 2.0
+			velocity.x = 0.0
+			velocity.z = 0.0
+		else:
+			speed = move_speed * 0.38
+			var dir := to_t.normalized()
+			velocity.x = dir.x * speed
+			velocity.z = dir.z * speed
+			_face_dir(to_t, delta)
+	velocity.y = -4.0 if not is_on_floor() else 0.0
+	move_and_slide()
+	if speed > 0.0 and get_real_velocity().length() < speed * 0.2:
+		_wander_target = Vector3.INF  # bumped into something: pick somewhere else
+		_wander_pause = 0.6
+	_update_animation(delta, Vector2(velocity.x, velocity.z).length())
+
+
+func _pick_wander_target() -> Vector3:
+	if _layout == null:
+		return spawn_pos
+	var room := _layout.get_room(room_id)
+	if room.is_empty():
+		return spawn_pos
+	var rect: Rect2i = room["rect"]
+	var inner := rect.grow(-1) if rect.size.x > 2 and rect.size.y > 2 else rect
+	var tx := _rng.next_int_range("ai", inner.position.x, inner.end.x - 1) if _rng != null else inner.position.x
+	var ty := _rng.next_int_range("ai", inner.position.y, inner.end.y - 1) if _rng != null else inner.position.y
+	var jitter := Vector3(_rng.next_float_range("ai", -1.2, 1.2), 0.0, _rng.next_float_range("ai", -1.2, 1.2)) if _rng != null else Vector3.ZERO
+	return _layout.tile_to_world(Vector2i(tx, ty)) + jitter + Vector3(0.0, global_position.y, 0.0)
+
+
+## Line of sight to the player through the world geometry (cached for 0.2 s).
+func _sees_player(delta: float) -> bool:
+	_los_timer -= delta
+	if _los_timer > 0.0:
+		return _los_cached
+	_los_timer = 0.2
+	if not is_inside_tree() or _player_ref == null:
+		_los_cached = false
+		return false
+	var from := global_position + Vector3(0.0, 1.5, 0.0)
+	var to := _player_ref.global_position + Vector3(0.0, 1.3, 0.0)
+	var q := PhysicsRayQueryParameters3D.create(from, to, 1)
+	q.exclude = [get_rid(), (_player_ref as CollisionObject3D).get_rid()] if _player_ref is CollisionObject3D else [get_rid()]
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	_los_cached = hit.is_empty() or hit.get("collider") == _player_ref
+	return _los_cached
 
 
 func _anim_speed() -> float:

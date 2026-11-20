@@ -9,3 +9,4 @@ Before making changes:
 4. Log every new decision in `docs/DECISION_LOG.md` and every meaningful change in `CHANGELOG.md` (and domain changelogs under `docs/changelogs/`).
 5. Write automated tests for everything that can be tested automatically.
 6. Whenever changing 3D art, lighting, animations, HUD, or menus, run `./scripts/run-visual-qa.sh` and inspect live player-POV screenshots and motion video (`D-028`).
+- Log every User comment in `docs/USER_FEEDBACK_LOG.md` before acting and check it before changing a system (see `AGENTS.md` §4, `D-045`).

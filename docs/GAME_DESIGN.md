@@ -60,7 +60,11 @@
 
 ---
 
-## 5. Combat System (`D-013`)
+## 5. Combat System (`D-013`, `D-046`)
+
+- **Either hand (`D-046`):** any one-handed item — blade, shield or spell — can be held in either hand: dual spells, spell + shield, a shield in the right hand (blocks while that hand's button is held), a sword in the left. Bows and two-handed weapons use both hands.
+- **Difficulty curve (`D-046`):** every floor starts very hard — enemy stats are fixed per floor and never scale with the player's level, and a fresh arrival is evenly matched by a single draugr and outclassed by the boss — then gets easier as the player levels up and finds gear on that floor. This is the power-scaling race (`D-038`).
+- **Enemy awareness (`D-046`):** idle enemies wander their rooms; they notice the player from 22-30 m when they can see them (6 m by hearing), archers shoot from 22 m, and they give up after a few seconds out of sight.
 
 Skyrim-inspired **left-hand / right-hand equipping** supporting four classic playstyles:
 - **Sword & Shield:** Weighted melee swings, stamina-driven power attacks, directional blocking, and shield bashes.

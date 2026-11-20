@@ -207,7 +207,7 @@ func _build_ui() -> void:
 	_grid.add_theme_constant_override("h_separation", 8)
 	_grid.add_theme_constant_override("v_separation", 8)
 	scroll.add_child(_grid)
-	var help := UiTheme.label("Click to inspect  ·  Double-click to equip or use  ·  Right-click to equip in off-hand", 15, UiTheme.COL_FAINT, UiTheme.font_ui())
+	var help := UiTheme.label("Click to inspect  ·  Double-click to equip or use  ·  Right-click to equip in the other hand", 15, UiTheme.COL_FAINT, UiTheme.font_ui())
 	help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	help.custom_minimum_size.x = 200
 	c2v.add_child(help)
@@ -401,7 +401,7 @@ func _refresh_bag() -> void:
 			if ev is InputEventMouseButton and ev.pressed:
 				var mb := ev as InputEventMouseButton
 				if mb.button_index == MOUSE_BUTTON_RIGHT:
-					_equip(idx, "left_hand")
+					_equip(idx, CombatMath.other_hand(str(item.get("slot", "right_hand"))))
 				elif mb.double_click:
 					_equip(idx, "")
 				elif mb.button_index == MOUSE_BUTTON_LEFT:
@@ -420,7 +420,7 @@ func _equip(idx: int, hand: String) -> void:
 	if str(item.get("category", "")) == "consumable":
 		_player.use_consumable(idx)
 	else:
-		if hand == "left_hand" and not (str(item.get("slot", "")) in ["right_hand", "left_hand"] and not bool(item.get("two_handed", false))):
+		if hand in ["left_hand", "right_hand"] and not CombatMath.is_one_handed(item):
 			hand = ""
 		_player.equip_from_inventory(idx, hand)
 	_selected_idx = -1
@@ -459,16 +459,20 @@ func _refresh_detail() -> void:
 	var item: Dictionary = _player.inventory[_selected_idx]
 	_show_detail_for(item)
 	var cons := str(item.get("category", "")) == "consumable"
-	var b := UiTheme.button("Drink" if cons else "Equip", 0, 18)
-	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var idx := _selected_idx
-	b.pressed.connect(func() -> void: _equip(idx, ""))
-	_actions.add_child(b)
-	if str(item.get("slot", "")) in ["right_hand", "left_hand"] and not bool(item.get("two_handed", false)) and not cons:
-		var lb := UiTheme.button("Off-Hand", 0, 18)
-		lb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		lb.pressed.connect(func() -> void: _equip(idx, "left_hand"))
-		_actions.add_child(lb)
+	if CombatMath.is_one_handed(item) and not cons:
+		# D-046: one-handed blades, shields and spells go in either hand
+		for pair in [["Right Hand", "right_hand"], ["Left Hand", "left_hand"]]:
+			var hb := UiTheme.button(str(pair[0]), 0, 18)
+			hb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			var hand: String = pair[1]
+			hb.pressed.connect(func() -> void: _equip(idx, hand))
+			_actions.add_child(hb)
+	else:
+		var b := UiTheme.button("Drink" if cons else "Equip", 0, 18)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.pressed.connect(func() -> void: _equip(idx, ""))
+		_actions.add_child(b)
 
 
 func _refresh_summary() -> void:

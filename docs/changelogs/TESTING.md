@@ -90,3 +90,7 @@ See [`docs/TESTING_STRATEGY.md`](../TESTING_STRATEGY.md) and [`docs/DECISION_LOG
 
 - `test_vast_floors.gd`: 25% of the floor outlasts the floor clock even with perfect walking x2 backtracking; landmarks sparse, reachable, boss arena single entrance; compass far-sense; only nearby decor/lights live and chunks freed after moving.
 - Safe-room flee test now places its pursuer right behind the player (far enemies are frozen on vast floors).
+
+## 2026-11-20 — FB-013 Regression Guards (`D-045`, `D-046`, `D-047`)
+
+- `game/tests/test_feedback_fb013.gd`: rings, either-hand items, difficulty curve, enemy wandering/engagement, third-person looting, map/minimap lock, Test Mode spawning everything + separate save.
