@@ -10,3 +10,5 @@ Before making changes:
 5. Write automated tests for everything that can be tested automatically.
 6. Whenever changing 3D art, lighting, animations, HUD, or menus, run `./scripts/run-visual-qa.sh` and inspect live player-POV screenshots and motion video (`D-028`).
 - Log every User comment in `docs/USER_FEEDBACK_LOG.md` before acting and check it before changing a system (see `AGENTS.md` §4, `D-045`).
+
+- Workflow (`D-050`): work directly on `main` (no feature branches / PRs); small described commits, full tests before every push, changelogs + `docs/WORK_LOG.md` entry (commit SHA + how to revert) for every change. See `AGENTS.md`.

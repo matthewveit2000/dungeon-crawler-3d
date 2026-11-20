@@ -32,7 +32,7 @@ See [`docs/VISION_AND_CONSTRAINTS.md`](docs/VISION_AND_CONSTRAINTS.md) and [`doc
 
 - **Phase:** `Active Development — Milestone 1 (v0.1 Vertical Slice)`
 - **Pre-Production Alignment:** Completed (`Rounds 0–5`, Decisions `D-001` through `D-027`).
-- **Workflow:** Build on feature branches, maintain green automated tests and CI, log every change in `CHANGELOG.md` and domain changelogs, and open PRs for User approval before merging to `main`.
+- **Workflow (`D-050`, standing User rule):** Work **directly on `main`** — no feature branches or pull requests. Keep good notes so any change can be backtracked: small, well-described commits; run the full test suite before every push; log every change in `CHANGELOG.md` and the domain changelogs; and add a `docs/WORK_LOG.md` entry with the commit SHA(s) and how to undo it (`git revert <sha>`). Never force-push or rewrite `main`'s history.
 
 ---
 
@@ -43,7 +43,7 @@ See [`docs/VISION_AND_CONSTRAINTS.md`](docs/VISION_AND_CONSTRAINTS.md) and [`doc
 - **User = Product Owner & Creative Director:** Owns vision, feel, fun, art taste, scope approvals, and milestone PR sign-off.
 - **AI = Full Technical Lead, Engineer & Technical Artist:** Owns all architecture, code cleanliness/organization, libraries, automated testing, CI, documentation/changelogs, minor balance tuning (logged), and Blender 3D asset execution.
 - **Ask First ONLY For:** (1) Core gameplay feel / Skyrim north star changes, (2) Art style direction & batched 3D preview approvals, (3) Major scope changes, (4) Major irreversible tech/platform choices.
-- **Workflow & Communication:** Plain-English, jargon-free updates with proactive push-back authority. Once implementation starts, work on feature branches, open one PR per milestone/phase, keep CI green, and wait for User approval before merging. Only request manual playtesting at meaningful playable milestones and visual review via batched Blender preview renders.
+- **Workflow & Communication:** Plain-English, jargon-free updates with proactive push-back authority. Commit and push directly to `main` (`D-050`), keep CI green, and keep `docs/WORK_LOG.md` up to date so every change can be traced and reverted. Only request manual playtesting at meaningful playable milestones and visual review via batched Blender preview renders.
 
 ---
 
@@ -54,7 +54,7 @@ Because this repository must be seamlessly usable by **any AI tool** across sess
 1. **Log Every Decision:** Any new gameplay, architectural, tooling, or governance decision MUST be added to [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md) with a unique ID (`D-XXX`), date, decision, and rationale.
 2. **Maintain Changelogs for Everything:** Every meaningful change (documentation, design decisions, code, tests, art assets, tooling) MUST be recorded in [`CHANGELOG.md`](CHANGELOG.md) and, when applicable, the corresponding domain changelog under [`docs/changelogs/`](docs/changelogs/README.md).
 3. **Keep Tool Entry Points Synchronized:** Never duplicate detailed rules in `CLAUDE.md`, `.cursorrules`, or `.github/copilot-instructions.md`. Update `AGENTS.md` and `docs/` so every AI tool reads the exact same truth.
-4. **Never Leave Stale Docs:** If a change alters architecture, controls, systems, or status, update the affected docs in the same commit/PR.
+4. **Never Leave Stale Docs:** If a change alters architecture, controls, systems, or status, update the affected docs in the same commit.
 5. **Log Every User Comment (`D-045`):** Every comment, request, bug report or direction from the User MUST be appended to [`docs/USER_FEEDBACK_LOG.md`](docs/USER_FEEDBACK_LOG.md) (next `FB-###`, verbatim wording, one line per distinct request with status, decision id and regression guard) **before** acting on it. Before changing any system, search that log for it and keep every earlier request satisfied; add an automated regression test for each testable request so it cannot silently break again.
 
 ---

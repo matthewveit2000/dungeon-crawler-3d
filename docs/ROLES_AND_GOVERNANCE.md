@@ -9,7 +9,7 @@
 
 The User focuses strictly on **direction, taste, feel, and feedback**:
 - Sets the creative vision, gameplay north star (**feels like Skyrim**), tone, and scope.
-- Reviews and approves major milestones via Pull Requests with plain-English summaries.
+- Reviews major milestones from plain-English summaries, screenshots and videos (work lands directly on `main`, `D-050`).
 - Playtests only at **meaningful playable milestones** (not routine bug fixes or internal refactors).
 - Reviews and approves art direction and key 3D models via **rendered preview images** (in batches).
 - Makes the final call on scope changes, major irreversible platform/engine shifts, and player-facing gameplay changes.
@@ -61,13 +61,13 @@ The AI **MUST stop and get explicit User approval** before proceeding on any of 
 ## 6. Git, Branching & PR Merge Workflow
 
 - **During Pre-Production Alignment:** Alignment documents, decisions, and changelogs are committed directly to `main` so every AI tool immediately sees the latest agreed truth.
-- **Once Implementation Begins:**
-  - All milestone/phase work is done on dedicated **feature branches**.
-  - The AI opens a **Pull Request per milestone/phase** containing:
-    1. A plain-English summary of what changed for the player.
-    2. Proof that all automated tests and CI checks are green.
-    3. Clear instructions (and any quick test/audit shortcuts) if the milestone is a playable checkpoint.
-  - **The AI waits for User approval before merging the PR.**
+- **Once Implementation Begins (superseded 2026-11-20 by `D-050`):** feature branches + one PR per milestone, merged after User approval (PRs #4–#15).
+- **Current rule — work directly on `main` (`D-050`, User: "I always want you edit main directly. Just keep good notes so we can back track if needed"):**
+  - The AI commits and pushes straight to `main`; no feature branches or pull requests.
+  - **Notes for backtracking:** small, self-contained commits with descriptive messages; `CHANGELOG.md` + domain changelogs updated in the same commit; a `docs/WORK_LOG.md` entry per change with the commit SHA(s), what changed and how to undo it (`git revert <sha>`, or `git revert -m 1 <merge-sha>` for the older PR merges).
+  - The full automated test suite runs locally before every push and CI must stay green on `main`; a red `main` is fixed immediately.
+  - `main`'s history is never rewritten (no force-push, rebase or amend of pushed commits).
+  - Each round still ends with a plain-English summary, screenshots/videos where relevant, and the User's update commands.
 
 ---
 

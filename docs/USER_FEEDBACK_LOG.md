@@ -93,3 +93,11 @@ distinct request as its own line with its status (`Done`, `Partial`, `Open`, `Pr
 - Unique enemies: many distinct enemy types, each with its own minimum/maximum level. — `Done` — `D-049` — Guard: `test_enemy_types_have_level_ranges_and_floors_introduce_new_ones`, `test_spawned_levels_scale_stats_and_replay_identically`, `test_enemy_traits_make_each_type_play_differently`
 - Bestiary in game. — `Done` — `D-049` — Guard: `test_bestiary_records_discoveries_and_survives_floor_resets`, `test_bestiary_tab_lists_every_creature_with_unknowns_hidden`
 - Document the idea. — `Done` — `D-049` (`GAME_DESIGN.md` §6.1–6.2, `AGENTS.md` core rules, decision log, changelogs)
+
+### FB-016 — "merge to main"
+- Merged PR #15 (FB-015 / `D-049`) into `main` after CI passed (merge commit `295f1c7`). — `Process`
+
+### FB-017 — "note that I always want you edit main directly. Just keep good notes so we can back track if needed"
+- **Standing rule: work directly on `main`** (no feature branches or pull requests). — `Done` — `D-050`
+- Keep good notes for backtracking: new `docs/WORK_LOG.md` (every change with commit SHA(s) and how to revert), plus `CHANGELOG.md` / domain changelogs and this log. — `Done` — `D-050`
+- Guard: `AGENTS.md` workflow rule, `docs/ROLES_AND_GOVERNANCE.md` §6, `.cursorrules`, Copilot instructions.
