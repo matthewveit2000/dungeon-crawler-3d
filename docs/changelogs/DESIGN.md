@@ -42,3 +42,9 @@ Detailed record of gameplay systems, rules, tuning, and DCC flavor implemented f
 - HUD: landmark icons on the compass, vitals that fade when full, damage trails, low-health pulse, contextual crosshair (hit markers, block, bow-draw ring), key-cap prompts, loot toasts, area titles, level-up banner, potion count, death/collapse screen.
 - Settings & accessibility: see `D-035`. Gameplay timing is unchanged — enemy attack animations are synchronised to the existing attack timers (`D-033`).
 
+
+## 2026-11-20 — Core Gimmick: The Power-Scaling Race (`D-038`) — design direction only
+
+- The game's central challenge is power-scaling fast enough to survive the end of each floor; every floor ramps up in difficulty, so leveling heavily and securing good gear between floors is essential.
+- Players can always reset their progress to the start of any floor they have reached (restoring that floor's Floor-Entry Snapshot).
+- Not yet implemented: per-floor difficulty curve, floor-select/reset UI, and multi-floor snapshot storage.

@@ -84,3 +84,11 @@ This document records each Q&A alignment round between the Project Owner (User) 
 - Forward+ atmospheric rendering (volumetric fog, SSAO/SSIL, AgX, soft torch shadows) with quality presets; batching and occlusion culling.
 - Complete UI redesign (HUD, title screen, pause, settings, inventory, skills & perks, vendor, map, death screen) on a gilded dark-fantasy design system with open fonts, plus a broad QoL suite.
 - No gameplay rules, balance numbers or timing were changed; all existing automated tests still pass and new ones cover the presentation layer.
+
+---
+
+## Round 7 — Core Gimmick: The Power-Scaling Race (Completed: 2026-11-20)
+
+**User Direction:** "I want the main gimmick of the game to be a challenge to see if the player can power scale enough by end of the floor. They should always be able to reset their progress to any floor and each floor will ramp up in difficulty so it's important that they get good gear and level up heavily in between floors and not get behind."
+
+**Outcome (logged as `D-038`):** Power-scaling against an escalating per-floor difficulty curve is the core identity of the game, and players can always reset to the start of any floor they have reached. Difficulty curve, reset UI and snapshot storage remain to be designed.

@@ -2,7 +2,7 @@
 
 > **Status:** `Active Living Design Specification (v0.1+)`  
 > **North Star:** **Feels like Skyrim**, fused with the dark-humor multi-floor dungeon premise of ***Dungeon Crawler Carl***.  
-> **Decision References:** `D-001` through `D-030` in [`docs/DECISION_LOG.md`](DECISION_LOG.md).
+> **Decision References:** `D-001` through `D-038` in [`docs/DECISION_LOG.md`](DECISION_LOG.md).
 
 ---
 
@@ -33,6 +33,15 @@
 3. **Save-and-Quit Anytime:** Players can exit at any time; the game auto-saves exact position, floor state, and remaining timer so long floors can span multiple play sessions.
 4. **Collapse or Combat Death = Floor-Entry Reset:** If the 5-day timer hits zero OR the player dies in combat, the player resets to the **Floor-Entry Snapshot** at the floor entrance with a fresh 5-day timer and a freshly reset floor. No full-run permadeath.
 5. **Unknown Descent:** Finding the hidden exit staircase lets the player descend to the next floor with **no staircase previews**—what awaits below is always a surprise.
+
+---
+
+### 3.1 Core Gimmick — The Power-Scaling Race (`D-038`)
+
+- **The central challenge:** Can the player power-scale fast enough to survive the end of the floor? Every floor ramps up in difficulty, so the player must **level up heavily and secure strong gear** on each floor and between floors — falling behind the curve makes later floors unwinnable.
+- **Everything feeds the race:** XP, use-to-improve skills, perks, loot rarity/affixes, vendor purchases, quests, and optional Boss Arenas + Treasure Vaults are the player's tools for keeping ahead of the difficulty ramp; the 5-day clock forces the trade-off between farming power and pushing for the staircase.
+- **Reset to Any Floor:** The player can **always reset their progress to the start of any floor they have reached**, restoring that floor's Floor-Entry Snapshot. If they descend under-powered, they can go back to an earlier floor and rebuild rather than being permanently stuck.
+- **Still to design:** the per-floor difficulty curve (enemy stats, density, elites, boss scaling), how the floor-select/reset is presented to the player, and how many floor snapshots are stored in the save.
 
 ---
 

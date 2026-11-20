@@ -1,7 +1,7 @@
 # Vision, Goals & Constraints
 
 > **Status:** Living document — updated as alignment rounds conclude.  
-> **Last Updated:** 2026-11-18
+> **Last Updated:** 2026-11-20
 
 ---
 
@@ -20,6 +20,7 @@ Every major design decision—perspective, movement, combat weight, exploration,
 | **3D Gameplay Feel** | Feels like **Skyrim** (north star) | Guides camera, exploration, combat feel, and immersion |
 | **Floor Collapse Timer** | **5 in-game days** per floor, with **1 in-game day ≈ 30 real-time minutes** (initial target; data-driven) | Forces meaningful exploration and urgency without rushing the player through a 5-minute sprint |
 | **Collapse Consequence** | **Reset to the beginning of the current floor** (NOT full-run permadeath) | Preserves stakes and time pressure without wiping an entire multi-hour run |
+| **Core Gimmick — Power-Scaling Race (`D-038`)** | Every floor ramps up in difficulty; the challenge is to **level up heavily and gear up between floors** so the player can survive the end of each floor and never fall behind. Players can **always reset progress to the start of any floor** they have reached | Makes outgrowing the dungeon the heart of the game and gives loot, XP, vendors, bosses and vaults real urgency, while the any-floor reset keeps a run recoverable |
 | **Staircase Descent** | **No staircase previews** | Keeps descending into the next floor mysterious and rewarding to discover |
 | **Open-Source Leverage** | Use existing **free, open-source** engines & libraries rather than building from scratch | Maximum speed, stability, flexibility, and zero proprietary lock-in |
 | **100% Original Art** | All art created by us using **Blender** and other free/open-source tools | Full ownership, cohesive style, zero asset-pack licensing issues |
