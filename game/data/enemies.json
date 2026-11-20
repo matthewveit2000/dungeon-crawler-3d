@@ -1,4 +1,17 @@
 {
+  "_doc": "D-049: every enemy type has its own level range (level_min..level_max). Each floor covers a level band (floor_level_band); a type only spawns where its range overlaps the band, so deeper floors keep introducing new enemies. Stats scale with level (level_scaling). traits give each type its own mechanic. lore/weakness feed the Bestiary.",
+  "level_scaling": {
+    "health_per_level": 0.12,
+    "damage_per_level": 0.07,
+    "armor_per_level": 1.0,
+    "xp_per_level": 0.15,
+    "gold_per_level": 0.1
+  },
+  "floor_level_band": {
+    "start": 1,
+    "width": 4,
+    "step": 3
+  },
   "floor_scaling": {
     "health_per_floor": 1.32,
     "damage_per_floor": 1.22,
@@ -31,7 +44,12 @@
         "weapon": "res://assets/models/gear/battleaxe.glb",
         "weapon_hand": "r",
         "weapon_scale": 1.0
-      }
+      },
+      "level_min": 1,
+      "level_max": 6,
+      "traits": [],
+      "lore": "The restless dead of the barrows, still dressed for a war that ended centuries ago. Slow to anger, slower to stop.",
+      "weakness": "Its axe swings are telegraphed: block or step back, then punish."
     },
     {
       "id": "bone_archer",
@@ -60,7 +78,12 @@
         "weapon": "res://assets/models/gear/hunting_bow.glb",
         "weapon_hand": "l",
         "weapon_scale": 1.0
-      }
+      },
+      "level_min": 1,
+      "level_max": 6,
+      "traits": [],
+      "lore": "Skeletal sentries that never learned they were dismissed. They keep their distance and their aim.",
+      "weakness": "Close the gap — they are fragile up close and slow to back away."
     },
     {
       "id": "goblin_influencer",
@@ -87,7 +110,315 @@
         "weapon": "res://assets/models/gear/ratings_cleaver.glb",
         "weapon_hand": "r",
         "weapon_scale": 0.75
-      }
+      },
+      "level_min": 2,
+      "level_max": 7,
+      "traits": [
+        {
+          "id": "berserk",
+          "threshold": 0.4,
+          "haste": 1.35,
+          "damage": 1.25
+        }
+      ],
+      "lore": "A goblin with a ring-light and a sponsorship deal. Charges in for the clip; gets frantic when the stream is losing.",
+      "weakness": "Its charge leaves it open. Below 40% health it goes berserk — finish it fast."
+    },
+    {
+      "id": "draugr_shieldwarden",
+      "name": "Draugr Shieldwarden",
+      "archetype": "melee",
+      "is_boss": false,
+      "max_health": 240.0,
+      "damage": 18.0,
+      "armor": 14.0,
+      "move_speed": 3.3,
+      "aggro_radius": 22.0,
+      "attack_range": 2.4,
+      "attack_cooldown_sec": 1.35,
+      "xp_reward": 80,
+      "gold_min": 12,
+      "gold_max": 24,
+      "loot_drop_chance": 0.5,
+      "spawn_weight": 18.0,
+      "level_min": 3,
+      "level_max": 9,
+      "model": "res://assets/models/characters/draugr.glb",
+      "radius": 0.5,
+      "height": 1.9,
+      "traits": [
+        {
+          "id": "shield_front",
+          "reduction": 0.7
+        }
+      ],
+      "visual": {
+        "kind": "draugr",
+        "weapon": "res://assets/models/gear/iron_sword.glb",
+        "weapon_hand": "r",
+        "weapon_scale": 1.0,
+        "shield": "res://assets/models/gear/round_shield.glb",
+        "tint": "#8a9bb0",
+        "tint_strength": 0.18
+      },
+      "lore": "A barrow guard buried with its shield still raised. Hits from the front glance off the boards.",
+      "weakness": "Its shield blocks 70% of frontal hits. Power attacks break through; flank it or hit it from behind."
+    },
+    {
+      "id": "frostbound_draugr",
+      "name": "Frostbound Draugr",
+      "archetype": "melee",
+      "is_boss": false,
+      "max_health": 230.0,
+      "damage": 22.0,
+      "armor": 10.0,
+      "move_speed": 3.6,
+      "aggro_radius": 22.0,
+      "attack_range": 2.5,
+      "attack_cooldown_sec": 1.3,
+      "xp_reward": 95,
+      "gold_min": 14,
+      "gold_max": 26,
+      "loot_drop_chance": 0.5,
+      "spawn_weight": 15.0,
+      "level_min": 4,
+      "level_max": 10,
+      "model": "res://assets/models/characters/draugr.glb",
+      "radius": 0.5,
+      "height": 1.9,
+      "traits": [
+        {
+          "id": "frost_strike",
+          "slow": 0.4,
+          "duration": 2.5
+        }
+      ],
+      "visual": {
+        "kind": "draugr",
+        "weapon": "res://assets/models/gear/battleaxe.glb",
+        "weapon_hand": "r",
+        "weapon_scale": 1.0,
+        "tint": "#7fd8ff",
+        "tint_strength": 0.35
+      },
+      "lore": "Draugr that slept in the ice-veins under the crypt. Rime still crawls along their axes.",
+      "weakness": "Each hit slows you for a few seconds — keep your distance or fight it with a shield up."
+    },
+    {
+      "id": "bone_hexer",
+      "name": "Bone Hexer",
+      "archetype": "ranged",
+      "is_boss": false,
+      "max_health": 120.0,
+      "damage": 16.0,
+      "armor": 3.0,
+      "move_speed": 3.2,
+      "aggro_radius": 28.0,
+      "attack_range": 18.0,
+      "preferred_distance": 10.0,
+      "attack_cooldown_sec": 2.2,
+      "projectile_speed": 14.0,
+      "projectile_kind": "hex",
+      "projectile_color": "#b052ff",
+      "xp_reward": 85,
+      "gold_min": 12,
+      "gold_max": 26,
+      "loot_drop_chance": 0.55,
+      "spawn_weight": 16.0,
+      "level_min": 2,
+      "level_max": 8,
+      "model": "res://assets/models/characters/bone_archer.glb",
+      "radius": 0.45,
+      "height": 1.85,
+      "traits": [
+        {
+          "id": "hex_bolt",
+          "slow": 0.3,
+          "duration": 2.5
+        }
+      ],
+      "visual": {
+        "kind": "bone_archer",
+        "weapon": "",
+        "weapon_hand": "l",
+        "weapon_scale": 1.0,
+        "hand_glow": "#b052ff",
+        "tint": "#6b3fa0",
+        "tint_strength": 0.25
+      },
+      "lore": "A skeleton that remembers one spell and has had a very long time to practise it.",
+      "weakness": "Its hex bolts are slow — sidestep them. It has almost no armor."
+    },
+    {
+      "id": "goblin_bomber",
+      "name": "Goblin Bomb-Tosser",
+      "archetype": "ranged",
+      "is_boss": false,
+      "max_health": 150.0,
+      "damage": 26.0,
+      "armor": 4.0,
+      "move_speed": 4.0,
+      "aggro_radius": 24.0,
+      "attack_range": 16.0,
+      "preferred_distance": 9.0,
+      "attack_cooldown_sec": 2.4,
+      "projectile_speed": 13.0,
+      "projectile_kind": "bomb",
+      "projectile_color": "#ff8a1e",
+      "xp_reward": 90,
+      "gold_min": 20,
+      "gold_max": 40,
+      "loot_drop_chance": 0.65,
+      "spawn_weight": 14.0,
+      "level_min": 3,
+      "level_max": 9,
+      "model": "res://assets/models/characters/goblin_streamer.glb",
+      "radius": 0.42,
+      "height": 1.35,
+      "traits": [
+        {
+          "id": "bomb_throw",
+          "radius": 3.0
+        }
+      ],
+      "visual": {
+        "kind": "goblin_streamer",
+        "weapon": "res://assets/models/gear/health_potion.glb",
+        "weapon_hand": "r",
+        "weapon_scale": 1.6,
+        "tint": "#ff7a1e",
+        "tint_strength": 0.2
+      },
+      "lore": "A goblin who discovered that explosions get more views than swords. Throws lit pots in a lazy arc.",
+      "weakness": "Bombs land where you were — keep moving. Up close it panics."
+    },
+    {
+      "id": "barrow_wight",
+      "name": "Barrow Wight",
+      "archetype": "melee",
+      "is_boss": false,
+      "max_health": 200.0,
+      "damage": 20.0,
+      "armor": 8.0,
+      "move_speed": 4.6,
+      "aggro_radius": 26.0,
+      "attack_range": 2.4,
+      "attack_cooldown_sec": 1.0,
+      "xp_reward": 120,
+      "gold_min": 16,
+      "gold_max": 32,
+      "loot_drop_chance": 0.55,
+      "spawn_weight": 12.0,
+      "level_min": 5,
+      "level_max": 12,
+      "model": "res://assets/models/characters/draugr.glb",
+      "radius": 0.48,
+      "height": 1.9,
+      "traits": [
+        {
+          "id": "lifedrain",
+          "fraction": 0.6
+        },
+        {
+          "id": "regenerate",
+          "hps": 3.0
+        }
+      ],
+      "visual": {
+        "kind": "draugr",
+        "weapon": "res://assets/models/gear/seax.glb",
+        "weapon_hand": "r",
+        "weapon_scale": 1.2,
+        "tint": "#1b0f22",
+        "tint_strength": 0.55,
+        "scale": 0.95
+      },
+      "lore": "Something wearing a draugr like a coat. Fast, hungry, and it heals on what it takes from you.",
+      "weakness": "It regenerates out of combat and drains life on every hit — commit to the kill."
+    },
+    {
+      "id": "draugr_deathlord",
+      "name": "Draugr Deathlord",
+      "archetype": "melee",
+      "is_boss": false,
+      "max_health": 520.0,
+      "damage": 34.0,
+      "armor": 18.0,
+      "move_speed": 3.0,
+      "aggro_radius": 22.0,
+      "attack_range": 3.0,
+      "attack_cooldown_sec": 1.8,
+      "xp_reward": 260,
+      "gold_min": 40,
+      "gold_max": 80,
+      "loot_drop_chance": 0.9,
+      "spawn_weight": 6.0,
+      "level_min": 6,
+      "level_max": 14,
+      "model": "res://assets/models/characters/draugr.glb",
+      "radius": 0.6,
+      "height": 2.3,
+      "traits": [
+        {
+          "id": "ground_slam",
+          "radius": 3.6,
+          "every": 3
+        }
+      ],
+      "visual": {
+        "kind": "draugr",
+        "weapon": "res://assets/models/gear/war_hammer.glb",
+        "weapon_hand": "r",
+        "weapon_scale": 1.15,
+        "tint": "#3a6b4a",
+        "tint_strength": 0.3,
+        "scale": 1.22
+      },
+      "lore": "A war-chief of the barrows, crowned in rust. Every third blow cracks the floor around it.",
+      "weakness": "Count its swings: the third is a ground slam — be out of reach when it lands."
+    },
+    {
+      "id": "goblin_hype_man",
+      "name": "Goblin Hype-Man",
+      "archetype": "charger",
+      "is_boss": false,
+      "max_health": 160.0,
+      "damage": 14.0,
+      "armor": 5.0,
+      "move_speed": 4.4,
+      "aggro_radius": 24.0,
+      "attack_range": 2.3,
+      "attack_cooldown_sec": 1.1,
+      "xp_reward": 110,
+      "gold_min": 25,
+      "gold_max": 45,
+      "loot_drop_chance": 0.7,
+      "spawn_weight": 9.0,
+      "level_min": 4,
+      "level_max": 10,
+      "model": "res://assets/models/characters/goblin_streamer.glb",
+      "radius": 0.42,
+      "height": 1.35,
+      "traits": [
+        {
+          "id": "war_cry",
+          "radius": 12.0,
+          "haste": 1.3,
+          "damage": 1.25,
+          "duration": 6.0,
+          "every": 9.0
+        }
+      ],
+      "visual": {
+        "kind": "goblin_streamer",
+        "weapon": "res://assets/models/gear/ratings_cleaver.glb",
+        "weapon_hand": "r",
+        "weapon_scale": 0.75,
+        "tint": "#ffd23a",
+        "tint_strength": 0.3
+      },
+      "lore": "Every streamer needs a hype-man. This one shrieks until every monster nearby fights faster and harder.",
+      "weakness": "Kill it first: its war cry speeds up and strengthens every enemy around it."
     },
     {
       "id": "iron_warden_boss",
@@ -118,7 +449,12 @@
         "weapon": "res://assets/models/gear/battleaxe.glb",
         "weapon_hand": "r",
         "weapon_scale": 2.1
-      }
+      },
+      "level_min": 8,
+      "level_max": 10,
+      "traits": [],
+      "lore": "The furnace-hearted guardian of Floor One's boss arena. Enrages at half health.",
+      "weakness": "Below half health it enrages: faster, harder hits. Save your stamina for blocks."
     }
   ]
 }

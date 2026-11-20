@@ -53,8 +53,64 @@ static func stat_values(item: Dictionary) -> Dictionary:
 	var out := {}
 	for k in ORDER:
 		if item.has(k) and (item[k] is float or item[k] is int) and absf(float(item[k])) > 0.0001:
-			out[k] = float(item[k])
+			out[k] = MasterySystem.stat(item, k) if k in MasterySystem.STAT_KEYS else float(item[k])
 	return out
+
+
+## Mastery section (D-049): level, XP toward the next level, discovered abilities and the undiscovered ones
+## still waiting further up the track (shown only as "???" with the level that reveals them).
+static func build_mastery(item: Dictionary) -> VBoxContainer:
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 4)
+	if not MasterySystem.is_masterable(item):
+		return v
+	var lvl := MasterySystem.level_of(item)
+	var cap := MasterySystem.max_level()
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 10)
+	head.add_child(UiTheme.label("MASTERY %d / %d" % [lvl, cap], 17, UiTheme.COL_GOLD_BRIGHT, UiTheme.font_ui_bold()))
+	var need := MasterySystem.xp_to_next(lvl)
+	var xp := float(item.get("mastery_xp", 0.0))
+	var bar := ProgressBar.new()
+	bar.show_percentage = false
+	bar.custom_minimum_size = Vector2(120, 10)
+	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	bar.max_value = float(need) if lvl < cap else 1.0
+	bar.value = xp if lvl < cap else 1.0
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = Color(0.08, 0.07, 0.06, 0.9)
+	bg.set_corner_radius_all(3)
+	var fg := StyleBoxFlat.new()
+	fg.bg_color = UiTheme.COL_GOLD
+	fg.set_corner_radius_all(3)
+	bar.add_theme_stylebox_override("background", bg)
+	bar.add_theme_stylebox_override("fill", fg)
+	head.add_child(bar)
+	head.add_child(UiTheme.label("%d / %d xp" % [int(xp), need] if lvl < cap else "MASTERED", 14, UiTheme.COL_MUTED, UiTheme.font_ui()))
+	v.add_child(head)
+	var shown := {}
+	for e in MasterySystem.track(item):
+		var el := int(e.get("level", 1))
+		var ab := str(e.get("ability", ""))
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		if el <= lvl:
+			var p: Dictionary = e.duplicate()
+			p.erase("level")
+			var upgraded := shown.has(ab)
+			shown[ab] = true
+			row.add_child(UiTheme.icon_rect(UiTheme.tex("icon_diamond"), 12, UiTheme.COL_CYAN))
+			var t := UiTheme.label("Lv %d  %s%s — %s" % [el, MasterySystem.ability_name(ab), " (upgraded)" if upgraded else "", MasterySystem.describe(ab, p)],
+				15, UiTheme.COL_CYAN, UiTheme.font_ui())
+			t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			row.add_child(t)
+		else:
+			row.add_child(UiTheme.icon_rect(UiTheme.tex("icon_diamond"), 12, UiTheme.COL_MUTED))
+			row.add_child(UiTheme.label("Lv %d  ???  — keep using this item to discover it" % el, 15, UiTheme.COL_MUTED, UiTheme.font_ui()))
+		v.add_child(row)
+	return v
 
 
 ## Builds the detail card. compare: equipped item in the same slot (or {}).
@@ -112,6 +168,9 @@ static func build_card(item: Dictionary, compare: Dictionary = {}, price_text: S
 			r.add_child(UiTheme.label("%s  (%s %s)" % [str(a.get("label", "")), fmt_stat(str(a.get("stat", "")), float(a.get("value", 0.0))),
 				str(STAT_NAMES.get(str(a.get("stat", "")), str(a.get("stat", "")).capitalize()))], 16, UiTheme.COL_CYAN, UiTheme.font_ui()))
 			v.add_child(r)
+	if MasterySystem.is_masterable(item):
+		v.add_child(UiTheme.divider())
+		v.add_child(build_mastery(item))
 	var se := str(item.get("sponsored_effect", ""))
 	if not se.is_empty():
 		var sp := PanelContainer.new()

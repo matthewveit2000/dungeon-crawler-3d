@@ -10,6 +10,7 @@ extends CharacterBody3D
 enum AiState { DORMANT, IDLE, CHASE, ATTACK, FLEE_SAFE_ZONE, DEAD }
 
 ## Seconds from the start of each attack clip to its impact frame (clip timing authored in Blender).
+const BOMB_GRAVITY := 9.0
 const IMPACT_TIME := {"attack_1h": 0.47, "attack_2h": 0.6, "shoot": 1.08, "slam": 0.6}
 
 var enemy_id: String = ""
@@ -38,6 +39,18 @@ var gold_min: int = 8
 var gold_max: int = 18
 var loot_drop_chance: float = 0.5
 var guaranteed_rarity: String = ""
+## D-049: level, unique traits and status effects
+var level: int = 1
+var traits: Dictionary = {}  ## trait id -> params
+var projectile_kind: String = "arrow"
+var projectile_color: String = "#ffffff"
+var statuses: Dictionary = {}  ## "bleed"/"burn" -> {"dps","t"}; "poison" -> {"stacks": [...]}; "chill" -> {"slow","t"}; "stun"/"sunder"/"rally" ...
+var _stun_t: float = 0.0
+var _knock_vel: Vector3 = Vector3.ZERO
+var _since_hurt: float = 99.0
+var _berserk: bool = false
+var _attack_count: int = 0
+var _war_cry_t: float = 2.0
 
 var state: AiState = AiState.IDLE
 var enraged: bool = false
@@ -107,7 +120,8 @@ func setup(
 	p_layout: DungeonGenerator.FloorLayout,
 	p_player: Node3D,
 	p_rng: SeededRng,
-	callbacks: Dictionary
+	callbacks: Dictionary,
+	p_level: int = 0
 ) -> void:
 	enemy_id = str(enemy_def["id"])
 	display_name = str(enemy_def["name"])
@@ -123,16 +137,24 @@ func setup(
 	_on_shoot_projectile = callbacks.get("shoot_projectile", Callable())
 	_on_died = callbacks.get("died", Callable())
 
-	var depth := float(maxi(0, floor_number - 1))
-	var hp_scale := pow(float(scaling_cfg.get("health_per_floor", 1.32)), depth)
-	var dmg_scale := pow(float(scaling_cfg.get("damage_per_floor", 1.22)), depth)
-	var xp_scale := pow(float(scaling_cfg.get("xp_per_floor", 1.35)), depth)
-	var gold_scale := pow(float(scaling_cfg.get("gold_per_floor", 1.25)), depth)
+	# D-049: stats come from the enemy's level (each type has its own level range; floors pick levels)
+	var pack := DataLoader.get_enemies_pack()
+	level = p_level if p_level > 0 else EnemyLevels.roll_level(enemy_def, floor_number, pack, p_rng)
+	var ls := EnemyLevels.scale_for(level, pack)
+	var hp_scale := float(ls["health"])
+	var dmg_scale := float(ls["damage"])
+	var xp_scale := float(ls["xp"])
+	var gold_scale := float(ls["gold"])
+	traits.clear()
+	for t in enemy_def.get("traits", []):
+		traits[str(t["id"])] = t
+	projectile_kind = str(enemy_def.get("projectile_kind", "arrow"))
+	projectile_color = str(enemy_def.get("projectile_color", "#ffffff"))
 
 	max_health = snappedf(float(enemy_def["max_health"]) * hp_scale, 1.0)
 	current_health = max_health
 	damage = snappedf(float(enemy_def["damage"]) * dmg_scale, 0.5)
-	armor = float(enemy_def.get("armor", 5.0))
+	armor = float(enemy_def.get("armor", 5.0)) + float(ls["armor"])
 	move_speed = float(enemy_def.get("move_speed", 3.6))
 	aggro_radius = float(enemy_def.get("aggro_radius", 13.0))
 	attack_range = float(enemy_def.get("attack_range", 2.2))
@@ -178,6 +200,21 @@ func setup(
 	var kind := str(vdef.get("kind", str(enemy_def.get("model", "")).get_file().get_basename()))
 	visual = CharacterVisual.create(kind)
 	add_child(visual)
+	var vscale := float(vdef.get("scale", 1.0))
+	if not is_equal_approx(vscale, 1.0):
+		visual.scale = Vector3.ONE * vscale
+	if vdef.has("tint"):
+		visual.set_tint(Color.html(str(vdef["tint"])), float(vdef.get("tint_strength", 0.25)))
+	if vdef.has("shield"):
+		var gl := visual.model.find_child("GripL*", true, false) as Node3D
+		if gl != null:
+			var sh := ModelLoader.instantiate_model(str(vdef["shield"]), Vector3(0.8, 0.8, 0.1))
+			sh.rotation_degrees = Vector3(0.0, 90.0, 0.0)
+			gl.add_child(sh)
+	if vdef.has("hand_glow"):
+		var gh := visual.model.find_child("GripL*", true, false) as Node3D
+		if gh != null:
+			gh.add_child(VfxFactory.make_glow(Color.html(str(vdef["hand_glow"])), 0.28, 1.6))
 	_grip_r_node = visual.model.find_child("GripR*", true, false) as Node3D
 	var weapon_path := str(vdef.get("weapon", ""))
 	if not weapon_path.is_empty():
@@ -189,7 +226,7 @@ func setup(
 			grip.add_child(w)
 		else:
 			visual.attach_to_bone("hand_" + str(vdef.get("weapon_hand", "r")), w)
-		if archetype == "ranged":
+		if archetype == "ranged" and projectile_kind == "arrow":
 			_bow_node = w
 			_string_top = w.find_child("StringTop*", true, false) as Node3D
 			_string_bot = w.find_child("StringBottom*", true, false) as Node3D
@@ -267,7 +304,7 @@ func _build_health_bar() -> void:
 	_health_fill = mk.call(Color(0.86, 0.16, 0.12, 1.0), 0.82, 0.05, 0.002, 3)
 	_health_bar.add_child(_health_fill)
 	_name_label = Label3D.new()
-	_name_label.text = display_name
+	_name_label.text = "Lv %d  %s" % [level, display_name]
 	_name_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_name_label.no_depth_test = true
 	_name_label.font_size = 26
@@ -318,8 +355,20 @@ func step_ai(delta: float, is_paused: bool) -> void:
 		return
 
 	_anim_time += delta
+	_tick_statuses(delta)
+	if state == AiState.DEAD:
+		return
+	if _stun_t > 0.0:
+		# stunned / frozen: no thinking, no moving (knockback still slides the body)
+		_stun_t = maxf(0.0, _stun_t - delta)
+		velocity = Vector3(_knock_vel.x, -4.0 if not is_on_floor() else 0.0, _knock_vel.z)
+		_knock_vel = _knock_vel.move_toward(Vector3.ZERO, delta * 18.0)
+		move_and_slide()
+		if visual != null:
+			visual.play_state("idle_combat" if visual.has_anim("idle_combat") else "idle", 0.2, 0.15)
+		return
 	if _attack_timer > 0.0:
-		_attack_timer = maxf(0.0, _attack_timer - delta)
+		_attack_timer = maxf(0.0, _attack_timer - delta * _haste())
 	if _hit_flash_timer > 0.0:
 		_hit_flash_timer = maxf(0.0, _hit_flash_timer - delta)
 
@@ -375,7 +424,12 @@ func step_ai(delta: float, is_paused: bool) -> void:
 				_wander(delta)
 				return
 
-	var eff_speed := move_speed * (enrage_speed_mult if enraged else 1.0)
+	var eff_speed := move_speed * (enrage_speed_mult if enraged else 1.0) * _speed_mult()
+	if traits.has("war_cry"):
+		_war_cry_t -= delta
+		if _war_cry_t <= 0.0:
+			_war_cry_t = float(traits["war_cry"].get("every", 9.0))
+			_do_war_cry()
 	if visual != null and visual.oneshot == "roar":
 		eff_speed = 0.0
 	if dist <= attack_range:
@@ -409,8 +463,151 @@ func step_ai(delta: float, is_paused: bool) -> void:
 			velocity.z = dir.z * eff_speed
 
 	velocity.y = -6.0 if not is_on_floor() else 0.0
+	if _knock_vel.length_squared() > 0.01:
+		velocity.x += _knock_vel.x
+		velocity.z += _knock_vel.z
+		_knock_vel = _knock_vel.move_toward(Vector3.ZERO, delta * 18.0)
 	move_and_slide()
 	_update_animation(delta, Vector2(velocity.x, velocity.z).length())
+
+
+# --- D-049 status effects & traits ----------------------------------------------------------------------------
+## Applies a status from a player's mastery ability: bleed / burn / poison (damage over time), chill (slow),
+## freeze / stun (no action), sunder (armor loss), rally (war-cry buff from an ally).
+func apply_status(kind: String, params: Dictionary) -> void:
+	if state == AiState.DEAD:
+		return
+	match kind:
+		"bleed", "burn":
+			var cur: Dictionary = statuses.get(kind, {})
+			statuses[kind] = {"dps": maxf(float(cur.get("dps", 0.0)), float(params.get("dps", 3.0))),
+				"t": maxf(float(cur.get("t", 0.0)), float(params.get("duration", 3.0)))}
+		"poison":
+			var cur: Dictionary = statuses.get("poison", {"stacks": []})
+			var stacks: Array = cur["stacks"]
+			stacks.append({"dps": float(params.get("dps", 4.0)), "t": float(params.get("duration", 5.0))})
+			while stacks.size() > maxi(1, int(params.get("stacks", 1))):
+				stacks.pop_front()
+			statuses["poison"] = {"stacks": stacks}
+		"chill":
+			var cur: Dictionary = statuses.get("chill", {})
+			statuses["chill"] = {"slow": maxf(float(cur.get("slow", 0.0)), float(params.get("slow", 0.3))),
+				"t": maxf(float(cur.get("t", 0.0)), float(params.get("duration", 3.0)))}
+		"freeze", "stun":
+			if is_boss:
+				_stun_t = maxf(_stun_t, float(params.get("duration", 1.0)) * 0.35)
+			else:
+				_stun_t = maxf(_stun_t, float(params.get("duration", 1.0)))
+			_attack_anim_started = false
+			if visual != null:
+				visual.flash(Color(0.55, 0.85, 1.0) if kind == "freeze" else Color(1.0, 0.95, 0.5), 0.4)
+		"sunder":
+			statuses["sunder"] = {"armor": maxf(float(statuses.get("sunder", {}).get("armor", 0.0)), float(params.get("armor", 5.0))),
+				"t": float(params.get("duration", 5.0))}
+		"rally":
+			statuses["rally"] = {"haste": float(params.get("haste", 1.3)), "damage": float(params.get("damage", 1.25)),
+				"t": float(params.get("duration", 6.0))}
+			if visual != null:
+				visual.flash(Color(1.0, 0.8, 0.2), 0.3)
+
+
+func has_status(kind: String) -> bool:
+	return statuses.has(kind) or (kind in ["stun", "freeze"] and _stun_t > 0.0)
+
+
+## Pushes the enemy away and interrupts its attack (mastery Shove / power shots).
+func apply_knockback(dir: Vector3, force: float) -> void:
+	if state == AiState.DEAD:
+		return
+	var d := Vector3(dir.x, 0.0, dir.z).normalized()
+	_knock_vel = d * force * (0.35 if is_boss else 1.0)
+	if not is_boss:
+		_attack_timer = maxf(_attack_timer, 0.6)
+		_attack_anim_started = false
+
+
+func effective_armor() -> float:
+	return maxf(0.0, armor - float(statuses.get("sunder", {}).get("armor", 0.0)))
+
+
+func _speed_mult() -> float:
+	var m := 1.0 - float(statuses.get("chill", {}).get("slow", 0.0))
+	m *= float(statuses.get("rally", {}).get("haste", 1.0))
+	if _berserk:
+		m *= float(traits.get("berserk", {}).get("haste", 1.35))
+	return maxf(0.2, m)
+
+
+func _haste() -> float:
+	var h := float(statuses.get("rally", {}).get("haste", 1.0))
+	if _berserk:
+		h *= float(traits.get("berserk", {}).get("haste", 1.35))
+	return h * (1.0 - float(statuses.get("chill", {}).get("slow", 0.0)) * 0.5)
+
+
+## Damage multiplier from rally / berserk.
+func damage_mult() -> float:
+	var m := float(statuses.get("rally", {}).get("damage", 1.0))
+	if _berserk:
+		m *= float(traits.get("berserk", {}).get("damage", 1.25))
+	return m
+
+
+func _tick_statuses(delta: float) -> void:
+	_since_hurt += delta
+	var dot := 0.0
+	for k in ["bleed", "burn"]:
+		if statuses.has(k):
+			var st: Dictionary = statuses[k]
+			dot += float(st["dps"]) * delta
+			st["t"] = float(st["t"]) - delta
+			if float(st["t"]) <= 0.0:
+				statuses.erase(k)
+	if statuses.has("poison"):
+		var stacks: Array = statuses["poison"]["stacks"]
+		for i in range(stacks.size() - 1, -1, -1):
+			dot += float(stacks[i]["dps"]) * delta
+			stacks[i]["t"] = float(stacks[i]["t"]) - delta
+			if float(stacks[i]["t"]) <= 0.0:
+				stacks.remove_at(i)
+		if stacks.is_empty():
+			statuses.erase("poison")
+	for k in ["chill", "sunder", "rally"]:
+		if statuses.has(k):
+			statuses[k]["t"] = float(statuses[k]["t"]) - delta
+			if float(statuses[k]["t"]) <= 0.0:
+				statuses.erase(k)
+	if traits.has("regenerate") and _since_hurt > 4.0 and current_health < max_health:
+		current_health = minf(max_health, current_health + float(traits["regenerate"].get("hps", 3.0)) * delta)
+	if dot > 0.0:
+		_dot_damage(dot)
+
+
+func _dot_damage(amount: float) -> void:
+	current_health = maxf(0.0, current_health - amount)
+	_bar_visible_t = 4.0
+	_since_hurt = 0.0
+	if current_health <= 0.0:
+		take_damage(1.0)
+
+
+func _do_war_cry() -> void:
+	var wc: Dictionary = traits["war_cry"]
+	var r := float(wc.get("radius", 12.0))
+	if not is_inside_tree():
+		return
+	var any := false
+	for n in get_tree().get_nodes_in_group("enemies"):
+		var e := n as EnemyActor
+		if e == null or e == self or e.state == AiState.DEAD:
+			continue
+		if e.global_position.distance_to(global_position) <= r:
+			e.apply_status("rally", wc)
+			any = true
+	if any and visual != null:
+		visual.flash(Color(1.0, 0.85, 0.3), 0.3)
+		if EventBus != null:
+			EventBus.sfx_requested.emit("door_seal")
 
 
 ## Direction to move toward `target`: straight when close with a clear view, otherwise along an A* tile path
@@ -555,6 +752,12 @@ func take_damage(amount: float) -> Dictionary:
 			wake_boss()
 
 	current_health = maxf(0.0, current_health - maxf(1.0, amount))
+	_since_hurt = 0.0
+	if traits.has("berserk") and not _berserk and current_health > 0.0 \
+			and current_health / max_health <= float(traits["berserk"].get("threshold", 0.4)):
+		_berserk = true
+		if visual != null:
+			visual.set_tint(Color(1.0, 0.15, 0.1), 0.3)
 	_hit_flash_timer = 0.22
 	_bar_visible_t = 4.0
 	if visual != null:
@@ -664,12 +867,27 @@ static func _aim_bow_seg(seg: Node3D, tip: Vector3, target: Vector3) -> void:
 func _perform_attack(flat_dir: Vector3) -> void:
 	_attack_timer = attack_cooldown_sec / (1.2 if enraged else 1.0)
 	_attack_anim_started = false
-	var eff_dmg := damage * (enrage_damage_mult if enraged else 1.0)
+	_attack_count += 1
+	var eff_dmg := damage * (enrage_damage_mult if enraged else 1.0) * damage_mult()
 	if archetype == "ranged" and _on_shoot_projectile.is_valid():
 		var origin := global_position + Vector3(0.0, 1.45, 0.0) + flat_dir.normalized() * 0.4
 		var target := _player_ref.global_position + Vector3(0.0, 1.2, 0.0)
-		var dir := (target - origin).normalized()
-		_on_shoot_projectile.call(self, origin, dir * projectile_speed, eff_dmg)
+		var vel := (target - origin).normalized() * projectile_speed
+		if projectile_kind == "bomb":
+			# lobbed pot: arcs onto where the player stands
+			var flat := Vector3(target.x - origin.x, 0.0, target.z - origin.z)
+			var t := maxf(0.4, flat.length() / projectile_speed)
+			vel = flat / t
+			vel.y = ((target.y - 1.0) - origin.y + 0.5 * BOMB_GRAVITY * t * t) / t
+		_on_shoot_projectile.call(self, origin, vel, eff_dmg)
+	elif traits.has("ground_slam") and _attack_count % int(traits["ground_slam"].get("every", 3)) == 0:
+		# every Nth blow cracks the floor: hits anywhere inside the slam radius
+		var slam_r := float(traits["ground_slam"].get("radius", 3.5))
+		var burst := VfxFactory.make_impact_burst(Color(0.6, 0.5, 0.35), 40, slam_r)
+		get_parent().add_child(burst)
+		burst.global_position = global_position + Vector3(0, 0.2, 0)
+		if _player_ref.global_position.distance_to(global_position) <= slam_r and _on_attack_player.is_valid():
+			_on_attack_player.call(self, eff_dmg * 1.3, flat_dir.normalized())
 	elif _on_attack_player.is_valid():
 		_on_attack_player.call(self, eff_dmg, flat_dir.normalized())
 	if EventBus != null:

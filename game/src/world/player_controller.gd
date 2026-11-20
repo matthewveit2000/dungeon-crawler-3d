@@ -209,6 +209,23 @@ var _shake_phase: float = 0.0
 var _tp_action_lock: float = 0.0
 var _tp_cast_right_t: float = -10.0
 var _tp_aim_blend: float = 0.0
+# --- D-049 item mastery abilities ------------------------------------------------------------------------------
+var _dash_t: float = 0.0
+var _dash_vel: Vector3 = Vector3.ZERO
+var _left_guard_pending: bool = false  ## Cross Guard: off-hand blade pressed; attack on a tap, guard while held
+var _left_guard_hold: float = 0.0
+var is_cross_guarding: bool = false
+var _frenzy_stacks: int = 0
+var _frenzy_t: float = 0.0
+var riposte_t: float = 0.0  ## after a shield block with Riposte: next attack is a guaranteed crit
+var _ward_t: float = 0.0
+var _ward_reduction: float = 0.0
+var _regen_t: float = 0.0
+var _regen_hps: float = 0.0
+var _second_wind_cd: float = 0.0
+var _slow_t: float = 0.0
+var _slow_amount: float = 0.0
+const CROSS_GUARD_HOLD := 0.22
 var _tp_cast_left_t: float = -10.0
 
 var _callbacks: Dictionary = {}
@@ -525,6 +542,7 @@ func step_simulation(delta: float, is_paused: bool, input_override: Dictionary =
 	_left_cooldown = maxf(0.0, _left_cooldown - delta)
 	_magicka_regen_delay = maxf(0.0, _magicka_regen_delay - delta)
 	_stamina_regen_delay = maxf(0.0, _stamina_regen_delay - delta)
+	_tick_mastery_timers(delta)
 
 	var mov: Dictionary = player_cfg["movement"]
 	var stats: Dictionary = player_cfg["stats"]
@@ -541,16 +559,28 @@ func step_simulation(delta: float, is_paused: bool, input_override: Dictionary =
 	# D-046: a shield blocks from whichever hand holds it
 	var left_block := str(lh.get("category", "")) == "shield" and holding_left
 	var right_block := str(rh_eq.get("category", "")) == "shield" and holding_right
-	is_blocking = (left_block or right_block) and stamina > 2.0
+	# D-049 Cross Guard: a tap of the off-hand blade attacks, holding it crosses both blades to block
+	is_cross_guarding = false
+	if _left_guard_pending:
+		if holding_left:
+			_left_guard_hold += delta
+			is_cross_guarding = _left_guard_hold >= CROSS_GUARD_HOLD
+		else:
+			_left_guard_pending = false
+			if _left_guard_hold < CROSS_GUARD_HOLD and not lh.is_empty():
+				_perform_melee_attack(lh, false, false)
+			_left_guard_hold = 0.0
+	is_blocking = (left_block or right_block or is_cross_guarding) and stamina > 2.0
 
-	var speed := float(mov["walk_speed"])
+	var passives: Dictionary = LootGenerator.aggregate_equipment_stats(equipment).get("passives", {})
+	var speed := float(mov["walk_speed"]) * (1.0 + float(passives.get("fleet", {}).get("speed", 0.0))) * (1.0 - _slow_amount if _slow_t > 0.0 else 1.0)
 	var is_sprinting := false
 	if is_blocking:
 		speed *= float(mov["block_speed_multiplier"])
 	elif is_bow_drawing:
 		speed *= float(mov["bow_draw_speed_multiplier"])
 	elif wants_sprint and move_vec.length_squared() > 0.05 and stamina > 1.0:
-		speed = float(mov["sprint_speed"])
+		speed = float(mov["sprint_speed"]) * (1.0 + float(passives.get("fleet", {}).get("speed", 0.0))) * (1.0 - _slow_amount if _slow_t > 0.0 else 1.0)
 		stamina = maxf(0.0, stamina - float(mov["sprint_stamina_per_sec"]) * delta)
 		_stamina_regen_delay = float(stats["regen_delay_after_spend_sec"])
 		is_sprinting = true
@@ -561,6 +591,11 @@ func step_simulation(delta: float, is_paused: bool, input_override: Dictionary =
 		world_dir = world_dir.normalized()
 	velocity.x = world_dir.x * speed
 	velocity.z = world_dir.z * speed
+	if _dash_t > 0.0:
+		# Lunge (dash strike)
+		_dash_t -= delta
+		velocity.x = _dash_vel.x
+		velocity.z = _dash_vel.z
 
 	if is_on_floor():
 		if wants_jump and stamina >= float(mov["jump_stamina_cost"]):
@@ -573,11 +608,11 @@ func step_simulation(delta: float, is_paused: bool, input_override: Dictionary =
 	move_and_slide()
 
 	# Passive Skyrim resource regeneration
-	health = minf(max_health, health + float(stats["health_regen_per_sec"]) * delta)
+	health = minf(max_health, health + (float(stats["health_regen_per_sec"]) + (_regen_hps if _regen_t > 0.0 else 0.0)) * delta)
 	if _magicka_regen_delay <= 0.0:
-		magicka = minf(max_magicka, magicka + float(stats["magicka_regen_per_sec"]) * delta)
+		magicka = minf(max_magicka, magicka + (float(stats["magicka_regen_per_sec"]) + float(passives.get("arcane_flow", {}).get("magicka_regen", 0.0))) * delta)
 	if _stamina_regen_delay <= 0.0 and not is_blocking:
-		stamina = minf(max_stamina, stamina + float(stats["stamina_regen_per_sec"]) * delta)
+		stamina = minf(max_stamina, stamina + (float(stats["stamina_regen_per_sec"]) + float(passives.get("vigor", {}).get("stamina_regen", 0.0))) * delta)
 
 	# Update right-hand hold (Power Attack wind-up or Bow Draw)
 	if is_right_holding:
@@ -587,7 +622,7 @@ func step_simulation(delta: float, is_paused: bool, input_override: Dictionary =
 			if not is_bow_drawing and tp_visual != null and tp_visual.visible and tp_visual.has_anim("bow_draw"):
 				tp_visual.play_action("bow_draw", 0.1, 1.0)  # FB-014: raise, nock and pull, then draw_hold loops
 			is_bow_drawing = true
-			bow_draw_time = right_attack_hold
+			bow_draw_time = right_attack_hold * _draw_speed(rh)
 
 	_update_procedural_animations(delta, move_vec.length(), is_sprinting)
 	_tp_aim_blend = move_toward(_tp_aim_blend, 1.0 if is_bow_drawing else 0.0, delta * 4.0)
@@ -616,7 +651,11 @@ func handle_hand_press(hand: String) -> void:
 		if cat == "spell":
 			_cast_spell(lh, false)
 		elif cat == "weapon":
-			_perform_melee_attack(lh, false, false)
+			if MasterySystem.has_ability(lh, "cross_guard") and str(equipment.get("right_hand", {}).get("category", "")) == "weapon":
+				_left_guard_pending = true
+				_left_guard_hold = 0.0
+			else:
+				_perform_melee_attack(lh, false, false)
 
 
 func handle_hand_release(hand: String) -> void:
@@ -632,7 +671,7 @@ func handle_hand_release(hand: String) -> void:
 	if rh.is_empty():
 		return
 	if str(rh.get("weapon_type", "")) == "archery":
-		_fire_bow(rh, hold)
+		_fire_bow(rh, hold * _draw_speed(rh))
 	elif str(rh.get("category", "")) == "weapon":
 		var is_power := hold >= float(player_cfg["combat"]["power_attack_hold_sec"])
 		_perform_melee_attack(rh, true, is_power)
@@ -651,12 +690,29 @@ func take_damage(raw_damage: float) -> Dictionary:
 
 	var eq_totals := LootGenerator.aggregate_equipment_stats(equipment)
 	var prog_bonuses := progression.get_derived_bonuses() if progression != null else {}
+	var passives: Dictionary = eq_totals.get("passives", {})
+	# D-049 Evasion
+	var dodge := float(passives.get("dodge", {}).get("chance", 0.0))
+	if dodge > 0.0 and _rng != null and _rng.next_float("combat") < dodge:
+		if EventBus != null:
+			EventBus.sfx_requested.emit("sword_swing")
+		return {"final_damage": 0.0, "died": false, "was_blocked": false, "dodged": true}
+	if _ward_t > 0.0:
+		raw_damage *= 1.0 - _ward_reduction
+	# Block strength: shield Bulwark / Cross Guard
+	var block_bonus := float(eq_totals["block_bonus"]) + float(prog_bonuses.get("block_bonus", 0.0))
+	var guard_item := blocking_item()
+	if not guard_item.is_empty():
+		block_bonus += float(MasterySystem.abilities(guard_item).get("bulwark", {}).get("block", 0.0))
+		if is_cross_guarding:
+			block_bonus = float(MasterySystem.abilities(guard_item).get("cross_guard", {}).get("block", 0.45)) \
+				- float(player_cfg["combat"]["block_damage_reduction_base"])
 	var res := CombatMath.resolve_attack({
 		"base_damage": raw_damage,
 		"crit_chance": 0.0,
 		"target_armor": get_total_armor(),
 		"target_blocking": is_blocking,
-		"target_block_bonus": float(eq_totals["block_bonus"]) + float(prog_bonuses.get("block_bonus", 0.0)),
+		"target_block_bonus": block_bonus,
 	}, player_cfg, _rng)
 
 	var dmg := float(res["final_damage"])
@@ -685,6 +741,15 @@ func take_damage(raw_damage: float) -> Dictionary:
 			dmg_cb.call(dmg)
 
 	health = maxf(0.0, health - dmg)
+	# Second Wind (worn armor / amulets)
+	if health > 0.0 and health < max_health * 0.3 and _second_wind_cd <= 0.0 and passives.has("second_wind"):
+		var sw: Dictionary = passives["second_wind"]
+		health = minf(max_health, health + float(sw.get("heal", 35.0)))
+		_second_wind_cd = float(sw.get("cooldown", 60.0))
+		if EventBus != null:
+			EventBus.dungeon_ai_announcement.emit("SECOND WIND", "Your gear refuses to let you die here. +%d health." % int(sw.get("heal", 35.0)), "info")
+	if bool(res["was_blocked"]) and not guard_item.is_empty() and MasterySystem.has_ability(guard_item, "riposte"):
+		riposte_t = float(MasterySystem.abilities(guard_item)["riposte"].get("duration", 2.0))
 	emit_stats()
 	var died := health <= 0.0
 	if died and EventBus != null:
@@ -718,7 +783,7 @@ func _open_arm(side: String) -> Node3D:
 
 
 static func _is_single_edged(model_path: String) -> bool:
-	return model_path.contains("axe") or model_path.contains("cleaver")
+	return model_path.contains("axe") or model_path.contains("cleaver") or model_path.contains("seax")
 
 
 func _disable_shadows(n: Node) -> void:
@@ -1508,8 +1573,17 @@ func _perform_melee_attack(weapon: Dictionary, is_right: bool, is_power: bool) -
 	_stamina_regen_delay = float(player_cfg["stats"]["regen_delay_after_spend_sec"])
 
 	var eq_totals := LootGenerator.aggregate_equipment_stats(equipment)
-	var cd := float(weapon.get("cooldown_sec", 0.55)) * (1.0 - float(eq_totals["cooldown_reduction"]))
+	var cd := float(weapon.get("cooldown_sec", 0.55)) * (1.0 - float(eq_totals["cooldown_reduction"])) * (1.0 - _frenzy_haste(weapon))
 	var is_two_hand := bool(weapon.get("two_handed", false))
+	var w_abil := MasterySystem.abilities(weapon)
+	var dash_dist := 0.0
+	if is_power and w_abil.has("dash_strike"):
+		# Lunge: surge forward along the view direction
+		dash_dist = float(w_abil["dash_strike"].get("distance", 3.5))
+		var fwd := get_forward_vector()
+		fwd.y = 0.0
+		_dash_t = 0.2
+		_dash_vel = fwd.normalized() * (dash_dist / 0.2)
 	if tp_visual != null and tp_visual.visible:
 		var tp_clip := "attack_2h" if (is_two_hand and tp_visual.has_anim("attack_2h")) else "attack"
 		if not is_right and tp_visual.has_anim("attack_l"):
@@ -1551,13 +1625,18 @@ func _perform_melee_attack(weapon: Dictionary, is_right: bool, is_power: bool) -
 		var mult := (progression.get_proficiency_damage_multiplier(wtype) if progression != null else 1.0) + float(prog_bonuses.get("damage_multiplier_bonus", 0.0))
 		cb.call({
 			"weapon": weapon,
+			"item": weapon,
+			"abilities": w_abil,
+			"dash_distance": dash_dist,
 			"is_power_attack": is_power,
 			"damage_multiplier": mult,
 			"bonus_damage": float(eq_totals["bonus_damage"]),
-			"crit_chance": float(player_cfg["stats"]["base_crit_chance"]) + float(eq_totals["bonus_crit_chance"]),
+			"crit_chance": float(player_cfg["stats"]["base_crit_chance"]) + float(eq_totals["bonus_crit_chance"])
+				+ float(w_abil.get("keen_edge", {}).get("crit", 0.0)) + _consume_riposte(),
 			"crit_multiplier": float(player_cfg["stats"]["base_crit_multiplier"]),
 			"sponsored_effects": eq_totals["sponsored_effects"],
 			"skill_name": wtype,
+			"passives": eq_totals.get("passives", {}),
 		})
 
 
@@ -1582,25 +1661,38 @@ func _fire_bow(bow: Dictionary, hold_sec: float) -> void:
 	var speed := lerpf(float(ccfg["bow_arrow_speed_min"]), float(ccfg["bow_arrow_speed_max"]), ratio)
 	var prog_bonuses := progression.get_derived_bonuses() if progression != null else {}
 	var mult := (progression.get_proficiency_damage_multiplier("archery") if progression != null else 1.0) + float(prog_bonuses.get("damage_multiplier_bonus", 0.0))
-	var dmg := (float(bow.get("damage", 24.0)) + float(eq_totals["bonus_damage"])) * mult * (0.45 + 0.55 * ratio)
+	var b_abil := MasterySystem.abilities(bow)
+	var dmg := (MasterySystem.stat(bow, "damage", 24.0) + float(eq_totals["bonus_damage"])) * mult * (0.45 + 0.55 * ratio)
+	if ratio >= 1.0 and b_abil.has("power_shot"):
+		dmg *= 1.0 + float(b_abil["power_shot"].get("bonus", 0.4))
 
 	if EventBus != null:
 		EventBus.sfx_requested.emit("bow_release")
 
 	var cb: Callable = _callbacks.get("spawn_projectile", Callable())
 	if cb.is_valid():
-		cb.call({
-			"kind": "arrow",
-			"origin": camera.global_position + get_aim_direction() * 0.8,
-			"velocity": get_aim_direction() * speed,
-			"gravity": 4.2,
-			"damage": dmg,
-			"crit_chance": float(player_cfg["stats"]["base_crit_chance"]) + float(eq_totals["bonus_crit_chance"]),
-			"crit_multiplier": float(player_cfg["stats"]["base_crit_multiplier"]),
-			"from_player": true,
-			"skill_name": "archery",
-			"sponsored_effects": eq_totals["sponsored_effects"],
-		})
+		var arrows := int(b_abil.get("multishot", {}).get("arrows", 1))
+		var spread := deg_to_rad(float(b_abil.get("multishot", {}).get("spread", 5.0)))
+		var crit := float(player_cfg["stats"]["base_crit_chance"]) + float(eq_totals["bonus_crit_chance"]) + _consume_riposte()
+		for i in range(maxi(1, arrows)):
+			var off := (float(i) - float(arrows - 1) * 0.5) * spread
+			var dir := get_aim_direction().rotated(Vector3.UP, off)
+			cb.call({
+				"kind": "arrow",
+				"origin": camera.global_position + dir * 0.8,
+				"velocity": dir * speed,
+				"gravity": 4.2,
+				"damage": dmg,
+				"crit_chance": crit,
+				"crit_multiplier": float(player_cfg["stats"]["base_crit_multiplier"]),
+				"from_player": true,
+				"skill_name": "archery",
+				"sponsored_effects": eq_totals["sponsored_effects"],
+				"abilities": b_abil,
+				"item_uid": str(bow.get("instance_id", "")),
+				"full_draw": ratio >= 1.0,
+				"pierce": int(b_abil.get("pierce", {}).get("count", 0)),
+			})
 
 
 func _cast_spell(spell: Dictionary, is_right: bool) -> void:
@@ -1648,9 +1740,19 @@ func _cast_spell(spell: Dictionary, is_right: bool) -> void:
 	var prog_bonuses := progression.get_derived_bonuses() if progression != null else {}
 	var spell_mult := (progression.get_proficiency_damage_multiplier(skill_name) if progression != null else 1.0) + float(prog_bonuses.get("spell_multiplier_bonus", 0.0))
 
+	var s_abil := MasterySystem.abilities(spell)
 	if kind == "heal":
-		var heal := float(spell.get("heal_amount", 30.0)) * spell_mult
+		var heal := MasterySystem.stat(spell, "heal_amount", 30.0) * spell_mult
 		health = minf(max_health, health + heal)
+		if s_abil.has("regen"):
+			_regen_hps = float(s_abil["regen"].get("hps", 3.0))
+			_regen_t = float(s_abil["regen"].get("duration", 6.0))
+		if s_abil.has("ward"):
+			_ward_reduction = float(s_abil["ward"].get("reduction", 0.2))
+			_ward_t = float(s_abil["ward"].get("duration", 5.0))
+		var mcb: Callable = _callbacks.get("item_used", Callable())
+		if mcb.is_valid():
+			mcb.call(spell, "cast")
 		if progression != null:
 			_emit_progression_feedback("restoration", progression.record_skill_use("restoration"))
 		if EventBus != null:
@@ -1663,21 +1765,114 @@ func _cast_spell(spell: Dictionary, is_right: bool) -> void:
 
 	var cb: Callable = _callbacks.get("spawn_projectile", Callable())
 	if cb.is_valid():
-		cb.call({
-			"kind": "spell",
-			"color": str(spell.get("color", "#ff6a22")),
-			"origin": camera.global_position + get_aim_direction() * 0.85,
-			"velocity": get_aim_direction() * float(spell.get("projectile_speed", 26.0)),
-			"gravity": 0.0,
-			"damage": (float(spell.get("damage", 22.0)) + float(eq_totals["bonus_damage"]) * 0.5) * spell_mult,
-			"crit_chance": float(player_cfg["stats"]["base_crit_chance"]) + float(eq_totals["bonus_crit_chance"]),
-			"crit_multiplier": float(player_cfg["stats"]["base_crit_multiplier"]),
-			"from_player": true,
-			"skill_name": skill_name,
-			"splash_radius": float(spell.get("splash_radius", 0.0)),
-			"chain_radius": float(spell.get("chain_radius", 0.0)),
-			"sponsored_effects": eq_totals["sponsored_effects"],
-		})
+		var count := int(s_abil.get("split", {}).get("count", 1))
+		var spread := deg_to_rad(float(s_abil.get("split", {}).get("spread", 9.0)))
+		var crit := float(player_cfg["stats"]["base_crit_chance"]) + float(eq_totals["bonus_crit_chance"]) + _consume_riposte()
+		for i in range(maxi(1, count)):
+			var off := (float(i) - float(count - 1) * 0.5) * spread
+			var dir := get_aim_direction().rotated(Vector3.UP, off)
+			cb.call({
+				"kind": "spell",
+				"color": str(spell.get("color", "#ff6a22")),
+				"origin": camera.global_position + dir * 0.85,
+				"velocity": dir * float(spell.get("projectile_speed", 26.0)),
+				"gravity": 0.0,
+				"damage": (MasterySystem.stat(spell, "damage", 22.0) + float(eq_totals["bonus_damage"]) * 0.5) * spell_mult,
+				"crit_chance": crit,
+				"crit_multiplier": float(player_cfg["stats"]["base_crit_multiplier"]),
+				"from_player": true,
+				"skill_name": skill_name,
+				"splash_radius": float(spell.get("splash_radius", 0.0)),
+				"chain_radius": float(spell.get("chain_radius", 0.0)),
+				"sponsored_effects": eq_totals["sponsored_effects"],
+				"abilities": s_abil,
+				"item_uid": str(spell.get("instance_id", "")),
+				"pierce": int(s_abil.get("pierce", {}).get("count", 0)),
+				"homing": float(s_abil.get("homing", {}).get("turn", 0.0)),
+			})
+
+
+# --- D-049 mastery helpers -------------------------------------------------------------------------------------
+func _tick_mastery_timers(delta: float) -> void:
+	_frenzy_t = maxf(0.0, _frenzy_t - delta)
+	if _frenzy_t <= 0.0:
+		_frenzy_stacks = 0
+	riposte_t = maxf(0.0, riposte_t - delta)
+	_ward_t = maxf(0.0, _ward_t - delta)
+	_regen_t = maxf(0.0, _regen_t - delta)
+	_second_wind_cd = maxf(0.0, _second_wind_cd - delta)
+	_slow_t = maxf(0.0, _slow_t - delta)
+
+
+## Equipped item with this instance id (mastery XP goes to the item that actually did the work).
+func find_item_by_uid(uid: String) -> Dictionary:
+	if uid.is_empty():
+		return {}
+	for slot in equipment.keys():
+		var it: Dictionary = equipment[slot]
+		if str(it.get("instance_id", "")) == uid:
+			return it
+	return {}
+
+
+## The item currently absorbing blocks (a raised shield, or the off-hand blade in a Cross Guard).
+func blocking_item() -> Dictionary:
+	if not is_blocking:
+		return {}
+	if is_cross_guarding:
+		return equipment.get("left_hand", {})
+	for h in ["left_hand", "right_hand"]:
+		var it: Dictionary = equipment.get(h, {})
+		if str(it.get("category", "")) == "shield":
+			return it
+	return {}
+
+
+## Slows the crawler (enemy frost strikes and hexes).
+func apply_slow(amount: float, duration: float) -> void:
+	_slow_amount = clampf(maxf(_slow_amount if _slow_t > 0.0 else 0.0, amount), 0.0, 0.8)
+	_slow_t = maxf(_slow_t, duration)
+
+
+func is_slowed() -> bool:
+	return _slow_t > 0.0
+
+
+## Bow draw speed (Quick Draw speeds it up, heavy bows draw slower).
+func _draw_speed(bow: Dictionary) -> float:
+	var sp := 1.0 / maxf(0.3, float(bow.get("draw_time_mult", 1.0)))
+	return sp * (1.0 + float(MasterySystem.abilities(bow).get("quick_draw", {}).get("speed", 0.0)))
+
+
+## Hunter's Focus: world speed while a bow with the ability is fully drawn (1.0 = normal).
+func bullet_time_scale() -> float:
+	if not is_bow_drawing:
+		return 1.0
+	var bow: Dictionary = equipment.get("right_hand", {})
+	var bt: Dictionary = MasterySystem.abilities(bow).get("bullet_time", {})
+	if bt.is_empty() or CombatMath.compute_bow_draw_ratio(bow_draw_time, player_cfg) < 1.0:
+		return 1.0
+	return float(bt.get("scale", 0.4))
+
+
+## Frenzy: called by the game when a melee hit lands with an item that has it.
+func register_frenzy_hit(params: Dictionary) -> void:
+	_frenzy_stacks = mini(int(params.get("stacks", 4)), _frenzy_stacks + 1)
+	_frenzy_t = 2.0
+
+
+func _frenzy_haste(weapon: Dictionary) -> float:
+	var fr: Dictionary = MasterySystem.abilities(weapon).get("frenzy", {})
+	var pas: Dictionary = LootGenerator.aggregate_equipment_stats(equipment).get("passives", {}).get("frenzy", {})
+	var per := float(fr.get("haste", 0.0)) + float(pas.get("haste", 0.0))
+	return clampf(per * float(_frenzy_stacks), 0.0, 0.5)
+
+
+func _consume_riposte() -> float:
+	if riposte_t > 0.0:
+		riposte_t = 0.0
+		return 1.0
+	return 0.0
 
 
 func _equip_by_id_if_owned(item_id: String, hand: String) -> void:

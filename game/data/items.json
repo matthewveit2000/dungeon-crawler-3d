@@ -23,8 +23,230 @@
       "range_meters": 2.6,
       "base_value": 45,
       "model": "res://assets/models/gear/iron_sword.glb",
-      "description": "Cold forged iron. Simple, brutal, and completely unsponsored.",
-      "icon": "res://assets/icons/iron_sword.png"
+      "description": "Cold forged iron. Simple, brutal, and completely unsponsored. A blade that rewards the patient: it learns to lunge and to guard.",
+      "icon": "res://assets/icons/iron_sword.png",
+      "drop_weight": 10,
+      "mastery": [
+        {
+          "level": 2,
+          "ability": "keen_edge",
+          "crit": 0.05
+        },
+        {
+          "level": 3,
+          "ability": "dash_strike",
+          "distance": 3.5
+        },
+        {
+          "level": 5,
+          "ability": "cross_guard",
+          "block": 0.45
+        },
+        {
+          "level": 7,
+          "ability": "frenzy",
+          "haste": 0.06,
+          "stacks": 4
+        },
+        {
+          "level": 10,
+          "ability": "dash_strike",
+          "distance": 5.5
+        }
+      ]
+    },
+    {
+      "id": "bearded_hand_axe",
+      "name": "Bearded Hand Axe",
+      "category": "weapon",
+      "weapon_type": "one_handed",
+      "slot": "right_hand",
+      "can_offhand": true,
+      "damage": 20.0,
+      "stamina_cost": 13.0,
+      "cooldown_sec": 0.58,
+      "range_meters": 2.5,
+      "base_value": 50,
+      "drop_weight": 8,
+      "model": "res://assets/models/gear/hand_axe.glb",
+      "icon": "res://assets/icons/hand_axe.png",
+      "single_edged": true,
+      "description": "A raider's axe with a hooked beard. Every notch on the haft is a story; the edge drinks.",
+      "mastery": [
+        {
+          "level": 2,
+          "ability": "bleed",
+          "dps": 3.0,
+          "duration": 4.0
+        },
+        {
+          "level": 4,
+          "ability": "sunder",
+          "armor": 5.0,
+          "duration": 5.0
+        },
+        {
+          "level": 6,
+          "ability": "cross_guard",
+          "block": 0.4
+        },
+        {
+          "level": 8,
+          "ability": "bleed",
+          "dps": 6.0,
+          "duration": 5.0
+        },
+        {
+          "level": 10,
+          "ability": "execute",
+          "threshold": 0.3,
+          "bonus": 0.6
+        }
+      ]
+    },
+    {
+      "id": "flanged_mace",
+      "name": "Flanged Iron Mace",
+      "category": "weapon",
+      "weapon_type": "one_handed",
+      "slot": "right_hand",
+      "can_offhand": true,
+      "damage": 22.0,
+      "stamina_cost": 15.0,
+      "cooldown_sec": 0.66,
+      "range_meters": 2.4,
+      "base_value": 55,
+      "drop_weight": 7,
+      "model": "res://assets/models/gear/flanged_mace.glb",
+      "icon": "res://assets/icons/flanged_mace.png",
+      "description": "Six iron flanges on an ash haft. Armor is merely a suggestion.",
+      "mastery": [
+        {
+          "level": 2,
+          "ability": "stun",
+          "chance": 0.12,
+          "duration": 0.8
+        },
+        {
+          "level": 4,
+          "ability": "sunder",
+          "armor": 8.0,
+          "duration": 6.0
+        },
+        {
+          "level": 6,
+          "ability": "knockback",
+          "force": 7.0
+        },
+        {
+          "level": 8,
+          "ability": "stun",
+          "chance": 0.22,
+          "duration": 1.1
+        },
+        {
+          "level": 10,
+          "ability": "ground_slam",
+          "radius": 3.5,
+          "damage": 0.6
+        }
+      ]
+    },
+    {
+      "id": "barrow_seax",
+      "name": "Barrow Seax",
+      "category": "weapon",
+      "weapon_type": "one_handed",
+      "slot": "right_hand",
+      "can_offhand": true,
+      "damage": 13.0,
+      "stamina_cost": 8.0,
+      "cooldown_sec": 0.34,
+      "range_meters": 2.1,
+      "base_value": 40,
+      "drop_weight": 8,
+      "model": "res://assets/models/gear/seax.glb",
+      "icon": "res://assets/icons/seax.png",
+      "single_edged": true,
+      "description": "A long knife pulled from a barrow king's belt. Quick, cruel, made for a second blade.",
+      "mastery": [
+        {
+          "level": 2,
+          "ability": "keen_edge",
+          "crit": 0.06
+        },
+        {
+          "level": 3,
+          "ability": "bleed",
+          "dps": 2.5,
+          "duration": 4.0
+        },
+        {
+          "level": 5,
+          "ability": "cross_guard",
+          "block": 0.35
+        },
+        {
+          "level": 7,
+          "ability": "execute",
+          "threshold": 0.35,
+          "bonus": 0.5
+        },
+        {
+          "level": 9,
+          "ability": "frenzy",
+          "haste": 0.07,
+          "stacks": 5
+        },
+        {
+          "level": 10,
+          "ability": "lifesteal",
+          "fraction": 0.08
+        }
+      ]
+    },
+    {
+      "id": "ashhilt_broadsword",
+      "name": "Ash-Hilt Broadsword",
+      "category": "weapon",
+      "weapon_type": "one_handed",
+      "slot": "right_hand",
+      "can_offhand": true,
+      "damage": 20.0,
+      "stamina_cost": 14.0,
+      "cooldown_sec": 0.56,
+      "range_meters": 2.7,
+      "base_value": 60,
+      "drop_weight": 6,
+      "model": "res://assets/models/gear/broadsword.glb",
+      "icon": "res://assets/icons/broadsword.png",
+      "description": "A wide-bladed sword with a charred ash grip. It wants room to swing.",
+      "mastery": [
+        {
+          "level": 2,
+          "ability": "cleave",
+          "arc": 150.0
+        },
+        {
+          "level": 4,
+          "ability": "knockback",
+          "force": 5.0
+        },
+        {
+          "level": 6,
+          "ability": "dash_strike",
+          "distance": 4.0
+        },
+        {
+          "level": 8,
+          "ability": "lifesteal",
+          "fraction": 0.06
+        },
+        {
+          "level": 10,
+          "ability": "whirlwind"
+        }
+      ]
     },
     {
       "id": "iron_war_axe",
@@ -39,21 +261,134 @@
       "range_meters": 3.0,
       "base_value": 85,
       "model": "res://assets/models/gear/battleaxe.glb",
-      "description": "Heavy two-handed Nordic blade that settles arguments quickly.",
-      "icon": "res://assets/icons/battleaxe.png"
+      "description": "Heavy two-handed Nordic blade that settles arguments quickly. Master it and it settles them for everyone in the room.",
+      "icon": "res://assets/icons/battleaxe.png",
+      "drop_weight": 7,
+      "single_edged": true,
+      "mastery": [
+        {
+          "level": 2,
+          "ability": "cleave",
+          "arc": 140.0
+        },
+        {
+          "level": 4,
+          "ability": "bleed",
+          "dps": 5.0,
+          "duration": 4.0
+        },
+        {
+          "level": 6,
+          "ability": "ground_slam",
+          "radius": 3.5,
+          "damage": 0.55
+        },
+        {
+          "level": 8,
+          "ability": "execute",
+          "threshold": 0.3,
+          "bonus": 0.7
+        },
+        {
+          "level": 10,
+          "ability": "whirlwind"
+        }
+      ]
     },
     {
-      "id": "nordic_kite_shield",
-      "name": "Banded Nordic Round Shield",
-      "category": "shield",
-      "weapon_type": "block",
-      "slot": "left_hand",
-      "armor": 18.0,
-      "block_bonus": 0.18,
-      "base_value": 55,
-      "model": "res://assets/models/gear/round_shield.glb",
-      "description": "Iron-rimmed oak war shield scarred by older crawlers.",
-      "icon": "res://assets/icons/round_shield.png"
+      "id": "barrow_war_hammer",
+      "name": "Barrow-King's War Hammer",
+      "category": "weapon",
+      "weapon_type": "two_handed",
+      "slot": "right_hand",
+      "two_handed": true,
+      "damage": 40.0,
+      "stamina_cost": 26.0,
+      "cooldown_sec": 1.1,
+      "range_meters": 2.9,
+      "base_value": 95,
+      "drop_weight": 5,
+      "model": "res://assets/models/gear/war_hammer.glb",
+      "icon": "res://assets/icons/war_hammer.png",
+      "description": "A slab of black iron on a haft of bog oak. Slow. Final.",
+      "mastery": [
+        {
+          "level": 2,
+          "ability": "knockback",
+          "force": 8.0
+        },
+        {
+          "level": 4,
+          "ability": "stun",
+          "chance": 0.25,
+          "duration": 1.2
+        },
+        {
+          "level": 6,
+          "ability": "ground_slam",
+          "radius": 4.0,
+          "damage": 0.65
+        },
+        {
+          "level": 8,
+          "ability": "sunder",
+          "armor": 10.0,
+          "duration": 6.0
+        },
+        {
+          "level": 10,
+          "ability": "ground_slam",
+          "radius": 6.0,
+          "damage": 0.9
+        }
+      ]
+    },
+    {
+      "id": "long_dane_axe",
+      "name": "Long-Hafted Dane Axe",
+      "category": "weapon",
+      "weapon_type": "two_handed",
+      "slot": "right_hand",
+      "two_handed": true,
+      "damage": 36.0,
+      "stamina_cost": 22.0,
+      "cooldown_sec": 0.95,
+      "range_meters": 3.5,
+      "base_value": 90,
+      "drop_weight": 5,
+      "model": "res://assets/models/gear/dane_axe.glb",
+      "icon": "res://assets/icons/dane_axe.png",
+      "single_edged": true,
+      "description": "A crescent head on a haft as tall as a man. Its reach is its argument.",
+      "mastery": [
+        {
+          "level": 2,
+          "ability": "cleave",
+          "arc": 130.0
+        },
+        {
+          "level": 3,
+          "ability": "sunder",
+          "armor": 6.0,
+          "duration": 5.0
+        },
+        {
+          "level": 5,
+          "ability": "whirlwind"
+        },
+        {
+          "level": 7,
+          "ability": "bleed",
+          "dps": 6.0,
+          "duration": 4.0
+        },
+        {
+          "level": 10,
+          "ability": "execute",
+          "threshold": 0.35,
+          "bonus": 0.9
+        }
+      ]
     },
     {
       "id": "hunting_bow",
@@ -68,8 +403,133 @@
       "range_meters": 45.0,
       "base_value": 70,
       "model": "res://assets/models/gear/hunting_bow.glb",
-      "description": "Draw, aim down the crosshair, and pin goblins to the stonework.",
-      "icon": "res://assets/icons/hunting_bow.png"
+      "description": "Draw, aim down the crosshair, and pin goblins to the stonework. In practised hands, time itself holds its breath.",
+      "icon": "res://assets/icons/hunting_bow.png",
+      "drop_weight": 8,
+      "mastery": [
+        {
+          "level": 2,
+          "ability": "quick_draw",
+          "speed": 0.2
+        },
+        {
+          "level": 4,
+          "ability": "bullet_time",
+          "scale": 0.4
+        },
+        {
+          "level": 6,
+          "ability": "multishot",
+          "arrows": 2,
+          "spread": 5.0
+        },
+        {
+          "level": 8,
+          "ability": "pierce",
+          "count": 1
+        },
+        {
+          "level": 10,
+          "ability": "multishot",
+          "arrows": 3,
+          "spread": 6.0
+        }
+      ]
+    },
+    {
+      "id": "yew_longbow",
+      "name": "Yew Longbow",
+      "category": "weapon",
+      "weapon_type": "archery",
+      "slot": "right_hand",
+      "two_handed": true,
+      "damage": 34.0,
+      "stamina_cost": 13.0,
+      "cooldown_sec": 0.6,
+      "range_meters": 60.0,
+      "base_value": 90,
+      "drop_weight": 5,
+      "draw_time_mult": 1.35,
+      "model": "res://assets/models/gear/yew_longbow.glb",
+      "icon": "res://assets/icons/yew_longbow.png",
+      "description": "Taller than its owner and twice as patient. Slow to draw, terrible on release.",
+      "mastery": [
+        {
+          "level": 2,
+          "ability": "power_shot",
+          "bonus": 0.4,
+          "force": 4.0
+        },
+        {
+          "level": 4,
+          "ability": "pierce",
+          "count": 2
+        },
+        {
+          "level": 6,
+          "ability": "bullet_time",
+          "scale": 0.35
+        },
+        {
+          "level": 8,
+          "ability": "power_shot",
+          "bonus": 0.8,
+          "force": 7.0
+        },
+        {
+          "level": 10,
+          "ability": "pierce",
+          "count": 5
+        }
+      ]
+    },
+    {
+      "id": "bone_short_bow",
+      "name": "Bone Short Bow",
+      "category": "weapon",
+      "weapon_type": "archery",
+      "slot": "right_hand",
+      "two_handed": true,
+      "damage": 18.0,
+      "stamina_cost": 7.0,
+      "cooldown_sec": 0.32,
+      "range_meters": 35.0,
+      "base_value": 60,
+      "drop_weight": 6,
+      "draw_time_mult": 0.7,
+      "model": "res://assets/models/gear/bone_short_bow.glb",
+      "icon": "res://assets/icons/bone_short_bow.png",
+      "description": "Horn and bone glued with something that was alive. Fast, light, hungry.",
+      "mastery": [
+        {
+          "level": 2,
+          "ability": "quick_draw",
+          "speed": 0.2
+        },
+        {
+          "level": 3,
+          "ability": "multishot",
+          "arrows": 2,
+          "spread": 7.0
+        },
+        {
+          "level": 5,
+          "ability": "fire_arrows",
+          "dps": 4.0,
+          "duration": 3.0
+        },
+        {
+          "level": 7,
+          "ability": "multishot",
+          "arrows": 3,
+          "spread": 8.0
+        },
+        {
+          "level": 10,
+          "ability": "quick_draw",
+          "speed": 0.45
+        }
+      ]
     },
     {
       "id": "spell_firebolt",
@@ -83,12 +543,45 @@
       "magicka_cost": 18.0,
       "cooldown_sec": 0.55,
       "projectile_speed": 26.0,
-      "splash_radius": 2.4,
+      "splash_radius": 1.6,
       "color": "#ff6a22",
       "base_value": 65,
       "model": "res://assets/models/gear/tome_fire.glb",
-      "description": "Hurls a blazing orb of arcane fire that explodes on impact.",
-      "icon": "res://assets/icons/tome_fire.png"
+      "description": "Hurls a blazing orb of arcane fire. Study it long enough and it learns to burn, then to detonate.",
+      "icon": "res://assets/icons/tome_fire.png",
+      "drop_weight": 8,
+      "mastery": [
+        {
+          "level": 2,
+          "ability": "burn",
+          "dps": 4.0,
+          "duration": 3.0
+        },
+        {
+          "level": 4,
+          "ability": "explode",
+          "radius": 3.5,
+          "damage": 0.6
+        },
+        {
+          "level": 6,
+          "ability": "burn",
+          "dps": 7.0,
+          "duration": 4.0
+        },
+        {
+          "level": 8,
+          "ability": "explode",
+          "radius": 5.0,
+          "damage": 0.8
+        },
+        {
+          "level": 10,
+          "ability": "split",
+          "count": 3,
+          "spread": 9.0
+        }
+      ]
     },
     {
       "id": "spell_chain_spark",
@@ -102,12 +595,200 @@
       "magicka_cost": 22.0,
       "cooldown_sec": 0.62,
       "projectile_speed": 36.0,
-      "chain_radius": 5.5,
+      "chain_radius": 0.0,
       "color": "#58c8ff",
       "base_value": 95,
       "model": "res://assets/models/gear/tome_spark.glb",
-      "description": "High-velocity arc lightning that jumps to a nearby enemy.",
-      "icon": "res://assets/icons/tome_spark.png"
+      "description": "High-velocity arc lightning. Each level teaches it to leap to one more victim.",
+      "icon": "res://assets/icons/tome_spark.png",
+      "drop_weight": 7,
+      "mastery": [
+        {
+          "level": 2,
+          "ability": "chain",
+          "jumps": 1,
+          "radius": 6.0,
+          "falloff": 0.7
+        },
+        {
+          "level": 4,
+          "ability": "chain",
+          "jumps": 2,
+          "radius": 7.0,
+          "falloff": 0.75
+        },
+        {
+          "level": 6,
+          "ability": "stun",
+          "chance": 0.15,
+          "duration": 0.7
+        },
+        {
+          "level": 8,
+          "ability": "chain",
+          "jumps": 4,
+          "radius": 8.0,
+          "falloff": 0.8
+        },
+        {
+          "level": 10,
+          "ability": "chain",
+          "jumps": 7,
+          "radius": 10.0,
+          "falloff": 0.85
+        }
+      ]
+    },
+    {
+      "id": "spell_frost_shard",
+      "name": "Tome: Frost Shard",
+      "category": "spell",
+      "weapon_type": "destruction",
+      "slot": "left_hand",
+      "can_mainhand": true,
+      "spell_kind": "projectile",
+      "damage": 17.0,
+      "magicka_cost": 14.0,
+      "cooldown_sec": 0.42,
+      "projectile_speed": 40.0,
+      "color": "#9fe8ff",
+      "base_value": 70,
+      "drop_weight": 7,
+      "model": "res://assets/models/gear/tome_frost.glb",
+      "icon": "res://assets/icons/tome_frost.png",
+      "description": "A splinter of grave-ice flung at speed. The cold remembers who it touched.",
+      "mastery": [
+        {
+          "level": 2,
+          "ability": "chill",
+          "slow": 0.3,
+          "duration": 3.0
+        },
+        {
+          "level": 4,
+          "ability": "split",
+          "count": 3,
+          "spread": 8.0
+        },
+        {
+          "level": 6,
+          "ability": "freeze",
+          "chance": 0.12,
+          "duration": 1.5
+        },
+        {
+          "level": 8,
+          "ability": "chill",
+          "slow": 0.5,
+          "duration": 4.0
+        },
+        {
+          "level": 10,
+          "ability": "freeze",
+          "chance": 0.25,
+          "duration": 2.2
+        }
+      ]
+    },
+    {
+      "id": "spell_venom_spit",
+      "name": "Tome: Venom Spit",
+      "category": "spell",
+      "weapon_type": "destruction",
+      "slot": "left_hand",
+      "can_mainhand": true,
+      "spell_kind": "projectile",
+      "damage": 9.0,
+      "magicka_cost": 12.0,
+      "cooldown_sec": 0.5,
+      "projectile_speed": 24.0,
+      "color": "#8fdc3a",
+      "base_value": 65,
+      "drop_weight": 6,
+      "model": "res://assets/models/gear/tome_venom.glb",
+      "icon": "res://assets/icons/tome_venom.png",
+      "description": "A glob of barrow-spider venom. Weak on impact, patient afterwards.",
+      "mastery": [
+        {
+          "level": 1,
+          "ability": "poison",
+          "dps": 4.0,
+          "duration": 5.0,
+          "stacks": 1
+        },
+        {
+          "level": 3,
+          "ability": "poison",
+          "dps": 5.0,
+          "duration": 6.0,
+          "stacks": 3
+        },
+        {
+          "level": 5,
+          "ability": "split",
+          "count": 3,
+          "spread": 12.0
+        },
+        {
+          "level": 7,
+          "ability": "homing",
+          "turn": 3.0
+        },
+        {
+          "level": 10,
+          "ability": "explode",
+          "radius": 3.5,
+          "damage": 0.8
+        }
+      ]
+    },
+    {
+      "id": "spell_void_lance",
+      "name": "Tome: Void Lance",
+      "category": "spell",
+      "weapon_type": "destruction",
+      "slot": "left_hand",
+      "can_mainhand": true,
+      "spell_kind": "projectile",
+      "damage": 28.0,
+      "magicka_cost": 26.0,
+      "cooldown_sec": 0.85,
+      "projectile_speed": 55.0,
+      "color": "#b77bff",
+      "base_value": 110,
+      "drop_weight": 4,
+      "model": "res://assets/models/gear/tome_void.glb",
+      "icon": "res://assets/icons/tome_void.png",
+      "description": "A needle of nothing. It does not burn or freeze; it simply removes.",
+      "mastery": [
+        {
+          "level": 2,
+          "ability": "pierce",
+          "count": 2
+        },
+        {
+          "level": 4,
+          "ability": "sunder",
+          "armor": 8.0,
+          "duration": 5.0
+        },
+        {
+          "level": 6,
+          "ability": "homing",
+          "turn": 5.0
+        },
+        {
+          "level": 8,
+          "ability": "pierce",
+          "count": 6
+        },
+        {
+          "level": 10,
+          "ability": "execute",
+          "threshold": 0.3,
+          "bonus": 1.0
+        }
+      ]
     },
     {
       "id": "spell_mend_wounds",
@@ -123,8 +804,214 @@
       "color": "#6effa8",
       "base_value": 75,
       "model": "res://assets/models/gear/tome_mend.glb",
-      "description": "Knits torn flesh back together with emerald restoration light.",
-      "icon": "res://assets/icons/tome_mend.png"
+      "description": "Knits torn flesh back together with emerald light. Masters leave a lingering renewal and a ward behind.",
+      "icon": "res://assets/icons/tome_mend.png",
+      "drop_weight": 6,
+      "mastery": [
+        {
+          "level": 2,
+          "ability": "regen",
+          "hps": 3.0,
+          "duration": 6.0
+        },
+        {
+          "level": 4,
+          "ability": "ward",
+          "reduction": 0.2,
+          "duration": 5.0
+        },
+        {
+          "level": 6,
+          "ability": "regen",
+          "hps": 6.0,
+          "duration": 8.0
+        },
+        {
+          "level": 8,
+          "ability": "ward",
+          "reduction": 0.35,
+          "duration": 6.0
+        },
+        {
+          "level": 10,
+          "ability": "regen",
+          "hps": 10.0,
+          "duration": 10.0
+        }
+      ]
+    },
+    {
+      "id": "spell_blood_siphon",
+      "name": "Tome: Blood Siphon",
+      "category": "spell",
+      "weapon_type": "destruction",
+      "slot": "left_hand",
+      "can_mainhand": true,
+      "spell_kind": "projectile",
+      "damage": 14.0,
+      "magicka_cost": 18.0,
+      "cooldown_sec": 0.6,
+      "projectile_speed": 30.0,
+      "color": "#d8213a",
+      "base_value": 95,
+      "drop_weight": 4,
+      "model": "res://assets/models/gear/tome_blood.glb",
+      "icon": "res://assets/icons/tome_blood.png",
+      "description": "A red thread pulled from the target to you. Forbidden in three kingdoms; sponsored in none.",
+      "mastery": [
+        {
+          "level": 1,
+          "ability": "siphon",
+          "fraction": 0.25
+        },
+        {
+          "level": 3,
+          "ability": "homing",
+          "turn": 4.0
+        },
+        {
+          "level": 5,
+          "ability": "chain",
+          "jumps": 1,
+          "radius": 6.0,
+          "falloff": 0.8
+        },
+        {
+          "level": 7,
+          "ability": "siphon",
+          "fraction": 0.45
+        },
+        {
+          "level": 10,
+          "ability": "chain",
+          "jumps": 3,
+          "radius": 8.0,
+          "falloff": 0.85
+        }
+      ]
+    },
+    {
+      "id": "nordic_kite_shield",
+      "name": "Banded Nordic Round Shield",
+      "category": "shield",
+      "weapon_type": "block",
+      "slot": "left_hand",
+      "armor": 18.0,
+      "block_bonus": 0.18,
+      "base_value": 55,
+      "model": "res://assets/models/gear/round_shield.glb",
+      "description": "Iron-rimmed oak war shield scarred by older crawlers. It learns to bite back.",
+      "icon": "res://assets/icons/round_shield.png",
+      "drop_weight": 7,
+      "mastery": [
+        {
+          "level": 2,
+          "ability": "bulwark",
+          "block": 0.06
+        },
+        {
+          "level": 4,
+          "ability": "bash",
+          "duration": 0.9
+        },
+        {
+          "level": 6,
+          "ability": "riposte",
+          "duration": 2.0
+        },
+        {
+          "level": 8,
+          "ability": "reflect",
+          "fraction": 0.3
+        },
+        {
+          "level": 10,
+          "ability": "bulwark",
+          "block": 0.15
+        }
+      ]
+    },
+    {
+      "id": "iron_kite_shield",
+      "name": "Iron Kite Shield",
+      "category": "shield",
+      "weapon_type": "block",
+      "slot": "left_hand",
+      "armor": 26.0,
+      "block_bonus": 0.24,
+      "base_value": 85,
+      "drop_weight": 4,
+      "model": "res://assets/models/gear/kite_shield.glb",
+      "icon": "res://assets/icons/kite_shield.png",
+      "description": "A tall iron kite. Heavy enough to hide behind, heavy enough to hurt.",
+      "mastery": [
+        {
+          "level": 2,
+          "ability": "bulwark",
+          "block": 0.06
+        },
+        {
+          "level": 4,
+          "ability": "reflect",
+          "fraction": 0.3
+        },
+        {
+          "level": 6,
+          "ability": "bash",
+          "duration": 1.1
+        },
+        {
+          "level": 8,
+          "ability": "iron_skin",
+          "armor": 10.0
+        },
+        {
+          "level": 10,
+          "ability": "reflect",
+          "fraction": 0.6
+        }
+      ]
+    },
+    {
+      "id": "bossed_buckler",
+      "name": "Bossed Buckler",
+      "category": "shield",
+      "weapon_type": "block",
+      "slot": "left_hand",
+      "armor": 10.0,
+      "block_bonus": 0.1,
+      "base_value": 50,
+      "drop_weight": 6,
+      "model": "res://assets/models/gear/buckler.glb",
+      "icon": "res://assets/icons/buckler.png",
+      "description": "A fist-sized iron boss on a scrap of oak. For those who block to strike.",
+      "mastery": [
+        {
+          "level": 2,
+          "ability": "riposte",
+          "duration": 1.6
+        },
+        {
+          "level": 4,
+          "ability": "bash",
+          "duration": 0.7
+        },
+        {
+          "level": 6,
+          "ability": "riposte",
+          "duration": 3.0
+        },
+        {
+          "level": 8,
+          "ability": "dodge",
+          "chance": 0.06
+        },
+        {
+          "level": 10,
+          "ability": "bash",
+          "duration": 1.4
+        }
+      ]
     },
     {
       "id": "tattered_crawler_tunic",
@@ -133,9 +1020,57 @@
       "slot": "chest",
       "armor": 12.0,
       "base_value": 30,
-      "description": "Standard-issue dungeon survival gear. Smells faintly of mildew.",
+      "description": "Standard-issue dungeon survival gear. Smells faintly of mildew. Breaks in like a good boot.",
       "model": "res://assets/models/gear/leather_cuirass.glb",
-      "icon": "res://assets/icons/leather_cuirass.png"
+      "icon": "res://assets/icons/leather_cuirass.png",
+      "drop_weight": 6,
+      "mastery": [
+        {
+          "level": 3,
+          "ability": "vigor",
+          "stamina_regen": 3.0
+        },
+        {
+          "level": 6,
+          "ability": "fleet",
+          "speed": 0.06
+        },
+        {
+          "level": 9,
+          "ability": "dodge",
+          "chance": 0.06
+        }
+      ]
+    },
+    {
+      "id": "riveted_hauberk",
+      "name": "Riveted Chain Hauberk",
+      "category": "armor",
+      "slot": "chest",
+      "armor": 20.0,
+      "base_value": 80,
+      "drop_weight": 4,
+      "model": "res://assets/models/gear/chain_hauberk.glb",
+      "icon": "res://assets/icons/chain_hauberk.png",
+      "description": "Ten thousand iron rings and the patience of whoever riveted them.",
+      "mastery": [
+        {
+          "level": 3,
+          "ability": "iron_skin",
+          "armor": 8.0
+        },
+        {
+          "level": 6,
+          "ability": "thorns",
+          "damage": 6.0
+        },
+        {
+          "level": 9,
+          "ability": "second_wind",
+          "heal": 45.0,
+          "cooldown": 60.0
+        }
+      ]
     },
     {
       "id": "iron_horned_helm",
@@ -144,9 +1079,58 @@
       "slot": "head",
       "armor": 10.0,
       "base_value": 50,
-      "description": "Classic iron helm. Does not protect against sarcastic AI commentary.",
+      "description": "Classic iron helm. Does not protect against sarcastic AI commentary. Does, eventually, protect against everything else.",
       "model": "res://assets/models/gear/iron_helm.glb",
-      "icon": "res://assets/icons/iron_helm.png"
+      "icon": "res://assets/icons/iron_helm.png",
+      "drop_weight": 6,
+      "mastery": [
+        {
+          "level": 3,
+          "ability": "iron_skin",
+          "armor": 5.0
+        },
+        {
+          "level": 6,
+          "ability": "second_wind",
+          "heal": 35.0,
+          "cooldown": 60.0
+        },
+        {
+          "level": 9,
+          "ability": "keen_eye",
+          "crit": 0.04
+        }
+      ]
+    },
+    {
+      "id": "wolf_pelt_hood",
+      "name": "Wolf-Pelt Hood",
+      "category": "armor",
+      "slot": "head",
+      "armor": 6.0,
+      "bonus_crit_chance": 0.02,
+      "base_value": 55,
+      "drop_weight": 5,
+      "model": "res://assets/models/gear/wolf_hood.glb",
+      "icon": "res://assets/icons/wolf_hood.png",
+      "description": "The wolf's head still wears its snarl. So, eventually, will you.",
+      "mastery": [
+        {
+          "level": 3,
+          "ability": "keen_eye",
+          "crit": 0.03
+        },
+        {
+          "level": 6,
+          "ability": "fleet",
+          "speed": 0.05
+        },
+        {
+          "level": 9,
+          "ability": "scholar",
+          "xp": 0.12
+        }
+      ]
     },
     {
       "id": "steel_gauntlets",
@@ -158,7 +1142,54 @@
       "base_value": 45,
       "description": "Weighted knuckles add bite to every swing.",
       "model": "res://assets/models/gear/steel_gauntlets.glb",
-      "icon": "res://assets/icons/steel_gauntlets.png"
+      "icon": "res://assets/icons/steel_gauntlets.png",
+      "drop_weight": 6,
+      "mastery": [
+        {
+          "level": 3,
+          "ability": "brutal",
+          "damage": 3.0
+        },
+        {
+          "level": 6,
+          "ability": "quickness",
+          "cooldown": 0.05
+        },
+        {
+          "level": 9,
+          "ability": "brutal",
+          "damage": 7.0
+        }
+      ]
+    },
+    {
+      "id": "hide_bracers",
+      "name": "Hide Archer Bracers",
+      "category": "armor",
+      "slot": "hands",
+      "armor": 5.0,
+      "base_value": 40,
+      "drop_weight": 5,
+      "model": "res://assets/models/gear/hide_bracers.glb",
+      "icon": "res://assets/icons/hide_bracers.png",
+      "description": "Stitched hide that has stopped ten thousand bowstrings.",
+      "mastery": [
+        {
+          "level": 3,
+          "ability": "quickness",
+          "cooldown": 0.06
+        },
+        {
+          "level": 6,
+          "ability": "keen_eye",
+          "crit": 0.04
+        },
+        {
+          "level": 9,
+          "ability": "quickness",
+          "cooldown": 0.12
+        }
+      ]
     },
     {
       "id": "runed_greaves",
@@ -170,7 +1201,55 @@
       "base_value": 48,
       "description": "Built for five days of frantic sprinting.",
       "model": "res://assets/models/gear/iron_boots.glb",
-      "icon": "res://assets/icons/iron_boots.png"
+      "icon": "res://assets/icons/iron_boots.png",
+      "drop_weight": 6,
+      "mastery": [
+        {
+          "level": 3,
+          "ability": "fleet",
+          "speed": 0.06
+        },
+        {
+          "level": 6,
+          "ability": "vigor",
+          "stamina_regen": 4.0
+        },
+        {
+          "level": 9,
+          "ability": "dodge",
+          "chance": 0.07
+        }
+      ]
+    },
+    {
+      "id": "fur_lined_boots",
+      "name": "Fur-Lined Boots",
+      "category": "armor",
+      "slot": "feet",
+      "armor": 6.0,
+      "bonus_stamina": 10.0,
+      "base_value": 40,
+      "drop_weight": 5,
+      "model": "res://assets/models/gear/fur_boots.glb",
+      "icon": "res://assets/icons/fur_boots.png",
+      "description": "Warm, quiet, and sized for someone who left in a hurry.",
+      "mastery": [
+        {
+          "level": 3,
+          "ability": "vigor",
+          "stamina_regen": 3.0
+        },
+        {
+          "level": 6,
+          "ability": "dodge",
+          "chance": 0.06
+        },
+        {
+          "level": 9,
+          "ability": "fleet",
+          "speed": 0.1
+        }
+      ]
     },
     {
       "id": "silver_focus_ring",
@@ -180,9 +1259,87 @@
       "bonus_magicka": 25.0,
       "bonus_crit_chance": 0.05,
       "base_value": 90,
-      "description": "Hums quietly when spells are prepared.",
+      "description": "Hums quietly when spells are prepared. Hums louder the more you use them.",
       "model": "res://assets/models/gear/silver_ring.glb",
-      "icon": "res://assets/icons/silver_ring.png"
+      "icon": "res://assets/icons/silver_ring.png",
+      "drop_weight": 5,
+      "mastery": [
+        {
+          "level": 3,
+          "ability": "arcane_flow",
+          "magicka_regen": 2.0
+        },
+        {
+          "level": 6,
+          "ability": "keen_eye",
+          "crit": 0.03
+        },
+        {
+          "level": 9,
+          "ability": "arcane_flow",
+          "magicka_regen": 5.0
+        }
+      ]
+    },
+    {
+      "id": "ember_set_ring",
+      "name": "Ember-Set Ring",
+      "category": "accessory",
+      "slot": "ring",
+      "bonus_damage": 2.0,
+      "base_value": 85,
+      "drop_weight": 4,
+      "model": "res://assets/models/gear/ember_ring.glb",
+      "icon": "res://assets/icons/ember_ring.png",
+      "description": "A coal that never cooled, set in blackened iron. Warm to the touch, warmer to the enemy.",
+      "mastery": [
+        {
+          "level": 3,
+          "ability": "ember_touch",
+          "dps": 3.0,
+          "duration": 3.0
+        },
+        {
+          "level": 6,
+          "ability": "keen_eye",
+          "crit": 0.03
+        },
+        {
+          "level": 9,
+          "ability": "ember_touch",
+          "dps": 6.0,
+          "duration": 4.0
+        }
+      ]
+    },
+    {
+      "id": "gold_signet",
+      "name": "Gold Signet of the Syndicate",
+      "category": "accessory",
+      "slot": "ring",
+      "gold_find_bonus": 0.1,
+      "base_value": 120,
+      "drop_weight": 3,
+      "model": "res://assets/models/gear/gold_signet.glb",
+      "icon": "res://assets/icons/gold_signet.png",
+      "description": "The Syndicate's mark. Opens doors, purses and, occasionally, investigations.",
+      "mastery": [
+        {
+          "level": 3,
+          "ability": "treasure",
+          "gold": 0.15
+        },
+        {
+          "level": 6,
+          "ability": "scholar",
+          "xp": 0.1
+        },
+        {
+          "level": 9,
+          "ability": "treasure",
+          "gold": 0.35
+        }
+      ]
     },
     {
       "id": "bone_ward_amulet",
@@ -192,9 +1349,58 @@
       "bonus_health": 30.0,
       "armor": 6.0,
       "base_value": 95,
-      "description": "A talisman traded by deep-floor survivors.",
+      "description": "A talisman traded by deep-floor survivors. It has seen worse than you; it intends to keep you alive.",
       "model": "res://assets/models/gear/bone_amulet.glb",
-      "icon": "res://assets/icons/bone_amulet.png"
+      "icon": "res://assets/icons/bone_amulet.png",
+      "drop_weight": 5,
+      "mastery": [
+        {
+          "level": 3,
+          "ability": "second_wind",
+          "heal": 40.0,
+          "cooldown": 60.0
+        },
+        {
+          "level": 6,
+          "ability": "iron_skin",
+          "armor": 6.0
+        },
+        {
+          "level": 9,
+          "ability": "thorns",
+          "damage": 8.0
+        }
+      ]
+    },
+    {
+      "id": "wolf_tooth_amulet",
+      "name": "Wolf-Tooth Amulet",
+      "category": "accessory",
+      "slot": "amulet",
+      "bonus_stamina": 15.0,
+      "base_value": 80,
+      "drop_weight": 4,
+      "model": "res://assets/models/gear/wolf_tooth_amulet.glb",
+      "icon": "res://assets/icons/wolf_tooth_amulet.png",
+      "description": "Three fangs on a leather thong. Wear it long enough and you start to feel the hunt.",
+      "mastery": [
+        {
+          "level": 3,
+          "ability": "blood_pact",
+          "fraction": 0.05
+        },
+        {
+          "level": 6,
+          "ability": "frenzy",
+          "haste": 0.05,
+          "stacks": 3
+        },
+        {
+          "level": 9,
+          "ability": "fleet",
+          "speed": 0.08
+        }
+      ]
     },
     {
       "id": "health_potion",
@@ -205,7 +1411,8 @@
       "base_value": 25,
       "model": "res://assets/models/gear/health_potion.glb",
       "description": "Restores 55 Health immediately. Tastes like rusted pennies and cherry syrup.",
-      "icon": "res://assets/icons/health_potion.png"
+      "icon": "res://assets/icons/health_potion.png",
+      "drop_weight": 14
     },
     {
       "id": "magicka_potion",
@@ -216,7 +1423,8 @@
       "base_value": 25,
       "model": "res://assets/models/gear/magicka_potion.glb",
       "description": "Restores 50 Magicka immediately. Slightly carbonated.",
-      "icon": "res://assets/icons/magicka_potion.png"
+      "icon": "res://assets/icons/magicka_potion.png",
+      "drop_weight": 10
     },
     {
       "id": "sponsored_gauntlets_boom",

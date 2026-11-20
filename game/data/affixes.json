@@ -1,4 +1,8 @@
 {
+  "_doc_loot_rarities": "D-049: for now every drop (chests, corpses, vaults, bosses, vendors) is Common; items grow through mastery instead. Higher rarities with unique powers come later — add their ids here to turn them back on.",
+  "loot_rarities_enabled": [
+    "common"
+  ],
   "rarities": [
     {
       "id": "common",

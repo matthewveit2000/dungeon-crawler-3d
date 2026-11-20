@@ -260,6 +260,131 @@
     },
     {
       "batch": "gear",
+      "name": "bone_short_bow",
+      "path": "game/assets/models/gear/bone_short_bow.glb",
+      "dimensions_xyz_m": [
+        0.061,
+        0.156,
+        1.14
+      ],
+      "triangles": 3656,
+      "bytes": 220392,
+      "materials": [
+        "bone",
+        "cloth_linen",
+        "iron_dark",
+        "leather_brown",
+        "leather_dark",
+        "wood_dark"
+      ]
+    },
+    {
+      "batch": "gear",
+      "name": "broadsword",
+      "path": "game/assets/models/gear/broadsword.glb",
+      "dimensions_xyz_m": [
+        0.24,
+        0.038,
+        0.987
+      ],
+      "triangles": 2444,
+      "bytes": 114376,
+      "materials": [
+        "bronze",
+        "iron_dark",
+        "steel_blade",
+        "wood_dark"
+      ]
+    },
+    {
+      "batch": "gear",
+      "name": "buckler",
+      "path": "game/assets/models/gear/buckler.glb",
+      "dimensions_xyz_m": [
+        0.424,
+        0.107,
+        0.424
+      ],
+      "triangles": 2456,
+      "bytes": 159032,
+      "materials": [
+        "iron_dark",
+        "leather_dark",
+        "steel_armor",
+        "wood_dark"
+      ]
+    },
+    {
+      "batch": "gear",
+      "name": "chain_hauberk",
+      "path": "game/assets/models/gear/chain_hauberk.glb",
+      "dimensions_xyz_m": [
+        0.672,
+        0.253,
+        0.557
+      ],
+      "triangles": 1556,
+      "bytes": 96716,
+      "materials": [
+        "chainmail",
+        "iron_dark",
+        "leather_brown",
+        "leather_dark"
+      ]
+    },
+    {
+      "batch": "gear",
+      "name": "dane_axe",
+      "path": "game/assets/models/gear/dane_axe.glb",
+      "dimensions_xyz_m": [
+        0.296,
+        0.052,
+        1.66
+      ],
+      "triangles": 2982,
+      "bytes": 141628,
+      "materials": [
+        "iron_dark",
+        "leather_brown",
+        "steel_blade",
+        "wood_beam"
+      ]
+    },
+    {
+      "batch": "gear",
+      "name": "ember_ring",
+      "path": "game/assets/models/gear/ember_ring.glb",
+      "dimensions_xyz_m": [
+        0.03,
+        0.013,
+        0.04
+      ],
+      "triangles": 772,
+      "bytes": 42044,
+      "materials": [
+        "glow_eye_red",
+        "iron_dark"
+      ]
+    },
+    {
+      "batch": "gear",
+      "name": "flanged_mace",
+      "path": "game/assets/models/gear/flanged_mace.glb",
+      "dimensions_xyz_m": [
+        0.14,
+        0.124,
+        0.744
+      ],
+      "triangles": 2458,
+      "bytes": 126656,
+      "materials": [
+        "iron_dark",
+        "leather_brown",
+        "wood_oak"
+      ]
+    },
+    {
+      "batch": "gear",
       "name": "fp_arm_grip_l",
       "path": "game/assets/models/gear/fp_arm_grip_l.glb",
       "dimensions_xyz_m": [
@@ -344,6 +469,58 @@
     },
     {
       "batch": "gear",
+      "name": "fur_boots",
+      "path": "game/assets/models/gear/fur_boots.glb",
+      "dimensions_xyz_m": [
+        0.344,
+        0.262,
+        0.298
+      ],
+      "triangles": 2132,
+      "bytes": 136680,
+      "materials": [
+        "fur",
+        "leather_brown",
+        "leather_dark",
+        "rope"
+      ]
+    },
+    {
+      "batch": "gear",
+      "name": "gold_signet",
+      "path": "game/assets/models/gear/gold_signet.glb",
+      "dimensions_xyz_m": [
+        0.031,
+        0.018,
+        0.038
+      ],
+      "triangles": 900,
+      "bytes": 47092,
+      "materials": [
+        "gold_antique",
+        "void_black"
+      ]
+    },
+    {
+      "batch": "gear",
+      "name": "hand_axe",
+      "path": "game/assets/models/gear/hand_axe.glb",
+      "dimensions_xyz_m": [
+        0.202,
+        0.044,
+        0.65
+      ],
+      "triangles": 1810,
+      "bytes": 92204,
+      "materials": [
+        "iron_dark",
+        "leather_dark",
+        "steel_blade",
+        "wood_beam"
+      ]
+    },
+    {
+      "batch": "gear",
       "name": "health_potion",
       "path": "game/assets/models/gear/health_potion.glb",
       "dimensions_xyz_m": [
@@ -360,6 +537,23 @@
         "parchment",
         "rope",
         "wood_rough"
+      ]
+    },
+    {
+      "batch": "gear",
+      "name": "hide_bracers",
+      "path": "game/assets/models/gear/hide_bracers.glb",
+      "dimensions_xyz_m": [
+        0.121,
+        0.121,
+        0.312
+      ],
+      "triangles": 1706,
+      "bytes": 112404,
+      "materials": [
+        "leather_brown",
+        "leather_dark",
+        "rope"
       ]
     },
     {
@@ -433,6 +627,24 @@
         "iron_dark",
         "leather_dark",
         "steel_blade"
+      ]
+    },
+    {
+      "batch": "gear",
+      "name": "kite_shield",
+      "path": "game/assets/models/gear/kite_shield.glb",
+      "dimensions_xyz_m": [
+        0.622,
+        0.143,
+        1.001
+      ],
+      "triangles": 1488,
+      "bytes": 88888,
+      "materials": [
+        "iron_dark",
+        "steel_armor",
+        "wood_beam",
+        "wood_oak"
       ]
     },
     {
@@ -513,6 +725,24 @@
     },
     {
       "batch": "gear",
+      "name": "seax",
+      "path": "game/assets/models/gear/seax.glb",
+      "dimensions_xyz_m": [
+        0.047,
+        0.034,
+        0.535
+      ],
+      "triangles": 1712,
+      "bytes": 81728,
+      "materials": [
+        "bone",
+        "bronze",
+        "leather_dark",
+        "steel_blade"
+      ]
+    },
+    {
+      "batch": "gear",
       "name": "silver_ring",
       "path": "game/assets/models/gear/silver_ring.glb",
       "dimensions_xyz_m": [
@@ -562,6 +792,25 @@
     },
     {
       "batch": "gear",
+      "name": "tome_blood",
+      "path": "game/assets/models/gear/tome_blood.glb",
+      "dimensions_xyz_m": [
+        0.197,
+        0.06,
+        0.236
+      ],
+      "triangles": 1540,
+      "bytes": 106328,
+      "materials": [
+        "bronze",
+        "cloth_crimson",
+        "glow_eye_red",
+        "leather_brown",
+        "parchment"
+      ]
+    },
+    {
+      "batch": "gear",
       "name": "tome_fire",
       "path": "game/assets/models/gear/tome_fire.glb",
       "dimensions_xyz_m": [
@@ -576,6 +825,25 @@
         "glow_eye_red",
         "leather_brown",
         "leather_dark",
+        "parchment"
+      ]
+    },
+    {
+      "batch": "gear",
+      "name": "tome_frost",
+      "path": "game/assets/models/gear/tome_frost.glb",
+      "dimensions_xyz_m": [
+        0.197,
+        0.06,
+        0.236
+      ],
+      "triangles": 1540,
+      "bytes": 106320,
+      "materials": [
+        "bronze",
+        "cloth_teal",
+        "glow_eye_blue",
+        "leather_brown",
         "parchment"
       ]
     },
@@ -615,6 +883,115 @@
         "leather_dark",
         "neon_cyan",
         "parchment"
+      ]
+    },
+    {
+      "batch": "gear",
+      "name": "tome_venom",
+      "path": "game/assets/models/gear/tome_venom.glb",
+      "dimensions_xyz_m": [
+        0.197,
+        0.06,
+        0.236
+      ],
+      "triangles": 1540,
+      "bytes": 106000,
+      "materials": [
+        "bronze",
+        "glass_green",
+        "leather_brown",
+        "parchment"
+      ]
+    },
+    {
+      "batch": "gear",
+      "name": "tome_void",
+      "path": "game/assets/models/gear/tome_void.glb",
+      "dimensions_xyz_m": [
+        0.197,
+        0.06,
+        0.236
+      ],
+      "triangles": 1540,
+      "bytes": 106344,
+      "materials": [
+        "bronze",
+        "leather_brown",
+        "neon_pink",
+        "parchment",
+        "void_black"
+      ]
+    },
+    {
+      "batch": "gear",
+      "name": "war_hammer",
+      "path": "game/assets/models/gear/war_hammer.glb",
+      "dimensions_xyz_m": [
+        0.4,
+        0.115,
+        1.47
+      ],
+      "triangles": 3232,
+      "bytes": 153180,
+      "materials": [
+        "iron_dark",
+        "leather_dark",
+        "steel_blade",
+        "wood_dark"
+      ]
+    },
+    {
+      "batch": "gear",
+      "name": "wolf_hood",
+      "path": "game/assets/models/gear/wolf_hood.glb",
+      "dimensions_xyz_m": [
+        0.315,
+        0.394,
+        0.289
+      ],
+      "triangles": 1940,
+      "bytes": 112696,
+      "materials": [
+        "fur",
+        "glow_eye_gold",
+        "pupil_black",
+        "teeth"
+      ]
+    },
+    {
+      "batch": "gear",
+      "name": "wolf_tooth_amulet",
+      "path": "game/assets/models/gear/wolf_tooth_amulet.glb",
+      "dimensions_xyz_m": [
+        0.144,
+        0.024,
+        0.297
+      ],
+      "triangles": 2570,
+      "bytes": 138104,
+      "materials": [
+        "bronze",
+        "leather_brown",
+        "teeth"
+      ]
+    },
+    {
+      "batch": "gear",
+      "name": "yew_longbow",
+      "path": "game/assets/models/gear/yew_longbow.glb",
+      "dimensions_xyz_m": [
+        0.061,
+        0.102,
+        1.82
+      ],
+      "triangles": 3464,
+      "bytes": 199440,
+      "materials": [
+        "cloth_linen",
+        "iron_dark",
+        "leather_brown",
+        "leather_dark",
+        "wood_dark"
       ]
     },
     {

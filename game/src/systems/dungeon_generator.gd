@@ -456,7 +456,9 @@ static func _populate_contents(
 	var enemy_budget := int(floor_cfg.get("enemy_budget", 14))
 	var regular_enemies: Array = []
 	for e in enemies_data.get("enemies", []):
-		if not bool(e.get("is_boss", false)):
+		# D-049: only types whose level range overlaps this floor's level band
+		if not bool(e.get("is_boss", false)) and float(e.get("spawn_weight", 0.0)) > 0.0 \
+				and EnemyLevels.eligible(e, floor_number, enemies_data):
 			regular_enemies.append(e)
 
 	var chest_chance := float(lab_cfg.get("chest_room_chance", 0.55))

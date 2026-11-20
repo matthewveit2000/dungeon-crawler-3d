@@ -243,25 +243,29 @@ def build_round_shield():
     return finish_item(parts, "round_shield", 9)
 
 
-def build_bow():
+def build_bow(name="hunting_bow", half=0.7, limb_mat="wood_beam", tip_mat="bone", recurve=0.05, belly=0.06, wraps=0):
     """Recurve hunting bow along Z; grip at origin, back of the bow toward -Y (target).
     Bowstring is two child segments ('StringTop', 'StringBottom') so Godot can pull the nock back."""
     parts = []
     limb_pts = []
     for k in range(13):
         t = k / 12
-        z = 0.08 + t * 0.62
-        y = -0.06 * math.sin(t * math.pi * 0.9) + (0.05 * (t - 0.8) / 0.2 if t > 0.8 else 0.0)
+        z = 0.08 + t * (half - 0.08)
+        y = -belly * math.sin(t * math.pi * 0.9) + (recurve * (t - 0.8) / 0.2 if t > 0.8 else 0.0)
         limb_pts.append((0, y, z))
     radii = [1.0 - 0.55 * (k / 12) for k in range(13)]
     for sgn in (1, -1):
         pts = [(x, y, z * sgn) for (x, y, z) in limb_pts]
-        limb = shapes.tube(pts, radius=0.018, seg=8, mat="wood_beam", radii=radii, name="Limb")
+        for w in range(wraps):
+            wz = (0.18 + w * (half - 0.25) / max(1, wraps)) * sgn
+            k2 = min(12, int(abs(wz) / half * 12))
+            parts.append(shapes.torus(0.019, 0.004, (0, limb_pts[k2][1], wz), major=12, minor=4, mat="leather_dark"))
+        limb = shapes.tube(pts, radius=0.018, seg=8, mat=limb_mat, radii=radii, name="Limb")
         limb.scale = (1.3, 0.75, 1)
         bpy.context.view_layer.update()
         core.apply_transform(limb)
         parts.append(limb)
-        tip = shapes.cone(0.011, 0.05, (0, pts[-1][1], pts[-1][2]), seg=8, mat="bone", rot=(0 if sgn > 0 else math.pi, 0, 0))
+        tip = shapes.cone(0.011, 0.05, (0, pts[-1][1], pts[-1][2]), seg=8, mat=tip_mat, rot=(0 if sgn > 0 else math.pi, 0, 0))
         parts.append(tip)
     riser = shapes.lathe([(0.018, -0.1), (0.024, -0.07), (0.026, 0.0), (0.024, 0.07), (0.018, 0.1)], 12, "Riser", "wood_dark")
     riser.scale = (1.1, 0.9, 1)
@@ -270,9 +274,9 @@ def build_bow():
     parts.append(riser)
     parts.append(grip_wrap(0.1, 0.027, mat="leather_brown", turns=5))
     parts.append(shapes.box((0.01, 0.012, 0.025), (0.026, 0.0, 0.055), mat="leather_dark"))  # arrow rest
-    ob = finish_item(parts, "hunting_bow", 7)
-    top = (0, limb_pts[-1][1] + 0.05 * 0.2, 0.7)
-    bot = (0, top[1], -0.7)
+    ob = finish_item(parts, name, 7)
+    top = (0, limb_pts[-1][1] + recurve * 0.2, half)
+    bot = (0, top[1], -half)
     for nm, tip_pos in (("StringTop", top), ("StringBottom", bot)):
         seg = shapes.cylinder(0.0022, 1.0, (0, 0, 0.5), segments=6, mat="cloth_linen")
         core.finalize(seg, uv="box", weathering=0.0)
@@ -304,10 +308,12 @@ def build_arrow():
 
 
 def build_tome(variant="fire"):
-    rune_mat = {"fire": "glow_eye_red", "spark": "neon_cyan", "mend": "glow_eye_gold"}[variant]
+    rune_mat = {"fire": "glow_eye_red", "spark": "neon_cyan", "mend": "glow_eye_gold", "frost": "glow_eye_blue",
+                "venom": "glass_green", "void": "neon_pink", "blood": "glow_eye_red"}[variant]
+    cover_mat = {"frost": "cloth_teal", "venom": "leather_brown", "void": "void_black", "blood": "cloth_crimson"}.get(variant, "leather_dark")
     parts = []
     W_, H_, D_ = 0.17, 0.23, 0.05
-    cover = shapes.box((W_, D_, H_), (0, 0, 0), mat="leather_dark", bevel=0.006)
+    cover = shapes.box((W_, D_, H_), (0, 0, 0), mat=cover_mat, bevel=0.006)
     parts.append(cover)
     pages = shapes.box((W_ - 0.014, D_ - 0.012, H_ - 0.018), (0.008, 0, 0), mat="parchment", bevel=0.002)
     parts.append(pages)
@@ -480,6 +486,262 @@ def build_amulet():
     pts = [(math.sin(t) * 0.07, 0.0, 0.035 + (1 - math.cos(t)) * 0.12) for t in [k / 12 * math.pi * 1.6 - math.pi * 0.8 for k in range(13)]]
     parts.append(shapes.tube(pts, radius=0.002, seg=6, mat="leather_dark"))
     return finish_item(parts, "bone_amulet", 18, smooth=60)
+
+
+# ---------------------------------------------------------------------------
+# D-049 discovery loot: new weapons, shields, tomes, armour and accessories
+# ---------------------------------------------------------------------------
+
+def _haft(z0, z1, r=0.017, mat="wood_beam"):
+    return shapes.lathe([(r, z0), (r * 1.12, z0 + 0.04), (r * 1.05, (z0 + z1) / 2), (r, z1 - 0.02), (0.0, z1)], 12, "Haft", mat)
+
+
+def build_hand_axe():
+    """One-handed bearded hand axe: short haft, hooked beard, single cutting edge toward +X."""
+    parts = [_haft(-0.13, 0.5, 0.015)]
+    g = grip_wrap(0.16, 0.018, mat="leather_dark", turns=5)
+    parts.append(g)
+    parts.append(shapes.cylinder(0.019, 0.04, (0, 0, -0.13), segments=12, mat="iron_dark", bevel=0.003))
+    outline = [(0.015, 0.0), (0.05, 0.015), (0.1, -0.02), (0.15, -0.09), (0.172, -0.1), (0.18, 0.0), (0.178, 0.07), (0.15, 0.1),
+               (0.08, 0.075), (0.015, 0.075)]
+    head = shapes.prism_from_outline(outline, 0.026, mat="iron_dark")
+    for v in head.data.vertices:
+        t = max(0.0, min(1.0, (v.co.x - 0.05) / 0.13))
+        v.co.y *= 1.0 - 0.85 * t
+    head.data.update()
+    core.add_bevel(head, 0.002, 1, 35)
+    core.apply_modifiers(head)
+    _xf(head, (0, 0, 0.4))
+    parts.append(head)
+    edge = [(0.15, -0.09), (0.172, -0.1), (0.18, 0.0), (0.178, 0.07), (0.15, 0.1), (0.162, 0.06), (0.165, 0.0), (0.158, -0.06)]
+    es = shapes.prism_from_outline(edge, 0.005, mat="steel_blade")
+    _xf(es, (0, 0, 0.4))
+    parts.append(es)
+    parts.append(shapes.cylinder(0.022, 0.09, (0, 0, 0.44), segments=12, mat="iron_dark", bevel=0.003))
+    return finish_item(parts, "hand_axe", 21)
+
+
+def build_mace():
+    """Flanged iron mace: six radial flanges around an iron head on an ash haft."""
+    parts = [_haft(-0.12, 0.42, 0.016, "wood_oak")]
+    parts.append(grip_wrap(0.17, 0.019, mat="leather_brown", turns=6))
+    parts.append(shapes.sphere(0.024, (0, 0, -0.125), seg=12, rings=8, mat="iron_dark"))
+    parts.append(shapes.cylinder(0.026, 0.2, (0, 0, 0.43), segments=12, mat="iron_dark", bevel=0.004))
+    for i in range(6):
+        a = i / 6 * math.tau
+        fl = shapes.prism_from_outline([(0.0, 0.0), (0.06, 0.03), (0.07, 0.1), (0.05, 0.16), (0.0, 0.18)], 0.009, mat="iron_dark", bevel=0.002)
+        _xf(fl, (0, 0, 0.34), (0, 0, a))
+        parts.append(fl)
+    parts.append(shapes.cone(0.022, 0.05, (0, 0, 0.545), seg=10, mat="iron_dark"))
+    return finish_item(parts, "flanged_mace", 22)
+
+
+def build_seax():
+    """Barrow seax: broken-back single-edged long knife (edge toward +X)."""
+    parts = []
+    outline = [(-0.012, 0.0), (0.022, 0.0), (0.026, 0.2), (0.012, 0.31), (-0.006, 0.34), (-0.008, 0.24), (-0.014, 0.18)]
+    bl = shapes.prism_from_outline(outline, 0.007, mat="steel_blade", bevel=0.0015)
+    for v in bl.data.vertices:
+        t = max(0.0, min(1.0, (v.co.x + 0.012) / 0.038))
+        v.co.y *= 1.0 - 0.75 * t
+    bl.data.update()
+    _xf(bl, (0, 0, 0.09))
+    parts.append(bl)
+    parts.append(shapes.box((0.045, 0.02, 0.012), (0.004, 0, 0.088), mat="bronze", bevel=0.003))
+    parts.append(grip_wrap(0.15, 0.015, mat="leather_dark", turns=6))
+    parts.append(shapes.sphere(0.02, (0, 0, -0.09), seg=12, rings=8, mat="bone", scale=(1.0, 0.7, 0.8)))
+    return finish_item(parts, "seax", 23)
+
+
+def build_broadsword():
+    parts = []
+    bl = blade(0.74, 0.07, 0.01, name="Blade")
+    _xf(bl, (0, 0, 0.11))
+    parts.append(bl)
+    parts.append(shapes.box((0.24, 0.026, 0.022), (0, 0, 0.098), mat="iron_dark", bevel=0.005))
+    parts.append(grip_wrap(0.16, 0.0165, mat="wood_dark", turns=8))
+    for z in (0.082, -0.082):
+        parts.append(shapes.cylinder(0.019, 0.01, (0, 0, z), segments=16, mat="iron_dark", bevel=0.002))
+    pom = shapes.sphere(0.03, (0, 0, -0.11), seg=16, rings=10, mat="bronze", scale=(1.1, 0.6, 0.9))
+    parts.append(pom)
+    return finish_item(parts, "broadsword", 24)
+
+
+def build_war_hammer():
+    """Two-handed war hammer: long bog-oak haft (grip origin at the lower hand), square iron head + back spike."""
+    parts = [_haft(-0.28, 1.06, 0.02, "wood_dark")]
+    for z0, z1 in ((-0.25, -0.05), (0.42, 0.6)):
+        g = grip_wrap(z1 - z0, 0.022, mat="leather_dark", turns=5)
+        _xf(g, (0, 0, (z0 + z1) / 2))
+        parts.append(g)
+    parts.append(shapes.cylinder(0.024, 0.06, (0, 0, -0.29), segments=12, mat="iron_dark", bevel=0.004))
+    parts.append(shapes.box((0.2, 0.1, 0.11), (0.04, 0, 0.95), mat="iron_dark", bevel=0.012))
+    parts.append(shapes.box((0.04, 0.115, 0.125), (0.15, 0, 0.95), mat="steel_blade", bevel=0.01))
+    parts.append(shapes.cone(0.03, 0.12, (-0.11, 0, 0.95), seg=6, mat="iron_dark", rot=(0, -math.pi / 2, 0)))
+    parts.append(shapes.cone(0.022, 0.09, (0, 0, 1.06), seg=8, mat="iron_dark"))
+    parts += shapes.rivet_row((0.04, -0.052, 0.92), (0.04, -0.052, 0.98), 2, (0, -1, 0), r=0.007)
+    return finish_item(parts, "war_hammer", 25)
+
+
+def build_dane_axe():
+    """Long-hafted Dane axe: very long haft, broad thin crescent head (edge toward +X)."""
+    parts = [_haft(-0.3, 1.32, 0.018, "wood_beam")]
+    for z0, z1 in ((-0.27, -0.07), (0.42, 0.6)):
+        g = grip_wrap(z1 - z0, 0.02, mat="leather_brown", turns=5)
+        _xf(g, (0, 0, (z0 + z1) / 2))
+        parts.append(g)
+    outline = [(0.02, 0.0), (0.06, 0.03), (0.16, -0.06), (0.23, -0.14), (0.26, -0.05), (0.27, 0.06), (0.255, 0.17), (0.22, 0.24),
+               (0.15, 0.17), (0.06, 0.12), (0.02, 0.11)]
+    head = shapes.prism_from_outline(outline, 0.024, mat="iron_dark")
+    for v in head.data.vertices:
+        t = max(0.0, min(1.0, (v.co.x - 0.06) / 0.2))
+        v.co.y *= 1.0 - 0.88 * t
+    head.data.update()
+    core.add_bevel(head, 0.002, 1, 35)
+    core.apply_modifiers(head)
+    _xf(head, (0, 0, 1.12))
+    parts.append(head)
+    edge = [(0.23, -0.14), (0.26, -0.05), (0.27, 0.06), (0.255, 0.17), (0.22, 0.24), (0.235, 0.16), (0.245, 0.06), (0.24, -0.04)]
+    es = shapes.prism_from_outline(edge, 0.005, mat="steel_blade")
+    _xf(es, (0, 0, 1.12))
+    parts.append(es)
+    parts.append(shapes.cylinder(0.026, 0.15, (0, 0, 1.18), segments=12, mat="iron_dark", bevel=0.004))
+    return finish_item(parts, "dane_axe", 26)
+
+
+def build_kite_shield():
+    """Iron kite shield. Origin = grip centre, face toward -Y; long axis along Z."""
+    parts = []
+    outline = [(0.0, 0.5), (0.18, 0.47), (0.28, 0.36), (0.3, 0.2), (0.27, -0.05), (0.18, -0.28), (0.0, -0.48),
+               (-0.18, -0.28), (-0.27, -0.05), (-0.3, 0.2), (-0.28, 0.36), (-0.18, 0.47)]
+    face = shapes.prism_from_outline(outline, 0.022, mat="wood_oak", bevel=0.004)
+    for v in face.data.vertices:
+        v.co.y -= 0.04 * (1.0 - min(1.0, abs(v.co.x) / 0.3) ** 2)
+    face.data.update()
+    _xf(face, (0, -0.04, 0))
+    core.tint_part(face, 1.0, (1.25, 0.32, 0.26))
+    parts.append(face)
+    rim_pts = [(x * 1.0, -0.05, z) for (x, z) in outline] + [(outline[0][0], -0.05, outline[0][1])]
+    parts.append(shapes.tube(rim_pts, radius=0.012, seg=6, mat="iron_dark", name="Rim"))
+    # iron cross bands and boss
+    parts.append(shapes.box((0.04, 0.012, 0.9), (0, -0.088, 0.0), mat="iron_dark", bevel=0.003))
+    parts.append(shapes.box((0.54, 0.012, 0.04), (0, -0.088, 0.2), mat="iron_dark", bevel=0.003))
+    boss = shapes.sphere(0.07, (0, -0.09, 0.2), seg=20, rings=10, mat="steel_armor", scale=(1, 0.55, 1))
+    parts.append(boss)
+    parts.append(shapes.box((0.03, 0.03, 0.22), (0, 0.0, 0), mat="wood_beam", bevel=0.006))
+    return finish_item(parts, "kite_shield", 27)
+
+
+def build_buckler():
+    parts = []
+    R = 0.2
+    disc = shapes.cylinder(R, 0.02, (0, -0.03, 0), segments=40, mat="wood_dark", rot=(math.pi / 2, 0, 0))
+    parts.append(disc)
+    parts.append(shapes.torus(R, 0.012, (0, -0.035, 0), major=48, minor=8, mat="iron_dark", rot=(math.pi / 2, 0, 0)))
+    parts.append(shapes.sphere(0.085, (0, -0.045, 0), seg=24, rings=12, mat="steel_armor", scale=(1.0, 0.55, 1.0)))
+    parts.append(shapes.torus(0.09, 0.008, (0, -0.042, 0), major=32, minor=6, mat="iron_dark", rot=(math.pi / 2, 0, 0)))
+    parts += [shapes.sphere(0.008, (math.cos(a) * 0.15, -0.042, math.sin(a) * 0.15), seg=8, rings=5, mat="iron_dark")
+              for a in [i / 8 * math.tau for i in range(8)]]
+    parts.append(shapes.box((0.03, 0.03, 0.12), (0, 0.0, 0), mat="leather_dark", bevel=0.006))
+    return finish_item(parts, "buckler", 28)
+
+
+def build_hauberk():
+    parts = []
+    prof = [(0.0, -0.08), (0.17, -0.08), (0.15, 0.06), (0.16, 0.16), (0.185, 0.27), (0.192, 0.34), (0.175, 0.41), (0.12, 0.455), (0.07, 0.47), (0.0, 0.47)]
+    shell = shapes.lathe(prof, 32, "Mail", "chainmail")
+    shell.scale = (1.0, 0.66, 1.0)
+    bpy.context.view_layer.update()
+    core.apply_transform(shell)
+    parts.append(shell)
+    for sx in (-1, 1):
+        sl = shapes.cylinder(0.075, 0.2, (sx * 0.22, 0, 0.35), segments=16, mat="chainmail", rot=(0, sx * math.radians(70), 0), r_top=0.065)
+        parts.append(sl)
+    parts.append(shapes.torus(0.15, 0.016, (0, 0, 0.08), major=40, minor=6, mat="leather_dark", scale=(1, 0.68, 1)))
+    parts.append(shapes.box((0.05, 0.02, 0.045), (0, -0.104, 0.08), mat="iron_dark", bevel=0.004))
+    parts.append(shapes.torus(0.085, 0.02, (0, 0, 0.46), major=28, minor=6, mat="leather_brown", scale=(1, 0.75, 1)))
+    return finish_item(parts, "chain_hauberk", 29)
+
+
+def build_wolf_hood():
+    parts = []
+    dome = shapes.sphere(0.13, (0, 0.01, 0.0), seg=28, rings=14, mat="fur", scale=(0.95, 1.1, 1.05))
+    bm = bmesh.new()
+    bm.from_mesh(dome.data)
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if v.co.z < -0.06 or (v.co.y < -0.07 and v.co.z < 0.05)], context="VERTS")
+    bm.to_mesh(dome.data)
+    bm.free()
+    core.add_solidify(dome, 0.012, -1)
+    core.apply_modifiers(dome)
+    parts.append(dome)
+    # wolf head on top: muzzle, ears, glinting eyes
+    parts.append(shapes.sphere(0.06, (0, -0.1, 0.11), seg=16, rings=10, mat="fur", scale=(0.8, 1.5, 0.7)))
+    parts.append(shapes.sphere(0.012, (0, -0.19, 0.11), seg=8, rings=5, mat="pupil_black"))
+    for sx in (-1, 1):
+        parts.append(shapes.cone(0.03, 0.07, (sx * 0.06, -0.01, 0.13), seg=6, mat="fur", rot=(math.radians(-15), sx * math.radians(15), 0)))
+        parts.append(shapes.sphere(0.008, (sx * 0.03, -0.14, 0.13), seg=8, rings=5, mat="glow_eye_gold"))
+        for k in range(2):
+            parts.append(shapes.cone(0.006, 0.025, (sx * (0.012 + k * 0.012), -0.17, 0.085), seg=5, mat="teeth", rot=(math.pi, 0, 0)))
+    parts.append(shapes.torus(0.12, 0.03, (0, 0.02, -0.07), major=32, minor=8, mat="fur", scale=(1.05, 1.15, 0.8)))
+    return finish_item(parts, "wolf_hood", 30)
+
+
+def build_bracers():
+    parts = []
+    cuff = shapes.lathe([(0.045, 0.0), (0.048, 0.05), (0.055, 0.14), (0.0, 0.14)], 20, "Cuff", "leather_brown", cap_top=False)
+    parts.append(cuff)
+    for z in (0.03, 0.07, 0.11):
+        parts.append(shapes.torus(0.05 + z * 0.06, 0.004, (0, 0, z), major=20, minor=4, mat="rope"))
+    hand = shapes.sphere(0.05, (0, 0, -0.05), seg=20, rings=12, mat="leather_dark", scale=(1.0, 0.55, 1.3))
+    parts.append(hand)
+    for i in range(4):
+        x = -0.03 + i * 0.02
+        parts.append(shapes.tube([(x, 0.0, -0.1), (x, -0.012, -0.14), (x, -0.006, -0.17)], radius=0.009, seg=8, mat="leather_brown"))
+    parts.append(shapes.box((0.06, 0.02, 0.1), (0, -0.05, 0.07), mat="leather_dark", bevel=0.005))
+    return finish_item(parts, "hide_bracers", 31)
+
+
+def build_fur_boots():
+    parts = []
+    for sx in (-1, 1):
+        shaft = shapes.lathe([(0.052, 0.08), (0.055, 0.2), (0.06, 0.26), (0.0, 0.26)], 16, "Shaft", "leather_dark", cap_top=False)
+        _xf(shaft, (sx * 0.08, 0, 0))
+        parts.append(shaft)
+        parts.append(shapes.torus(0.066, 0.026, (sx * 0.08, 0, 0.27), major=20, minor=8, mat="fur"))
+        foot = shapes.sphere(0.062, (sx * 0.08, -0.05, 0.05), seg=16, rings=10, mat="leather_brown", scale=(0.9, 1.9, 0.75))
+        parts.append(foot)
+        for z in (0.12, 0.18):
+            parts.append(shapes.torus(0.056, 0.004, (sx * 0.08, 0, z), major=16, minor=4, mat="rope"))
+        parts.append(shapes.box((0.1, 0.22, 0.02), (sx * 0.08, -0.06, 0.008), mat="leather_dark", bevel=0.006))
+    return finish_item(parts, "fur_boots", 32)
+
+
+def build_ember_ring():
+    parts = [shapes.torus(0.012, 0.003, (0, 0, 0), major=32, minor=10, mat="iron_dark", rot=(math.pi / 2, 0, 0))]
+    for sx in (-1, 1):
+        parts.append(shapes.cone(0.003, 0.008, (sx * 0.005, 0, 0.016), seg=6, mat="iron_dark", rot=(0, sx * 0.4, 0)))
+    parts.append(shapes.sphere(0.0065, (0, 0, 0.019), seg=10, rings=6, mat="glow_eye_red"))
+    return finish_item(parts, "ember_ring", 33, smooth=60)
+
+
+def build_gold_signet():
+    parts = [shapes.torus(0.012, 0.0034, (0, 0, 0), major=32, minor=10, mat="gold_antique", rot=(math.pi / 2, 0, 0))]
+    parts.append(shapes.cylinder(0.009, 0.006, (0, 0, 0.0155), segments=20, mat="gold_antique", bevel=0.0015))
+    parts.append(shapes.box((0.008, 0.002, 0.0015), (0, 0, 0.0187), mat="void_black"))
+    parts.append(shapes.box((0.0015, 0.002, 0.008), (0, 0, 0.0187), mat="void_black"))
+    return finish_item(parts, "gold_signet", 34, smooth=60)
+
+
+def build_wolf_tooth_amulet():
+    parts = []
+    pts = [(math.sin(t) * 0.07, 0.0, 0.03 + (1 - math.cos(t)) * 0.12) for t in [k / 12 * math.pi * 1.6 - math.pi * 0.8 for k in range(13)]]
+    parts.append(shapes.tube(pts, radius=0.0022, seg=6, mat="leather_brown"))
+    for i, x in enumerate((-0.022, 0.0, 0.022)):
+        h = 0.075 if i == 1 else 0.06
+        fang = shapes.cone(0.012, h, (x * 1.4, 0, 0.026), seg=8, mat="teeth", rot=(math.pi, 0, -x * 6))
+        parts.append(fang)
+        parts.append(shapes.torus(0.007, 0.002, (x * 1.4, 0, 0.03), mat="bronze", rot=(math.pi / 2, 0, 0)))
+    return finish_item(parts, "wolf_tooth_amulet", 35, smooth=60)
 
 
 # ---------------------------------------------------------------------------
@@ -677,6 +939,27 @@ GEAR = {
     "iron_boots": build_boots,
     "silver_ring": build_ring,
     "bone_amulet": build_amulet,
+    "hand_axe": build_hand_axe,
+    "flanged_mace": build_mace,
+    "seax": build_seax,
+    "broadsword": build_broadsword,
+    "war_hammer": build_war_hammer,
+    "dane_axe": build_dane_axe,
+    "yew_longbow": lambda: build_bow("yew_longbow", 0.86, "wood_dark", "iron_dark", 0.02, 0.05, 2),
+    "bone_short_bow": lambda: build_bow("bone_short_bow", 0.52, "bone", "iron_dark", 0.07, 0.07, 3),
+    "kite_shield": build_kite_shield,
+    "buckler": build_buckler,
+    "tome_frost": lambda: build_tome("frost"),
+    "tome_venom": lambda: build_tome("venom"),
+    "tome_void": lambda: build_tome("void"),
+    "tome_blood": lambda: build_tome("blood"),
+    "chain_hauberk": build_hauberk,
+    "wolf_hood": build_wolf_hood,
+    "hide_bracers": build_bracers,
+    "fur_boots": build_fur_boots,
+    "ember_ring": build_ember_ring,
+    "gold_signet": build_gold_signet,
+    "wolf_tooth_amulet": build_wolf_tooth_amulet,
     "fp_arm_grip_r": lambda: build_fp_arm("grip", "r"),
     "fp_arm_grip_l": lambda: build_fp_arm("grip", "l"),
     "fp_arm_open_r": lambda: build_fp_arm("open", "r"),
@@ -691,6 +974,19 @@ ICON_VIEWS = {
     "hunting_bow": dict(yaw=0.0, elev=0.05, roll=math.radians(-45), rot=(0, 0, math.radians(90))),
     "arrow": dict(yaw=0.0, elev=0.05, roll=math.radians(-45), rot=(0, 0, math.radians(90))),
     "round_shield": dict(yaw=0.3, elev=0.15, rot=(0, 0, 0)),
+    "hand_axe": dict(yaw=0.0, elev=0.05, roll=math.radians(-45), rot=(0, 0, 0)),
+    "flanged_mace": dict(yaw=0.0, elev=0.05, roll=math.radians(-45), rot=(0, 0, 0)),
+    "seax": dict(yaw=0.0, elev=0.05, roll=math.radians(-45), rot=(0, 0, 0)),
+    "broadsword": dict(yaw=0.0, elev=0.05, roll=math.radians(-45), rot=(0, 0, math.radians(20))),
+    "war_hammer": dict(yaw=0.0, elev=0.05, roll=math.radians(-45), rot=(0, 0, 0)),
+    "dane_axe": dict(yaw=0.0, elev=0.05, roll=math.radians(-45), rot=(0, 0, 0)),
+    "yew_longbow": dict(yaw=0.0, elev=0.05, roll=math.radians(-45), rot=(0, 0, math.radians(90))),
+    "bone_short_bow": dict(yaw=0.0, elev=0.05, roll=math.radians(-45), rot=(0, 0, math.radians(90))),
+    "kite_shield": dict(yaw=0.3, elev=0.15, rot=(0, 0, 0)),
+    "buckler": dict(yaw=0.3, elev=0.15, rot=(0, 0, 0)),
+    "ember_ring": dict(yaw=-0.4, elev=0.5, rot=(math.radians(20), 0, 0)),
+    "gold_signet": dict(yaw=-0.4, elev=0.5, rot=(math.radians(20), 0, 0)),
+    "hide_bracers": dict(yaw=-0.5, elev=0.2, rot=(math.radians(180), 0, 0)),
     "silver_ring": dict(yaw=-0.4, elev=0.5, rot=(math.radians(20), 0, 0)),
     "steel_gauntlets": dict(yaw=-0.5, elev=0.2, rot=(math.radians(180), 0, 0)),
     "sponsored_gauntlets": dict(yaw=-0.5, elev=0.2, rot=(math.radians(180), 0, 0)),
