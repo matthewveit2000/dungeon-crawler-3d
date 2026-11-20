@@ -120,7 +120,13 @@ func test_each_character_plays_its_own_clips() -> void:
 		var cv := CharacterVisual.create(kind)
 		add_child_autofree(cv)
 		var names := cv.anim.get_animation_list()
-		assert_lt(names.size(), 13, "%s carries only its own clips (%d)" % [kind, names.size()])
+		# the crawler also has the FB-014 dual-wield / two-hand cast / bow draw clips
+		assert_lt(names.size(), 20 if kind == "crawler" else 13, "%s carries only its own clips (%d)" % [kind, names.size()])
+		for n in names:
+			assert_false(str(n).contains("."), "%s has no duplicated/renamed clip (%s)" % [kind, n])
+		if kind != "crawler":
+			for only_player in ["attack_l", "cast_dual", "bow_draw", "idle_dual"]:
+				assert_false(names.has(only_player), "%s did not inherit the player's %s" % [kind, only_player])
 		for n in names:
 			assert_false(String(n).contains("."), "%s clip '%s' is not a foreign/suffixed clip" % [kind, n])
 		attack_len[kind] = cv.anim.get_animation("attack").length

@@ -630,7 +630,10 @@ func _rec_tp_combat(ent: Vector3, clip: String) -> void:
 		["SHIELD (R) + SPELL (L)", "nordic_kite_shield", "spell_firebolt", ["l", 1.0, "R", 1.0]],
 		["BOW", "hunting_bow", "", ["draw", 1.6, "rel", 1.0, "draw", 1.0, "rel", 0.8]],
 	]
+	var only_acts := OS.get_environment("ANIM_TP_ACTS")  # e.g. "BOW" or "DUAL SWORDS,BOW"
 	for a in acts:
+		if not only_acts.is_empty() and not only_acts.split(",").has(str(a[0])):
+			continue
 		_tp_equip(str(a[1]), str(a[2]))
 		_set_banner("THIRD PERSON — " + str(a[0]), "%s / %s" % [a[1], a[2]])
 		for _i in range(int(0.5 * fps)):

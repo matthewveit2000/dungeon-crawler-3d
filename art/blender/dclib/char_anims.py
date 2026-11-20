@@ -826,7 +826,10 @@ def _apply_archery_pose(m: RigMetrics, style: dict, aim_k: float, draw_k: float,
     aim_l = Vector((0.04 * s, -m.arm_len * 0.88 - 0.12 * s, m.sh_z - 0.04 * s + breath * 0.008 * s))
     recoil_l = Vector((0.02 * s, -0.03 * s, -0.035 * s)) * release_k
     l_pos = rest_l.lerp(aim_l, aim_k) + recoil_l
-    bow_up = Vector((0.08, -0.02, 0.996)).normalized()   # crisp upright bow (subtle 5 deg hunting cant)
+    # crisp upright bow with a hunting cant; the player's crawler cants harder (~20 deg, top limb out to the left)
+    # so the bow reads beside the helm from the over-the-shoulder aim camera (FB-014)
+    cant = 0.36 if style.get("archetype") == "crawler" else 0.08
+    bow_up = Vector((cant, -0.02, 0.996)).normalized()
     bow_fwd = Vector((0.0, -1.0, -0.02 - 0.05 * release_k)).normalized()
     l_pole = Vector((m.sh_x + 0.38 * s, -0.10 * s, m.sh_z - 0.18 * s))
     actual_bow_grip, _ = _place_grip_arm(m, "l", l_pos, bow_up, bow_fwd, l_pole, edge_is_neg_y=True)
