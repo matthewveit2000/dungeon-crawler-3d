@@ -14,7 +14,8 @@ const PROPS := "res://assets/models/props/"
 const CHUNK_TILES := 6
 const SHADOWED_LIGHTS_HIGH := 8
 const SHADOWED_LIGHTS_LOW := 3
-const COMPAT_MAX_LIGHTS := 6
+const COMPAT_MAX_LIGHTS := 16
+const MAX_TORCHES := 240
 
 const WALL_VARIANTS := [["wall_a", 0.3], ["wall_b", 0.3], ["wall_c", 0.24], ["wall_niche", 0.09], ["wall_damaged", 0.07]]
 const FLOOR_VARIANTS := ["floor_a", "floor_b", "floor_c"]
@@ -28,6 +29,7 @@ var traps_disarmed: bool = false
 var spawned_setpiece_props: int = 0
 var spawned_dressing_props: int = 0
 var torch_count: int = 0
+var brazier_count: int = 0
 var environment_node: WorldEnvironment = null
 
 var _trap_nodes: Array[Node3D] = []
@@ -155,6 +157,7 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 	spawned_setpiece_props = 0
 	spawned_dressing_props = 0
 	torch_count = 0
+	brazier_count = 0
 	_batches.clear()
 	_occluder_verts = PackedVector3Array()
 	_occluder_idx = PackedInt32Array()
@@ -239,11 +242,12 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 		var t: Vector2i = s["tile"]
 		var is_room := _is_room_tile(int(s["tile_type"]))
 		var want_torch := false
+		# Dense torch lines (brighter dungeon pass): roughly every other wall in rooms and corridors
 		if is_room:
-			want_torch = (t.x * 3 + t.y * 5 + i) % 3 == 0
+			want_torch = (t.x * 3 + t.y * 5 + i) % 2 == 0
 		else:
-			want_torch = (t.x + t.y) % 3 == 0 and (i % 2 == 0)
-		if want_torch and torch_count < 72:
+			want_torch = (t.x + t.y) % 2 == 0
+		if want_torch and torch_count < MAX_TORCHES:
 			s["variant"] = ["wall_a", "wall_b", "wall_c"][rng.next_int_range("gen", 0, 2)]
 			torch_slots.append(s)
 			torch_count += 1
@@ -276,6 +280,10 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 
 	_flush_batches()
 	_build_occluder()
+
+	# Brighter dungeon pass: standing fire braziers in room corners and a soft overhead fill in every room
+	for room in layout.rooms:
+		_light_room(room, torch_color, rng)
 
 	# Handcrafted setpieces stitched into procedural rooms (D-029)
 	var setpieces_map: Dictionary = DataLoader.get_setpieces_pack().get("setpieces", {})
@@ -461,6 +469,48 @@ func _place_arch(edge_pos: Vector3, rot_y: float) -> void:
 		_add_box_collider(_static_world, jp + Vector3(0.0, wall_h * 0.5, 0.0), Vector3(absf(size.x), wall_h, absf(size.z)))
 
 
+## Lights a room: a soft, shadowless overhead fill so the middle never sinks to black, plus fire braziers in the
+## corners of ordinary rooms (two in small rooms, four in larger ones; corners next to a doorway or already
+## reserved are skipped). Setpiece rooms (entrance, safe, boss, vault, stairs) keep their handcrafted braziers.
+func _light_room(room: Dictionary, torch_color: Color, rng: SeededRng) -> void:
+	var role := str(room["role"])
+	var rect: Rect2i = room["rect"]
+	var center_w := layout.tile_to_world(room["center"])
+	var area := rect.size.x * rect.size.y
+	var fill_e := 0.9 if area >= 25 else 0.7
+	var fill := _add_light(_world_root, center_w + Vector3(0.0, 3.7, 0.0), torch_color.lerp(Color(1.0, 0.9, 0.78), 0.5), fill_e,
+		maxf(10.0, float(maxi(rect.size.x, rect.size.y)) * 2.6), false)
+	fill.set_meta("can_shadow", false)
+	fill.light_volumetric_fog_energy = 0.3
+	if role in ["safe", "boss", "vault", "entrance", "stairs"]:
+		return  # these rooms have handcrafted setpieces with their own braziers
+	var ts := layout.tile_size
+	var corners := [rect.position, Vector2i(rect.end.x - 1, rect.end.y - 1)]
+	if rect.size.x >= 4 and rect.size.y >= 4:
+		corners += [Vector2i(rect.end.x - 1, rect.position.y), Vector2i(rect.position.x, rect.end.y - 1)]
+	for c in corners:
+		var t: Vector2i = c
+		if _reserved_tiles.has(t) or _tile_near_opening(t):
+			continue
+		var dx := -1.0 if t.x == rect.position.x else 1.0
+		var dz := -1.0 if t.y == rect.position.y else 1.0
+		var pos := layout.tile_to_world(t) + Vector3(dx, 0.0, dz) * (ts * 0.5 - 0.95)
+		var braz := ModelLoader.instantiate_model(PROPS + "brazier.glb", Vector3(1.0, 1.0, 1.0))
+		braz.position = pos
+		braz.rotation.y = rng.next_float("gen") * TAU
+		_world_root.add_child(braz)
+		_add_box_collider(_static_world, pos + Vector3(0.0, 0.5, 0.0), Vector3(0.9, 1.0, 0.9))
+		var socket := braz.find_child("FlameSocket*", true, false) as Node3D
+		var fpos := braz.transform * socket.position if socket != null else pos + Vector3(0.0, 1.0, 0.0)
+		var fire := VfxFactory.make_fire(1.1)
+		fire.position = fpos
+		_world_root.add_child(fire)
+		var bl := _add_light(_world_root, fpos + Vector3(0.0, 0.35, 0.0), torch_color, 2.0, 11.0, true, rng.next_float("gen") * TAU)
+		bl.set_meta("can_shadow", false)
+		_reserved_tiles[t] = true
+		brazier_count += 1
+
+
 func _place_torch(slot: Dictionary, torch_color: Color, rng: SeededRng) -> void:
 	var inward: Vector3 = slot["inward"]
 	var mount: Vector3 = slot["pos"] + inward * 0.30 + Vector3(0.0, 2.15, 0.0)
@@ -477,7 +527,7 @@ func _place_torch(slot: Dictionary, torch_color: Color, rng: SeededRng) -> void:
 	var col := torch_color
 	if int(slot["tile_type"]) == DungeonGenerator.TILE_BOSS_FLOOR:
 		col = Color(1.0, 0.5, 0.3)
-	var light := _add_light(_world_root, flame_pos + inward * 0.25 + Vector3(0, 0.1, 0), col, 1.55, 9.5, true, rng.next_float("gen") * TAU)
+	var light := _add_light(_world_root, flame_pos + inward * 0.25 + Vector3(0, 0.1, 0), col, 2.2, 11.5, true, rng.next_float("gen") * TAU)
 	light.set_meta("can_shadow", true)
 
 
@@ -824,17 +874,17 @@ static func build_environment(floor_cfg: Dictionary, quality: int) -> Environmen
 	env.background_color = fog_col.darkened(0.6)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	var amb := Color.html(str(floor_cfg.get("ambient_color", "#1a1f28")))
-	env.ambient_light_color = amb.lerp(Color(0.30, 0.36, 0.50), 0.6)
-	env.ambient_light_energy = 0.22
+	env.ambient_light_color = amb.lerp(Color(0.46, 0.42, 0.40), 0.7)
+	env.ambient_light_energy = 0.55
 	env.tonemap_mode = Environment.TONE_MAPPER_AGX
-	env.tonemap_exposure = 1.0 * (float(GameSettings.get_value("graphics", "brightness")) if GameSettings != null else 1.0)
+	env.tonemap_exposure = 1.2 * (float(GameSettings.get_value("graphics", "brightness")) if GameSettings != null else 1.0)
 	env.tonemap_white = 4.0
 	# Depth fog keeps distant corridors mysterious on every quality level
 	env.fog_enabled = true
 	env.fog_mode = Environment.FOG_MODE_EXPONENTIAL
 	env.fog_light_color = fog_col.lerp(Color(0.05, 0.06, 0.085), 0.6)
 	env.fog_light_energy = 1.0
-	env.fog_density = 0.02
+	env.fog_density = 0.011
 	env.fog_sky_affect = 0.0
 	env.fog_aerial_perspective = 0.0
 	# Bloom on fire, runes and magic
@@ -863,7 +913,7 @@ static func build_environment(floor_cfg: Dictionary, quality: int) -> Environmen
 		env.ssao_detail = 0.6
 		env.ssao_light_affect = 0.15
 		env.volumetric_fog_enabled = true
-		env.volumetric_fog_density = 0.014
+		env.volumetric_fog_density = 0.008
 		env.volumetric_fog_albedo = Color(0.55, 0.55, 0.58)
 		env.volumetric_fog_emission = Color(0.0, 0.0, 0.0)
 		env.volumetric_fog_anisotropy = 0.45
@@ -872,7 +922,7 @@ static func build_environment(floor_cfg: Dictionary, quality: int) -> Environmen
 		env.volumetric_fog_gi_inject = 0.3
 		env.volumetric_fog_ambient_inject = 0.0
 		env.volumetric_fog_temporal_reprojection_enabled = true
-		env.fog_density = 0.01
+		env.fog_density = 0.005
 	if quality >= 2:
 		env.ssil_enabled = true
 		env.ssil_radius = 4.0
@@ -886,7 +936,7 @@ static func build_environment(floor_cfg: Dictionary, quality: int) -> Environmen
 		env.sdfgi_min_cell_size = 0.25
 		env.sdfgi_energy = 0.9
 		env.sdfgi_bounce_feedback = 0.4
-		env.ambient_light_energy = 0.35
+		env.ambient_light_energy = 0.65
 	return env
 
 
