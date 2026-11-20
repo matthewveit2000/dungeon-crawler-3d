@@ -42,7 +42,7 @@
         1.936
       ],
       "triangles": 21560,
-      "bytes": 1696124,
+      "bytes": 1822116,
       "materials": [
         "bone",
         "bronze",
@@ -59,14 +59,20 @@
       "animations": [
         "attack",
         "attack_2h",
+        "attack_dual",
+        "attack_l",
         "block",
+        "bow_draw",
         "bow_shoot",
         "cast",
+        "cast_dual",
+        "cast_r",
         "death",
         "draw_hold",
         "hit",
         "idle",
         "idle_combat",
+        "idle_dual",
         "run",
         "walk"
       ]

@@ -85,6 +85,14 @@ For detailed domain-specific logs (design, art, architecture, testing), see [`do
   - `compass_system.gd`: the nearest undiscovered stairwell and the boss gate are always hinted ("?").
   - `dungeon_builder.gd`: chunk streaming of torches/braziers/room lights/dust/dressing (radius 2 chunks), 170 m architecture visibility range, infinite floor/ceiling collision planes, merged wall colliders, per-room wall-slot index (build 5.3 s -> ~1.5 s). `main.gd`: enemies beyond 70 m frozen and hidden; light budget no longer re-sorted every frame. Title backdrop uses a small 60x60 map.
   - New `game/tests/test_vast_floors.gd` (scale vs floor clock, sparse/reachable landmarks + single boss entrance, compass far-sense, streaming). Suite: 77/77 passing.
+- **2026-11-20 — FB-014: Solid Chest & Shield, Enemy Pathfinding, RPG Rarities, Edge-Forward Blades, Third-Person Combat Animation, Inventory Fit (`D-048`):**
+  - **Art:** chest gets dark inner wall linings and an inner lid shell, the round shield a full-disc backing board — no more light between planks.
+  - **Enemy pathfinding:** `FloorLayout.find_path` (`AStarGrid2D`, built lazily per floor; chests and wall props weighted); enemies walk straight only when a body-height sweep is clear, otherwise follow tile waypoints, face their travel direction, and sidestep + re-plan when stuck. Fleeing enemies path home too.
+  - **Rarities:** Common / Uncommon / Rare / Epic / Legendary (`sponsored` → `legendary` in data, UI, loot, console; saves migrated in `normalize_equipment`).
+  - **First person:** standing rule "blades face away from the player" — rest/sprint keys for sword, axe, dual-wield and cleaver turn the edge straight away from the eye (`_away_edge`).
+  - **Third person:** new crawler clips `idle_dual`, `attack_dual`, `attack_l` (mirrored), `cast_r` (mirrored), `cast_dual`, `bow_draw`; the game picks them by hand/loadout; left-hand weapons mirror the right in `GripL`; camera eases over the right shoulder while drawing a bow (`camera.third_person_aim_offset`). New `tp_combat_back` / `tp_combat_side` reels in `record-anim-review.sh`.
+  - **Inventory:** compact layout below 1150 px wide and scale-to-fit, so a full bag at 150 % interface scale on 720p stays on screen.
+  - New `game/tests/test_feedback_fb014.gd` (9 regression tests); `test_menus_fit_a_720p_screen` extended.
 - **2026-11-20 — User Feedback Log, FB-013 Fixes & Test Mode (`D-045`, `D-046`, `D-047`):**
   - **Feedback log (`D-045`):** new `docs/USER_FEEDBACK_LOG.md` records every User comment (FB-001..FB-013) with status, decision and regression guard; `AGENTS.md` §4 (+ `CLAUDE.md`, `.cursorrules`, Copilot instructions) now require logging every comment before acting and checking the log before changing a system.
   - **Rings (`D-046`):** equip into `ring_1` / `ring_2` (were stored under an invisible `ring` key); saves repaired on load.

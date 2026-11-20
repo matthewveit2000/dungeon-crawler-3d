@@ -81,3 +81,9 @@ Every screenshot and the 40-frame combat clip from the full Forward+ capture wer
 ## 2026-11-20 — Brighter Dungeon Lighting Pass (`D-041`)
 
 - Dense, brighter wall torch lines in rooms and corridors (up to 240 per floor), corner fire braziers (`brazier.glb`) in ordinary rooms, a soft overhead fill per room, warmer and stronger ambient light, +20% exposure and lighter fog. Reviewed before/after from the player's view (room, corridor, third-person, battleaxe).
+
+## 2026-11-20 — FB-014: Solid Chest & Shield, Third-Person Combat Clips (`D-048`)
+
+- `chest.glb`: dark inner wall linings behind the planks and an overlapping inner lid shell (9,378 tris); `round_shield.glb`: full-disc dark backing board behind the planks (5,458 tris). No light shows between boards from any angle.
+- `char_anims.py`: `_mirror_current_pose` mirrors any pose left/right (per-bone target chosen so the skin deform is the exact mirror, independent of bone roll); new crawler clips `idle_dual`, `attack_dual`, `attack_l`, `cast_r`, `cast_dual`, `bow_draw`.
+- First-person blades: rest/sprint poses turn every blade edge-on to the eye (standing rule).

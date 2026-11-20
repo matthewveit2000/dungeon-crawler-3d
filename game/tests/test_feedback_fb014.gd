@@ -192,3 +192,117 @@ func test_blades_face_away_from_the_player_at_rest() -> void:
 			assert_not_null(p._fp_left_weapon_holder, "left blade has a first-person visual")
 			var sl := absf(_edge_away_score(p, p.fp_left_anchor, p._fp_left_weapon_holder, float(kit[2])))
 			assert_gt(sl, 0.85, "dual-wield: left blade is seen edge-on too (%.2f)" % sl)
+
+
+# --- Third-person dual-wield / spells / bow --------------------------------------------------------------------------
+func _equip(p: PlayerController, right_id: String, left_id: String) -> void:
+	p.equipment.erase("right_hand")
+	p.equipment.erase("left_hand")
+	if right_id != "":
+		game.test_give_item(right_id, "common")
+		p.equip_from_inventory(p.inventory.size() - 1, "right_hand")
+	if left_id != "":
+		game.test_give_item(left_id, "common")
+		p.equip_from_inventory(p.inventory.size() - 1, "left_hand")
+	p.stamina = p.max_stamina
+	p.magicka = p.max_magicka
+	p._right_cooldown = 0.0
+	p._left_cooldown = 0.0
+
+
+## Grip socket position in the player's own space (-Z = where the player faces) at time t of a clip.
+func _grip_at(p: PlayerController, clip: String, t: float, grip: String) -> Vector3:
+	var cv := p.tp_visual
+	cv.anim.play(clip, 0.0)
+	cv.anim.seek(t, true)
+	cv.anim.pause()
+	await get_tree().process_frame
+	var g := cv.model.find_child(grip + "*", true, false) as Node3D
+	return p.to_local(g.global_position)
+
+
+func _travel(p: PlayerController, clip: String, grip: String) -> float:
+	var len := p.tp_visual.anim.get_animation(clip).length
+	var a: Vector3 = await _grip_at(p, clip, 0.0, grip)
+	var most := 0.0
+	for k in range(1, 9):
+		var b: Vector3 = await _grip_at(p, clip, len * float(k) / 9.0, grip)
+		most = maxf(most, a.distance_to(b))
+	return most
+
+
+func test_third_person_dual_wield_swings_the_hand_that_attacks() -> void:
+	game = _make_game()
+	await get_tree().process_frame
+	var p := game.player
+	p.set_camera_mode("third_person")
+	_equip(p, "iron_longsword", "iron_longsword")
+	p.step_simulation(DT, false, {})
+	assert_eq(p.tp_visual.state, "idle_dual", "both blades on guard")
+	p.handle_hand_press("left_hand")
+	assert_eq(p.tp_visual.oneshot, "attack_l", "left-hand attack plays the left swing")
+	p._right_cooldown = 0.0
+	p.handle_hand_press("right_hand")
+	p.handle_hand_release("right_hand")
+	assert_eq(p.tp_visual.oneshot, "attack_dual", "right swing keeps the left blade on guard")
+	var l_moves: float = await _travel(p, "attack_l", "GripL")
+	var r_still: float = await _travel(p, "attack_l", "GripR")
+	assert_gt(l_moves, 0.5, "the left hand really swings (%.2f m)" % l_moves)
+	assert_lt(r_still, l_moves * 0.5, "while the right blade stays roughly on guard (%.2f m)" % r_still)
+	# guard: the left blade points forward like the right one, not straight up at the sky
+	var g0: Vector3 = await _grip_at(p, "idle_dual", 0.0, "GripL")
+	var lw := (p.tp_visual.model.find_child("GripL*", true, false) as Node3D).get_child(0) as Node3D
+	var blade := (p.global_transform.basis.inverse() * lw.global_transform.basis.y).normalized()
+	assert_lt(blade.y, 0.9, "left guard blade is not held vertically (%s)" % blade)
+	assert_lt(blade.z, -0.3, "left guard blade points ahead of the player (%s)" % blade)
+	assert_lt(g0.x, 0.0, "left hand on the player's left (x=%.2f)" % g0.x)
+
+
+func test_third_person_spells_cast_from_the_hand_holding_them() -> void:
+	game = _make_game()
+	await get_tree().process_frame
+	var p := game.player
+	p.set_camera_mode("third_person")
+	_equip(p, "spell_firebolt", "spell_chain_spark")
+	p.handle_hand_press("right_hand")
+	assert_eq(p.tp_visual.oneshot, "cast_r", "right-hand spell thrusts the right hand")
+	p.handle_hand_press("left_hand")
+	assert_eq(p.tp_visual.oneshot, "cast_dual", "both spells at once thrust both hands")
+	for _i in range(60):
+		p.step_simulation(DT, false, {})
+	p.magicka = p.max_magicka
+	p._left_cooldown = 0.0
+	p._tp_cast_right_t = -10.0
+	p.handle_hand_press("left_hand")
+	assert_eq(p.tp_visual.oneshot, "cast", "left-hand spell thrusts the left hand")
+	var r_rest: Vector3 = await _grip_at(p, "cast_r", 0.0, "GripR")
+	var r_out: Vector3 = await _grip_at(p, "cast_r", 0.5, "GripR")
+	assert_lt(r_out.z, r_rest.z - 0.3, "cast_r pushes the right hand out in front (%.2f -> %.2f)" % [r_rest.z, r_out.z])
+	var l_out: Vector3 = await _grip_at(p, "cast_dual", 0.5, "GripL")
+	var r2_out: Vector3 = await _grip_at(p, "cast_dual", 0.5, "GripR")
+	assert_lt(l_out.z, -0.35, "cast_dual: left palm out front")
+	assert_lt(r2_out.z, -0.35, "cast_dual: right palm out front")
+
+
+func test_third_person_bow_draws_up_and_the_camera_frames_the_aim() -> void:
+	game = _make_game()
+	await get_tree().process_frame
+	var p := game.player
+	p.set_camera_mode("third_person")
+	_equip(p, "hunting_bow", "")
+	var cam0 := p.camera.position
+	p.handle_hand_press("right_hand")
+	p.step_simulation(DT, false, {})
+	assert_eq(p.tp_visual.oneshot, "bow_draw", "drawing starts with the draw-up clip")
+	for _i in range(60):
+		p.step_simulation(DT, false, {})
+		await get_tree().process_frame
+	assert_eq(p.tp_visual.state, "draw_hold", "then holds at full draw")
+	assert_lt(p.camera.position.z, cam0.z - 0.5, "camera eases in for the aim")
+	assert_gt(p.camera.position.x, cam0.x, "over the right shoulder")
+	var bow_k: Vector3 = await _grip_at(p, "draw_hold", 0.0, "GripL")
+	assert_lt(bow_k.z, -0.45, "bow arm extended out in front at full draw (z=%.2f)" % bow_k.z)
+	p.handle_hand_release("right_hand")
+	for _i in range(60):
+		p.step_simulation(DT, false, {})
+	assert_lt(p._tp_aim_blend, 0.1, "camera returns after the shot")

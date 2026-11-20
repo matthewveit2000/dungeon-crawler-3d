@@ -207,6 +207,9 @@ var _hitstop: float = 0.0
 var _shake: float = 0.0
 var _shake_phase: float = 0.0
 var _tp_action_lock: float = 0.0
+var _tp_cast_right_t: float = -10.0
+var _tp_aim_blend: float = 0.0
+var _tp_cast_left_t: float = -10.0
 
 var _callbacks: Dictionary = {}
 var _rng: SeededRng = null
@@ -348,6 +351,11 @@ func _update_third_person_camera() -> void:
 	var cam_cfg: Dictionary = player_cfg["camera"]
 	var off: Array = cam_cfg["third_person_offset"]
 	var desired_local := Vector3(float(off[0]), float(off[1]) - float(player_cfg["movement"]["eye_height"]), float(off[2]))
+	# FB-014: while drawing a bow the camera eases in over the right shoulder so the bow and arrow line stay
+	# in view left of the head instead of hidden behind the archer's turned body
+	var aim_off: Array = cam_cfg.get("third_person_aim_offset", [1.0, 1.75, 2.1])
+	var aim_local := Vector3(float(aim_off[0]), float(aim_off[1]) - float(player_cfg["movement"]["eye_height"]), float(aim_off[2]))
+	desired_local = desired_local.lerp(aim_local, _tp_aim_blend)
 	var resolved_local := desired_local
 	if is_inside_tree() and get_world_3d() != null:
 		var origin := head_pivot.global_position
@@ -576,10 +584,13 @@ func step_simulation(delta: float, is_paused: bool, input_override: Dictionary =
 		right_attack_hold += delta
 		var rh: Dictionary = equipment.get("right_hand", {})
 		if str(rh.get("weapon_type", "")) == "archery":
+			if not is_bow_drawing and tp_visual != null and tp_visual.visible and tp_visual.has_anim("bow_draw"):
+				tp_visual.play_action("bow_draw", 0.1, 1.0)  # FB-014: raise, nock and pull, then draw_hold loops
 			is_bow_drawing = true
 			bow_draw_time = right_attack_hold
 
 	_update_procedural_animations(delta, move_vec.length(), is_sprinting)
+	_tp_aim_blend = move_toward(_tp_aim_blend, 1.0 if is_bow_drawing else 0.0, delta * 4.0)
 	if camera_mode == "third_person":
 		_update_third_person_camera()
 	_update_interaction_raycast()
@@ -915,7 +926,9 @@ func _refresh_tp_weapons() -> void:
 			gl.add_child(VfxFactory.make_glow(Color.html(str(lh.get("color", "#ff6a22"))), 0.3, 1.6))
 		elif not lh.is_empty() and str(lh.get("category", "")) == "weapon":
 			var lw := ModelLoader.instantiate_model(str(lh.get("model", "")), Vector3(0.05, 0.9, 0.05))
-			lw.rotation_degrees = Vector3(0.0, 90.0, 0.0)
+			# Exact mirror of the right-hand weapon in GripR (FB-014): the cutting edge is GripL -X after this turn,
+			# matching the dual-wield clips (edge_is_neg_y in char_anims.py)
+			lw.rotation_degrees = Vector3(0.0, -90.0, 0.0)
 			gl.add_child(lw)
 
 
@@ -1137,6 +1150,8 @@ func _update_procedural_animations(delta: float, move_amount: float, is_sprintin
 		var horiz_spd := Vector2(velocity.x, velocity.z).length()
 		var armed := not rh.is_empty() or not lh.is_empty()
 		var st := "idle_combat" if (armed and tp_visual.has_anim("idle_combat")) else "idle"
+		if _tp_dual_wield() and tp_visual.has_anim("idle_dual"):
+			st = "idle_dual"
 		var play_spd := 1.0
 		if is_blocking and horiz_spd < 2.2:
 			st = "block"
@@ -1149,6 +1164,14 @@ func _update_procedural_animations(delta: float, move_amount: float, is_sprintin
 			play_spd = clampf(horiz_spd / (3.4 if use_run else 1.85), 0.75, 1.65)
 		tp_visual.play_state(st, 0.18, play_spd)
 		_update_tp_bowstring()
+
+
+## Third person: one-handed weapon in each hand (FB-014 dual-wield clips).
+func _tp_dual_wield() -> bool:
+	var rh: Dictionary = equipment.get("right_hand", {})
+	var lh: Dictionary = equipment.get("left_hand", {})
+	return str(rh.get("category", "")) == "weapon" and str(lh.get("category", "")) == "weapon" \
+		and str(rh.get("weapon_type", "")) != "archery" and not bool(rh.get("two_handed", false))
 
 
 func _update_tp_bowstring() -> void:
@@ -1489,6 +1512,10 @@ func _perform_melee_attack(weapon: Dictionary, is_right: bool, is_power: bool) -
 	var is_two_hand := bool(weapon.get("two_handed", false))
 	if tp_visual != null and tp_visual.visible:
 		var tp_clip := "attack_2h" if (is_two_hand and tp_visual.has_anim("attack_2h")) else "attack"
+		if not is_right and tp_visual.has_anim("attack_l"):
+			tp_clip = "attack_l"  # FB-014: the left blade swings, mirrored
+		elif is_right and _tp_dual_wield() and tp_visual.has_anim("attack_dual"):
+			tp_clip = "attack_dual"  # right swing with the left blade held on guard
 		tp_visual.play_action(tp_clip, 0.08, 1.15 if not is_power else 0.92)
 	if is_right:
 		_right_cooldown = cd
@@ -1602,7 +1629,20 @@ func _cast_spell(spell: Dictionary, is_right: bool) -> void:
 	_camera_kick = 0.24
 
 	if tp_visual != null and tp_visual.visible:
-		tp_visual.play_action("cast", 0.08, 1.15)
+		# FB-014: the casting hand thrusts (left = "cast", right = mirrored "cast_r"); both hands within a
+		# moment of each other (dual spells) thrust together
+		var clip := "cast_r" if is_right else "cast"
+		var other_t := _tp_cast_left_t if is_right else _tp_cast_right_t
+		if _anim_time - other_t < 0.25 and tp_visual.has_anim("cast_dual"):
+			clip = "cast_dual"
+		if is_right:
+			_tp_cast_right_t = _anim_time
+		else:
+			_tp_cast_left_t = _anim_time
+		if not tp_visual.has_anim(clip):
+			clip = "cast"
+		if clip != "cast_dual" or tp_visual.oneshot != "cast_dual":
+			tp_visual.play_action(clip, 0.08, 1.15)
 	var kind := str(spell.get("spell_kind", "projectile"))
 	var skill_name := str(spell.get("weapon_type", "destruction"))
 	var prog_bonuses := progression.get_derived_bonuses() if progression != null else {}

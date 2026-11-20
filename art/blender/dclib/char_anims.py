@@ -43,6 +43,61 @@ class RigMetrics:
         self.grip_l_local = rig.grip_rest_local_matrix(arm_ob, grip_l_ob) if grip_l_ob else None
 
 
+_MX = Matrix.Diagonal((-1.0, 1.0, 1.0, 1.0))
+
+
+def _mx(v) -> Vector:
+    """Mirror a character-space vector across the body's mid-plane (X = left/right)."""
+    return Vector((-v[0], v[1], v[2]))
+
+
+def _flip_name(n: str) -> str:
+    if n.endswith("_l"):
+        return n[:-2] + "_r"
+    if n.endswith("_r"):
+        return n[:-2] + "_l"
+    return n
+
+
+def _mirror_current_pose(arm_ob):
+    """Mirror the whole current pose left<->right (FB-014: left-hand swings and right-hand casts are exact
+    mirrors of the authored right-hand swing / left-hand cast). Works whatever the bone rolls are: each bone's
+    target is chosen so its skinning deform equals the mirrored deform of its partner bone."""
+    bpy.context.view_layer.update()
+    cur = {pb.name: pb.matrix.copy() for pb in arm_ob.pose.bones}
+    rest = {b.name: b.matrix_local.copy() for b in arm_ob.data.bones}
+    tgt = {}
+    for n, mat in cur.items():
+        o = _flip_name(n)
+        if o not in rest:
+            o = n
+        tgt[o] = _MX @ mat @ rest[n].inverted() @ _MX @ rest[o]
+
+    def depth(pb):
+        d = 0
+        p = pb.parent
+        while p is not None:
+            d += 1
+            p = p.parent
+        return d
+
+    levels: dict[int, list] = {}
+    for pb in arm_ob.pose.bones:
+        levels.setdefault(depth(pb), []).append(pb)
+    for d in sorted(levels):
+        for pb in levels[d]:
+            pb.rotation_mode = "QUATERNION"
+            pb.matrix = tgt[pb.name]
+        bpy.context.view_layer.update()
+
+
+def _mirrored(pose_fn):
+    def pose(arm, f, phase):
+        pose_fn(arm, f, phase)
+        _mirror_current_pose(arm)
+    return pose
+
+
 def _shrug(arm_ob, l_up: float = 0.0, l_fwd: float = 0.0, r_up: float = 0.0, r_fwd: float = 0.0):
     rig.set_bone_euler(arm_ob, "clavicle_l", (l_fwd, 0.0, l_up))
     rig.set_bone_euler(arm_ob, "clavicle_r", (-r_fwd, 0.0, -r_up))
@@ -294,6 +349,18 @@ def _build_idle(m: RigMetrics, style: dict):
 # 2. IDLE_COMBAT (60 frames = 2.0s cyclic) — Alert fighter guard
 # ---------------------------------------------------------------------------
 
+DUAL_SHAFT = Vector((-0.30, -0.76, 0.58))
+DUAL_EDGE = Vector((0.18, -0.65, -0.74))
+
+
+def _place_offhand_blade(m: RigMetrics, l_pos: Vector, shaft: Vector = None, edge: Vector = None):
+    """Left-hand blade held as the mirror of the right-hand guard. In-game the left weapon sits in GripL rotated
+    -90 deg about the grip axis, so its cutting edge is GripL -Y (edge_is_neg_y)."""
+    s = m.scale
+    _place_grip_arm(m, "l", l_pos, _mx(shaft if shaft is not None else DUAL_SHAFT), _mx(edge if edge is not None else DUAL_EDGE),
+                    Vector((m.sh_x + 0.34 * s, 0.24 * s, m.sh_z - 0.22 * s)), edge_is_neg_y=True)
+
+
 def _pose_combat_guard(m: RigMetrics, style: dict, breath: float = 0.0, breath2: float = 0.0):
     """Shared combat-ready base pose (also used as exact frame 0/end for attack/hit/roar/block)."""
     arm = m.arm
@@ -305,7 +372,7 @@ def _pose_combat_guard(m: RigMetrics, style: dict, breath: float = 0.0, breath2:
 
     crouch = (0.14 if is_goblin else (0.075 if is_boss else 0.085)) * m.leg_len
     hip_dz = -crouch + breath * 0.012 * s
-    torso_yaw = -24.0 if w == "bow" else (-14.0 if w == "2h" else 16.0)
+    torso_yaw = -24.0 if w == "bow" else (-14.0 if w == "2h" else (4.0 if w == "dual" else 16.0))
 
     hips_deg = (7.0 if is_goblin else 5.0, torso_yaw * 0.55, 0.0)
     spine_deg = ((14.0 if is_goblin else 7.0) + hunch * 0.5 - breath * 1.4, torso_yaw * 0.30, 0.0)
@@ -350,6 +417,11 @@ def _pose_combat_guard(m: RigMetrics, style: dict, breath: float = 0.0, breath2:
         l_w = Vector((m.sh_x + 0.06 * s, -0.34 * s, m.hip_z + 0.14 * s - breath2 * 0.015 * s))
         _place_hand_free(m, "l", l_w, Vector((m.sh_x + 0.34 * s, 0.22 * s, m.sh_z - 0.12 * s)),
                          Vector((-0.30, -0.90, -0.25)), Vector((0.0, -0.4, 0.9)))
+    elif w == "dual":
+        # Dual-wield guard (FB-014): both blades poised forward, the left an exact mirror of the right
+        r_pos = Vector((-m.sh_x - 0.09 * s, -0.28 * s, m.hip_z + 0.05 * s + breath2 * 0.015 * s))
+        _place_grip_arm(m, "r", r_pos, DUAL_SHAFT, DUAL_EDGE, Vector((-m.sh_x - 0.34 * s, 0.24 * s, m.sh_z - 0.22 * s)))
+        _place_offhand_blade(m, Vector((m.sh_x + 0.09 * s, -0.28 * s, m.hip_z + 0.05 * s + breath * 0.012 * s)))
     elif w == "none":
         r_w = Vector((-0.18 * s, -0.26 * s, m.hip_z + 0.14 * s))
         l_w = Vector((0.20 * s, -0.28 * s, m.hip_z + 0.16 * s))
@@ -370,11 +442,11 @@ def _pose_combat_guard(m: RigMetrics, style: dict, breath: float = 0.0, breath2:
     rig.orient_head_look(arm, (0.0, -1.0, -0.04), weight=0.90)
 
 
-def _build_idle_combat(m: RigMetrics, style: dict):
+def _build_idle_combat(m: RigMetrics, style: dict, clip_name: str = "idle_combat"):
     def pose(arm, f, phase):
         ang = phase * math.tau
         _pose_combat_guard(m, style, math.sin(ang), math.sin(ang - 0.5))
-    rig.make_sampled_action(m.arm, "idle_combat", 60, pose, cyclic=True)
+    rig.make_sampled_action(m.arm, clip_name, 60, pose, cyclic=True)
 
 
 # ---------------------------------------------------------------------------
@@ -527,7 +599,7 @@ def _build_locomotion(m: RigMetrics, style: dict, run: bool = False):
 # 4. ATTACKS (1H: 28f impact f14; 2H: 40f impact f18; Boss Slam: 40f impact f18)
 # ---------------------------------------------------------------------------
 
-def _build_attack_1h(m: RigMetrics, style: dict, clip_name: str = "attack"):
+def _build_attack_1h(m: RigMetrics, style: dict, clip_name: str = "attack", mirror: bool = False):
     """Kinetic-chain 1H melee slash (28 frames, impact at frame 14 = 0.467s)."""
     s = m.scale
     hunch = float(style.get("hunch", 0.0))
@@ -596,6 +668,11 @@ def _build_attack_1h(m: RigMetrics, style: dict, clip_name: str = "attack"):
             l_w = Vector((m.sh_x + 0.12 * s, -0.22 * s + cyaw * 0.005 * s, m.hip_z + 0.12 * s))
             _place_hand_free(m, "l", l_w, Vector((m.sh_x + 0.36 * s, 0.28 * s, m.sh_z - 0.10 * s)),
                              Vector((-0.3, -0.8, -0.3)), Vector((0.0, -0.5, 0.85)))
+        elif style.get("weapon") == "dual":
+            # Off-hand blade stays on guard, drawing back a little to counter-balance the cut
+            open_k = math.sin(rig.clamp((f - 4.0) / 19.0) * math.pi)
+            _place_offhand_blade(m, Vector((m.sh_x + 0.09 * s + open_k * 0.10 * s, -0.28 * s + open_k * 0.18 * s,
+                                            m.hip_z + 0.05 * s + open_k * 0.04 * s)))
         else:
             # Shield opens wide out-left to counter-balance the torso torque and leave the full sword slash unobstructed!
             open_k = math.sin(rig.clamp((f - 4.0) / 19.0) * math.pi)
@@ -605,7 +682,7 @@ def _build_attack_1h(m: RigMetrics, style: dict, clip_name: str = "attack"):
 
         rig.orient_head_look(arm, (0.0, -1.0, -0.05), weight=0.92)
 
-    rig.make_sampled_action(m.arm, clip_name, 28, pose, cyclic=False)
+    rig.make_sampled_action(m.arm, clip_name, 28, _mirrored(pose) if mirror else pose, cyclic=False)
 
 
 def _build_attack_2h(m: RigMetrics, style: dict, clip_name: str = "attack", vertical_slam: bool = False):
@@ -806,6 +883,20 @@ def _build_draw_hold(m: RigMetrics, style: dict):
     rig.make_sampled_action(m.arm, "draw_hold", 60, pose, cyclic=True)
 
 
+def _build_bow_draw(m: RigMetrics, style: dict):
+    """Player 3rd-person draw-up one-shot (18 frames = 0.6s, FB-014): raise the bow from guard, nock and pull
+    back to the cheek, ending exactly on draw_hold's first frame so the loop takes over seamlessly."""
+    aim_k_curve = [(0, 0.0), (8, 1.0, "in_out"), (18, 1.0, "linear")]
+    draw_k_curve = [(0, 0.0), (6, 0.0, "linear"), (16, 1.0, "out_cubic"), (18, 1.0, "linear")]
+
+    def pose(arm, f, phase):
+        if f == 0:
+            _pose_combat_guard(m, style)
+            return
+        _apply_archery_pose(m, style, float(rig.sample_curve(f, aim_k_curve)), float(rig.sample_curve(f, draw_k_curve)), 0.0, 0.0)
+    rig.make_sampled_action(m.arm, "bow_draw", 18, pose, cyclic=False)
+
+
 def _build_bow_shoot(m: RigMetrics, style: dict):
     """Player 3rd-person bow release follow-through one-shot (24 frames = 0.8s)."""
     rel_k_curve = [(0, 0.0), (3, 1.0, "out_cubic"), (11, 0.65, "in_out"), (24, 0.0, "in_out")]
@@ -850,7 +941,7 @@ def _build_block(m: RigMetrics, style: dict):
     rig.make_sampled_action(m.arm, "block", 60, pose, cyclic=True)
 
 
-def _build_cast(m: RigMetrics, style: dict):
+def _build_cast(m: RigMetrics, style: dict, clip_name: str = "cast", mirror: bool = False, both: bool = False):
     """Crawler off-hand spell cast (32f): gather at ribs -> clean forward palm thrust -> settle."""
     s = m.scale
     l_pos_k = [
@@ -867,7 +958,7 @@ def _build_cast(m: RigMetrics, style: dict):
         if f == 0 or f == 32:
             _pose_combat_guard(m, style)
             return
-        yw = float(rig.sample_curve(f, yaw_k))
+        yw = float(rig.sample_curve(f, yaw_k)) * (0.15 if both else 1.0)
         hy = float(rig.sample_curve(f, hip_y_k)) * s
         _set_torso(arm, (0.0, hy, -0.095 * m.leg_len), (5.0, yw * 0.45, 0.0), (8.0, yw * 0.30, 0.0),
                    (4.0, yw * 0.25, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (3.0, -yw * 0.25, 2.0, 0.0))
@@ -877,13 +968,18 @@ def _build_cast(m: RigMetrics, style: dict):
         lp = rig.sample_curve(f, l_pos_k)
         l_pole = Vector((m.sh_x + 0.36 * s, 0.16 * s, m.sh_z - 0.22 * s))
         _place_hand_free(m, "l", lp, l_pole, Vector((0.0, -0.96, 0.28)), Vector((0.0, 0.28, 0.96)))
-        # Sword hand balances naturally at right hip
-        r_pos = Vector((-m.sh_x - 0.09 * s, -0.20 * s + hy * 0.4, m.hip_z + 0.04 * s))
-        _place_grip_arm(m, "r", r_pos, Vector((-0.26, -0.74, 0.62)), Vector((0.14, -0.65, -0.74)),
-                        Vector((-m.sh_x - 0.32 * s, 0.28 * s, m.sh_z - 0.24 * s)))
+        if both:
+            # Two-handed cast: both palms thrust forward together, mirrored (dual spells)
+            _place_hand_free(m, "r", _mx(lp) + Vector((0.0, 0.0, 0.0)), _mx(l_pole), _mx(Vector((0.0, -0.96, 0.28))),
+                             _mx(Vector((0.0, 0.28, 0.96))))
+        else:
+            # Sword hand balances naturally at right hip
+            r_pos = Vector((-m.sh_x - 0.09 * s, -0.20 * s + hy * 0.4, m.hip_z + 0.04 * s))
+            _place_grip_arm(m, "r", r_pos, Vector((-0.26, -0.74, 0.62)), Vector((0.14, -0.65, -0.74)),
+                            Vector((-m.sh_x - 0.32 * s, 0.28 * s, m.sh_z - 0.24 * s)))
         rig.orient_head_look(arm, (0.0, -1.0, -0.03), weight=0.92)
 
-    rig.make_sampled_action(m.arm, "cast", 32, pose, cyclic=False)
+    rig.make_sampled_action(m.arm, clip_name, 32, _mirrored(pose) if mirror else pose, cyclic=False)
 
 
 def _build_roar(m: RigMetrics, style: dict):
@@ -1258,9 +1354,21 @@ def animate_character(arm_ob, style: dict, extra=(), grip_r=None, grip_l=None):
             _build_block(m, style)
         elif e == "cast":
             _build_cast(m, style)
+        elif e == "cast_r":
+            _build_cast(m, style, clip_name="cast_r", mirror=True)
+        elif e == "cast_dual":
+            _build_cast(m, style, clip_name="cast_dual", both=True)
+        elif e == "dual":
+            # Dual-wield set (FB-014): guard, right swing with the left blade on guard, mirrored left swing
+            dual = dict(style, weapon="dual")
+            _build_idle_combat(m, dual, clip_name="idle_dual")
+            _build_attack_1h(m, dual, clip_name="attack_dual")
+            _build_attack_1h(m, dual, clip_name="attack_l", mirror=True)
         elif e == "draw_hold":
             _build_draw_hold(m, dict(style, weapon="bow"))
         elif e == "bow_shoot":
             _build_bow_shoot(m, dict(style, weapon="bow"))
+        elif e == "bow_draw":
+            _build_bow_draw(m, dict(style, weapon="bow"))
         elif e == "attack_2h":
             _build_attack_2h(m, dict(style, weapon="2h", weapon_scale=1.0), clip_name="attack_2h", vertical_slam=False)
