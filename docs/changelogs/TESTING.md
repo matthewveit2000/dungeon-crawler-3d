@@ -65,3 +65,9 @@ See [`docs/TESTING_STRATEGY.md`](../TESTING_STRATEGY.md) and [`docs/DECISION_LOG
   - Export-time corpse ground-contact assertion inside `art/blender/dclib/char_anims.py` (`hips`, `chest`, `head` `z >= 0.04m` at final death frame).
 - **Totals:** 12 test scripts, **62/62 passing tests**, **5,742 assertions** — all 5 automated layers green.
 
+
+## 2026-11-20 — Floor Determinism Regression Tests (`D-039`)
+
+- `test_d039_floor_reset_replays_identical_layout_and_loot`: layout, vendor stock, every container's loot and enemy drops match before and after a death reset.
+- `test_d039_container_loot_does_not_depend_on_open_order`: a chest gives the same item whether opened first or last.
+- Both confirmed failing on the pre-fix code. Suite: 64/64 tests, 5,751 assertions.

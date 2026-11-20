@@ -59,5 +59,9 @@ For detailed domain-specific logs (design, art, architecture, testing), see [`do
 - **2026-11-20 — Core Gimmick Defined: The Power-Scaling Race (`D-038`):**
   - Logged the User's directive that the game's main gimmick is a challenge to power-scale (level up heavily and gear up) fast enough to survive the end of each floor, with every floor ramping up in difficulty, and that players can always reset their progress to the start of any floor they have reached.
   - Updated [`AGENTS.md`](AGENTS.md), [`docs/VISION_AND_CONSTRAINTS.md`](docs/VISION_AND_CONSTRAINTS.md), [`docs/GAME_DESIGN.md`](docs/GAME_DESIGN.md), [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md), [`docs/ALIGNMENT_LOG.md`](docs/ALIGNMENT_LOG.md), and [`docs/changelogs/DESIGN.md`](docs/changelogs/DESIGN.md). Design-only; no code changed yet.
+- **2026-11-20 — One Fixed Seed: Floors Replay Identically on Every Attempt (`D-039`):**
+  - Chest, crate, urn and enemy-drop loot is now rolled from a per-object seed (run seed + floor + object), so a floor's loot is identical after death or collapse and no longer depends on the order things are opened (`game/src/main.gd`). Layout, room dressing and vendor stock were already seeded per floor.
+  - The shared combat/AI random state is reseeded at the start of every floor attempt.
+  - Added 2 headless regression tests (`test_d039_*` in `game/tests/test_headless_gameplay_integration.gd`); verified they fail on the previous code. Suite: **64/64 tests, 5,751 assertions passing**.
 
 

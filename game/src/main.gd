@@ -175,6 +175,8 @@ func enter_floor(target_floor: int, capture_snapshot: bool = true) -> void:
 	quest_bounty_claimed = false
 	ai_director.reset_floor_flags()
 	floor_timer.reset()
+	# D-039: every attempt at a floor replays from the same random state (combat rolls, AI, banners).
+	rng.reseed(_floor_seed("attempt"))
 	map_seen.clear()
 	_last_player_tile = Vector2i(-999, -999)
 	if hud != null:
@@ -216,6 +218,17 @@ func enter_floor(target_floor: int, capture_snapshot: bool = true) -> void:
 	if floor_number == 1:
 		_trigger_tutorial("movement_camera")
 	_update_hud_navigation()
+
+
+## D-039: Deterministic per-floor seed so the same floor plays out identically on every attempt.
+func _floor_seed(label: String) -> int:
+	return int(("%d:%s:%d" % [run_seed, label, floor_number]).hash())
+
+
+## D-039: Each container / enemy rolls its loot from its own seed, so its contents never depend on
+## the order the player opened things or how many fights happened first.
+func _loot_rng_for(source_key: String) -> SeededRng:
+	return SeededRng.new(int(("%d:loot:%d:%s" % [run_seed, floor_number, source_key]).hash()))
 
 
 func reset_floor_to_snapshot(reason: String) -> void:
@@ -715,7 +728,8 @@ func _on_enemy_died(enemy: EnemyActor) -> void:
 		player.health = minf(player.max_health, player.health + float(DataLoader.get_sponsored_effect_def("vampiric_viewers").get("heal_on_kill", 12.0)))
 	var bonus_gold := int(DataLoader.get_sponsored_effect_def("tax_rebate_gold").get("bonus_gold_on_kill", 15)) if sponsored.has("tax_rebate_gold") else 0
 
-	var gold_roll := rng.next_int_range("loot", enemy.gold_min, enemy.gold_max)
+	var loot_rng := _loot_rng_for(str(enemy.get_meta("spawn_key", enemy.enemy_id)))
+	var gold_roll := loot_rng.next_int_range("loot", enemy.gold_min, enemy.gold_max)
 	gold_roll = int(round(float(gold_roll) * (1.0 + float(eq_totals["gold_find_bonus"])))) + bonus_gold
 
 	var lvls := progression.add_xp(float(enemy.xp_reward))
@@ -726,8 +740,8 @@ func _on_enemy_died(enemy: EnemyActor) -> void:
 	# Spawn interactive Skyrim lootable corpse
 	var corpse := InteractableObject.new()
 	var forced_r := enemy.guaranteed_rarity
-	var has_item := not forced_r.is_empty() or rng.next_float("loot") <= enemy.loot_drop_chance
-	var loot_item := LootGenerator.roll_loot(DataLoader.get_items_pack(), DataLoader.get_affixes_pack(), floor_number, rng, forced_r) if has_item else {}
+	var has_item := not forced_r.is_empty() or loot_rng.next_float("loot") <= enemy.loot_drop_chance
+	var loot_item := LootGenerator.roll_loot(DataLoader.get_items_pack(), DataLoader.get_affixes_pack(), floor_number, loot_rng, forced_r) if has_item else {}
 	corpse.setup("corpse_%s" % enemy.enemy_id, "corpse", "Search %s" % enemy.display_name, {
 		"gold": gold_roll,
 		"item": loot_item,
@@ -769,18 +783,20 @@ func _on_interactable_triggered(inter: InteractableObject, _actor: Node3D) -> bo
 		"chest":
 			var tier := str(inter.payload.get("tier", "standard"))
 			var forced := "sponsored" if tier == "vault_sponsored" else ("rare" if tier == "rare" else "")
-			var rolled := LootGenerator.roll_loot(DataLoader.get_items_pack(), DataLoader.get_affixes_pack(), floor_number, rng, forced, true)
-			var gold_gain := rng.next_int_range("loot", 25, 65) * floor_number
+			var chest_rng := _loot_rng_for(inter.interact_id)
+			var rolled := LootGenerator.roll_loot(DataLoader.get_items_pack(), DataLoader.get_affixes_pack(), floor_number, chest_rng, forced, true)
+			var gold_gain := chest_rng.next_int_range("loot", 25, 65) * floor_number
 			_grant_loot(rolled, gold_gain)
 			_complete_tutorial("looting")
 			_trigger_tutorial("inventory_pause")
 			if EventBus != null: EventBus.sfx_requested.emit("chest_open")
 			return true
 		"crate", "urn":
-			var gold_gain := rng.next_int_range("loot", 6, 20)
+			var cont_rng := _loot_rng_for(inter.interact_id)
+			var gold_gain := cont_rng.next_int_range("loot", 6, 20)
 			var potion: Dictionary = {}
-			if rng.next_float("loot") < 0.35:
-				potion = LootGenerator.make_base_item_instance(DataLoader.get_item_def("health_potion"), "pot_%d" % rng.next_int_range("loot", 1000, 99999))
+			if cont_rng.next_float("loot") < 0.35:
+				potion = LootGenerator.make_base_item_instance(DataLoader.get_item_def("health_potion"), "pot_%d" % cont_rng.next_int_range("loot", 1000, 99999))
 			_grant_loot(potion, gold_gain)
 			_complete_tutorial("looting")
 			if EventBus != null: EventBus.sfx_requested.emit("chest_open")
@@ -837,11 +853,13 @@ func _grant_loot(item: Dictionary, gold_gain: int) -> void:
 func _spawn_floor_enemies(enemies_pack: Dictionary) -> void:
 	boss_actor = null
 	var scaling: Dictionary = enemies_pack.get("floor_scaling", {})
-	for sp in current_layout.enemy_spawns:
+	for spawn_idx in current_layout.enemy_spawns.size():
+		var sp: Dictionary = current_layout.enemy_spawns[spawn_idx]
 		var edef := DataLoader.get_enemy_def(str(sp["enemy_id"]))
 		if edef.is_empty():
 			continue
 		var enemy := EnemyActor.new()
+		enemy.set_meta("spawn_key", "enemy_%d_%s" % [spawn_idx, str(sp["enemy_id"])])
 		enemies_root.add_child(enemy)
 		var y_off := 0.45 if bool(edef.get("is_boss", false)) else 0.1
 		var wpos := current_layout.tile_to_world(sp["tile"]) + Vector3(0.0, y_off, 0.0)

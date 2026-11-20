@@ -14,6 +14,7 @@ Read this file and the linked documents in `docs/` before taking any action.
   - **Floor Collapse Timer:** 5 in-game days per floor (~30 real-time minutes per in-game day for now; data-driven/configurable) to compel exploration.
   - **Collapse Consequence:** Reset to the **beginning of the current floor** (no full-run permadeath).
   - **No Staircase Previews:** Descending to a new floor does not preview what is below.
+  - **One Fixed Seed (`D-039`):** Every playthrough uses the same seed; a floor's layout, enemies, vendor stock and loot are identical on every attempt, so dying or a collapse replays the same floor.
   - **Core Gimmick — The Power-Scaling Race (`D-038`):** Each floor ramps up in difficulty; the central challenge is whether the player can level up and gear up enough to survive the end of every floor without falling behind. Players can always reset their progress to the start of any floor they have reached.
 - **Build Philosophy:**
   - Leverage existing **free, open-source** engines and libraries rather than building engine plumbing from scratch, while preserving maximum flexibility and freedom.
