@@ -453,13 +453,17 @@ static func _populate_contents(
 	rng: SeededRng
 ) -> void:
 	var floor_cfg := _get_floor_cfg(world_data, floor_number)
+	var theme := FloorTheme.resolve(floor_cfg)
 	var enemy_budget := int(floor_cfg.get("enemy_budget", 14))
 	var regular_enemies: Array = []
 	for e in enemies_data.get("enemies", []):
-		# D-049: only types whose level range overlaps this floor's level band
-		if not bool(e.get("is_boss", false)) and float(e.get("spawn_weight", 0.0)) > 0.0 \
-				and EnemyLevels.eligible(e, floor_number, enemies_data):
-			regular_enemies.append(e)
+		# D-049 / D-055: eligible by floor level band, FloorTheme tags, and RarityTable spawn weight
+		var eff_w := RarityTable.effective_enemy_spawn_weight(e)
+		if not bool(e.get("is_boss", false)) and eff_w > 0.0 \
+				and EnemyLevels.eligible(e, floor_number, enemies_data) and theme.matches_enemy(e):
+			var entry: Dictionary = (e as Dictionary).duplicate()
+			entry["spawn_weight"] = eff_w
+			regular_enemies.append(entry)
 
 	var chest_chance := float(lab_cfg.get("chest_room_chance", 0.55))
 	var combat_rooms: Array[Dictionary] = []

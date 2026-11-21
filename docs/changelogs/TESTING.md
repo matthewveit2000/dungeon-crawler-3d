@@ -103,3 +103,10 @@ See [`docs/TESTING_STRATEGY.md`](../TESTING_STRATEGY.md) and [`docs/DECISION_LOG
 ## 2026-11-20 — FB-015 Regression Guards (`D-049`)
 
 - New `game/tests/test_feedback_fb015.gd` (15 tests): all-Common varied loot, unique mastery tracks, mastery levels/stats/unlocks, in-game mastery XP, shock chaining, fire detonation, lunge + cross guard, bow bullet time, bleeding, enemy level ranges/floor bands, level scaling + deterministic levels, enemy traits, bestiary tiers + persistence through floor reset and save/load, Bestiary tab, item-card mastery with hidden abilities.
+
+## 2026-11-20 — D-055 Architecture Refactor Verification Suite (`FB-020`)
+
+- New `game/tests/test_architecture_refactor_d055.gd` (7 tests): verifies `EntityStats` modifiers & resistance/knockback/CC resolution (incl. legacy boss equivalence), shared `StatusComponent`, `CombatActor` factions + `ActorLocomotion` + `ActorBrain` Utility-Scoring AI + `AbilityScaling` level tiers, `GroundZone` & one-way `Barrier` primitives, `AbilityExecutor` (`enrage`, `shockwave_fling`, `aegis_invulnerability`), `RarityTable` + `FloorTheme` inheritance + modular `DataLoader`, and zero gameplay/determinism drift.
+- Extended `scripts/validate-data.py` to validate all 12 data packs (`rarities.json`, `themes.json`, `abilities.json` + floor `theme_id` cross-references).
+- Verified all 5 automated layers green via `./scripts/run-tests.sh` (**20 scripts, 116/116 tests passing, 135,916 assertions** — 109 pre-existing + 7 new) + live Player-POV Visual QA (`01`–`06`, `09_corridor`) & tri-view `./scripts/fp-pose-probe.sh` motion inspection (`D-028`).
+

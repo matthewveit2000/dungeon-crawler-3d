@@ -104,7 +104,7 @@ func _build_ui() -> void:
 
 	# --- Items ---
 	var gi := _grid("Items", 5)
-	for r in DataLoader.get_affixes_pack().get("rarities", []):
+	for r in RarityTable.rarities_from(DataLoader.get_rarities_pack()):
 		var rid := str(r["id"])
 		_btn(gi, "Rarity: %s" % str(r.get("label", rid)), func() -> void: _rarity = rid)
 	_section(gi, "Add to your bag (selected rarity)")

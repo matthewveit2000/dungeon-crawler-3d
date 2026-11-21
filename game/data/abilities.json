@@ -1,0 +1,48 @@
+{
+  "_doc": "Composable Ability Registry (D-051, D-055). Data-driven definitions executed by AbilityExecutor for active abilities, spells, ground zones, barriers, and future enemy/player skills. Not bound to live player hotkeys yet (zero gameplay change).",
+  "abilities": [
+    {
+      "id": "enrage",
+      "name": "Battle Enrage",
+      "kind": "self_buff",
+      "cooldown_sec": 35.0,
+      "stamina_cost": 15.0,
+      "magicka_cost": 0.0,
+      "status": "enrage",
+      "params": {
+        "damage": 1.35,
+        "haste": 1.25,
+        "speed": 1.15,
+        "duration": 8.0
+      },
+      "description": "Channel dungeon fury: increased damage, attack speed, and movement speed."
+    },
+    {
+      "id": "shockwave_fling",
+      "name": "Shockwave Fling",
+      "kind": "radial_knockback",
+      "cooldown_sec": 18.0,
+      "stamina_cost": 20.0,
+      "magicka_cost": 10.0,
+      "radius": 6.0,
+      "damage": 12.0,
+      "damage_type": "physical",
+      "knockback_force": 11.0,
+      "knockback_power": 1.0,
+      "description": "Unleash a radial blast that flings all nearby enemies backward."
+    },
+    {
+      "id": "aegis_invulnerability",
+      "name": "Aegis Shell",
+      "kind": "self_buff",
+      "cooldown_sec": 60.0,
+      "stamina_cost": 0.0,
+      "magicka_cost": 25.0,
+      "status": "invulnerable",
+      "params": {
+        "duration": 2.5
+      },
+      "description": "Become briefly invulnerable to incoming damage."
+    }
+  ]
+}

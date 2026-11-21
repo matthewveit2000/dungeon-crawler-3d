@@ -135,4 +135,13 @@ distinct request as its own line with its status (`Done`, `Partial`, `Open`, `Pr
 - Future system: Wacky Mounts & Companions (e.g., a flying bat companion that smacks enemies). — `Done (logged)` / `Open (future)` — `D-054` (`IDEA-013`)
 - Documentation-only pass (zero edits to `game/` or `art/`). — `Done`
 
+### FB-020 — "Implement these changes all in one refactor. make sure it makes now changes to how the game plays."
+- Implement all proposed architectural refactor upgrades in one cohesive pass with **zero changes to how the game plays** (same seeds, layouts, visuals, combat feel, loot, prices, animations, and passing test/visual QA baselines): — `Done` — `D-055`
+  1. Unified `EntityStats` + `StatusComponent` (shared stat & resistance sheet for player, enemies, bosses, and future summons/companions, plus shared power-vs-resistance resolution).
+  2. Modular `CombatActor` architecture for `EnemyActor` (faction support, pluggable `ActorLocomotion`, pluggable `ActorBrain` incl. utility-scoring readiness, data-driven `AbilityScaling` tiers).
+  3. Reusable world combat primitives (`GroundZone`, `Barrier`, `AbilityExecutor`, `CombatResolver`) extracted out of `main.gd`, plus `ViewmodelRig` extracted cleanly out of `player_controller.gd`.
+  4. First-class `FloorTheme` & `RarityTable` data packs (`rarities.json`, `themes.json`, `abilities.json`) + modular folder-capable `DataLoader`, driving `DungeonBuilder` and `LootGenerator`/`DungeonGenerator`/`TestModePanel` with 100% identical runtime output.
+- Guard: Full 5-layer `./scripts/run-tests.sh` green (**20 scripts, 116/116 tests, 135,916 assertions** — all 109 existing tests unchanged + 7 new tests in `game/tests/test_architecture_refactor_d055.gd`) + live Player-POV Visual QA (`01`–`06`, `09_corridor`) & tri-view `./scripts/fp-pose-probe.sh` motion inspection (`D-028`).
+
+
 

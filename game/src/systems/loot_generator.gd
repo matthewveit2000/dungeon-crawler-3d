@@ -18,20 +18,13 @@ static func make_base_item_instance(item_def: Dictionary, instance_id: String = 
 
 ## Rarities the world may drop right now (D-049: Common only until higher-rarity loot is designed).
 static func enabled_rarities(affixes_pack: Dictionary) -> Array:
-	var en: Array = affixes_pack.get("loot_rarities_enabled", [])
-	if en.is_empty():
-		for r in affixes_pack.get("rarities", []):
-			en.append(str(r["id"]))
-	return en
+	return RarityTable.enabled_rarities(affixes_pack)
 
 
 ## The rarity a world drop actually rolls at: a requested tier that is not enabled yet falls back to the best
 ## enabled one (so vaults and bosses still work, just Common for now).
 static func world_rarity(affixes_pack: Dictionary, requested: String) -> String:
-	var en := enabled_rarities(affixes_pack)
-	if requested.is_empty() or en.has(requested):
-		return requested
-	return str(en[-1]) if not en.is_empty() else "common"
+	return RarityTable.world_rarity(affixes_pack, requested)
 
 
 static func roll_loot(
@@ -60,26 +53,7 @@ static func roll_loot(
 	if candidates.is_empty():
 		return {}
 
-	var rarities: Array = affixes_pack.get("rarities", [])
-	var chosen_rarity: Dictionary = {}
-	if not forced_rarity.is_empty():
-		for r in rarities:
-			if str(r["id"]) == forced_rarity:
-				chosen_rarity = r
-				break
-	if chosen_rarity.is_empty():
-		# Shift weights modestly upward on deeper floors
-		var weighted: Array = []
-		var en := enabled_rarities(affixes_pack)
-		for r in rarities:
-			if not en.has(str(r["id"])):
-				continue
-			var copy: Dictionary = r.duplicate()
-			var mult := float(r.get("stat_multiplier", 1.0))
-			if mult > 1.0:
-				copy["weight"] = float(copy["weight"]) * (1.0 + float(maxi(0, floor_number - 1)) * 0.25)
-			weighted.append(copy)
-		chosen_rarity = rng.pick_weighted("loot", weighted, "weight")
+	var chosen_rarity: Dictionary = RarityTable.pick_rarity(affixes_pack, floor_number, rng, forced_rarity)
 
 	# On Sponsored roll, 50% chance to pick a named Sponsored unique if available
 	var base_def: Dictionary = {}
@@ -95,7 +69,7 @@ static func roll_loot(
 		var wc: Array = []
 		for c in candidates:
 			var cc: Dictionary = c.duplicate()
-			cc["_w"] = float(c.get("drop_weight", 10.0))
+			cc["_w"] = RarityTable.effective_item_drop_weight(c, affixes_pack)
 			wc.append(cc)
 		var pick: Dictionary = rng.pick_weighted("loot", wc, "_w")
 		base_def = DataLoader.get_item_def(str(pick["id"])) if not DataLoader.get_item_def(str(pick["id"])).is_empty() else pick
@@ -168,7 +142,7 @@ static func roll_loot(
 			full_name = "Sponsored: %s" % full_name
 		inst["name"] = full_name
 
-	inst["value"] = int(round(float(base_def.get("base_value", 25)) * float(chosen_rarity.get("value_multiplier", 1.0)) * floor_mult))
+	inst["value"] = RarityTable.compute_item_value(float(base_def.get("base_value", 25)), chosen_rarity, floor_mult)
 	return inst
 
 
