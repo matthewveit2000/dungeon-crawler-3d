@@ -99,7 +99,8 @@ func test_mastery_grows_stats_and_unlocks_abilities_with_use() -> void:
 	DataLoader.ensure_loaded()
 	var sword := LootGenerator.make_base_item_instance(DataLoader.get_item_def("iron_longsword"), "m1")
 	assert_eq(MasterySystem.level_of(sword), 1, "new items start at mastery 1")
-	assert_true(MasterySystem.abilities(sword).is_empty(), "with no abilities yet")
+	# FB-022: every item now starts with one level-1 ability; the track's later abilities are still locked
+	assert_eq(MasterySystem.abilities(sword).keys(), ["keen_edge"], "with only its level-1 ability")
 	var base := MasterySystem.stat(sword, "damage")
 	var res := MasterySystem.add_xp(sword, float(MasterySystem.xp_to_next(1)) + float(MasterySystem.xp_to_next(2)) + 0.5)
 	assert_eq(res["levels"], [2, 3], "XP raises the level step by step")

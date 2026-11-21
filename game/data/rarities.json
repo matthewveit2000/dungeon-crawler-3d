@@ -1,0 +1,63 @@
+{
+  "_doc": "Unified Rarity & Scarcity Table (D-048, D-049, D-055 / IDEA-011). Drives loot rarity rolling, value/price multipliers, drop scarcity, and future enemy rarity scaling from one central data pack.",
+  "loot_rarities_enabled": [
+    "common"
+  ],
+  "rarities": [
+    {
+      "id": "common",
+      "label": "Common",
+      "color": "#d8dce3",
+      "stat_multiplier": 1.0,
+      "affix_count": 0,
+      "weight": 54.0,
+      "value_multiplier": 1.0,
+      "enemy_spawn_weight_mult": 1.0,
+      "enemy_reward_mult": 1.0
+    },
+    {
+      "id": "uncommon",
+      "label": "Uncommon",
+      "color": "#5ad67a",
+      "stat_multiplier": 1.2,
+      "affix_count": 1,
+      "weight": 26.0,
+      "value_multiplier": 1.5,
+      "enemy_spawn_weight_mult": 0.65,
+      "enemy_reward_mult": 1.25
+    },
+    {
+      "id": "rare",
+      "label": "Rare",
+      "color": "#4da3ff",
+      "stat_multiplier": 1.45,
+      "affix_count": 2,
+      "weight": 12.0,
+      "value_multiplier": 2.3,
+      "enemy_spawn_weight_mult": 0.35,
+      "enemy_reward_mult": 1.6
+    },
+    {
+      "id": "epic",
+      "label": "Epic",
+      "color": "#b46cff",
+      "stat_multiplier": 1.8,
+      "affix_count": 3,
+      "weight": 5.5,
+      "value_multiplier": 3.8,
+      "enemy_spawn_weight_mult": 0.15,
+      "enemy_reward_mult": 2.1
+    },
+    {
+      "id": "legendary",
+      "label": "Legendary",
+      "color": "#ffae24",
+      "stat_multiplier": 2.35,
+      "affix_count": 3,
+      "weight": 2.5,
+      "value_multiplier": 6.5,
+      "enemy_spawn_weight_mult": 0.05,
+      "enemy_reward_mult": 3.0
+    }
+  ]
+}

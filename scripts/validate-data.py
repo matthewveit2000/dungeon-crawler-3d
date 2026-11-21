@@ -13,6 +13,9 @@ REQUIRED_FILES = [
     "player.json",
     "items.json",
     "affixes.json",
+    "rarities.json",
+    "themes.json",
+    "abilities.json",
     "enemies.json",
     "dungeon_ai.json",
     "progression.json",
@@ -167,7 +170,33 @@ def main() -> int:
         if req_sp not in setpieces or not setpieces[req_sp].get("props"):
             errors.append(f"setpieces.json: D-029 requires handcrafted setpiece props for '{req_sp}'")
 
-    # 9. FB-022 power-scale knobs (D-057): global knobs, and a power_scale on every enemy, item and floor
+    # 9. Validate rarities.json, themes.json, and abilities.json (D-055)
+    rarities_pack = packs["rarities.json"]
+    unified_r_ids = {r.get("id", "") for r in rarities_pack.get("rarities", [])}
+    for req_r in ["common", "uncommon", "rare", "epic", "legendary"]:
+        if req_r not in unified_r_ids:
+            errors.append(f"rarities.json: missing required rarity tier '{req_r}'")
+
+    themes_pack = packs["themes.json"]
+    theme_ids = {t.get("id", "") for t in themes_pack.get("themes", [])}
+    if not theme_ids:
+        errors.append("themes.json: must define at least 1 floor theme")
+    for floor in world.get("floors", []):
+        tid = floor.get("theme_id", "")
+        if tid and tid not in theme_ids:
+            errors.append(f"world.json: floor {floor.get('floor_number')} theme_id '{tid}' not found in themes.json")
+
+    abilities_pack = packs["abilities.json"]
+    ability_ids: set[str] = set()
+    for ab in abilities_pack.get("abilities", []):
+        aid = ab.get("id", "")
+        if not aid or aid in ability_ids:
+            errors.append(f"abilities.json: missing or duplicate ability id '{aid}'")
+        ability_ids.add(aid)
+        if not ab.get("kind"):
+            errors.append(f"abilities.json: ability '{aid}' missing 'kind'")
+
+    # 10. FB-022 power-scale knobs (D-057): global knobs, and a power_scale on every enemy, item and floor
     bal = packs["balance.json"]
     for knob in ["enemy_health", "enemy_damage", "enemy_count", "enemy_xp", "enemy_gold", "boss_health", "boss_damage",
                  "champion_health", "champion_damage", "item_power", "consumable_power", "vendor_prices"]:
@@ -194,7 +223,8 @@ def main() -> int:
     print(
         f"[validate-data] OK: {len(REQUIRED_FILES)} packs, "
         f"{len(item_ids)} items, {len(enemy_ids)} enemies ({len(boss_ids)} boss), "
-        f"{len(rarity_ids)} rarities, {len(ai_events)} Dungeon AI pools, "
+        f"{len(unified_r_ids)} rarities, {len(theme_ids)} themes, {len(ability_ids)} abilities, "
+        f"{len(ai_events)} Dungeon AI pools, "
         f"{len(tut_ids)} tutorial topics, {len(setpieces)} handcrafted setpieces."
     )
     return 0

@@ -30,7 +30,7 @@ This repository is structured to work seamlessly with **any AI coding tool** (An
 | [`.github/copilot-instructions.md`](.github/copilot-instructions.md) | GitHub Copilot entry point (references `AGENTS.md`) |
 | [`docs/VISION_AND_CONSTRAINTS.md`](docs/VISION_AND_CONSTRAINTS.md) | North star, goals, constraints, and open alignment topics |
 | [`docs/ROLES_AND_GOVERNANCE.md`](docs/ROLES_AND_GOVERNANCE.md) | Division of labor, decision authority, and communication rules |
-| [`docs/GAME_DESIGN.md`](docs/GAME_DESIGN.md) | Complete Game Design Document (Skyrim feel + DCC loop) |
+| [`docs/GAME_DESIGN.md`](docs/GAME_DESIGN.md) | Complete Game Design Document (Skyrim feel + dark, goofy multi-floor dungeon loop) |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Three-tier Godot 4 + JSON + Blender architecture & scene tree |
 | [`docs/ART_PIPELINE.md`](docs/ART_PIPELINE.md) | Procedural Blender + NumPy art pipeline, material library & asset inventory (63 models) |
 | [`docs/PLAYTEST_GUIDE.md`](docs/PLAYTEST_GUIDE.md) | Plain-English launch, Skyrim controls, playtest tour & Audit Console |

@@ -119,6 +119,34 @@ distinct request as its own line with its status (`Done`, `Partial`, `Open`, `Pr
 - Planned item: Knockback 2H Axe (heavy 2H axe that knocks enemies back; mastery increases knockback distance and overcomes higher enemy knockback resistance / power tiers). — `Done (design)` / `Open (impl)` — `D-052`
 - Documentation-only pass (zero edits to `game/` or `art/`). — `Done`
 
+### FB-019 — "I want a spell that slows enemies, I want a variety of bows that apply different effects on enemies, I want a spell that puts glue on the floor, I want a variety of bombs that do different things, (bombs and potions should be created through a crafting system in the future), I want a spell that erects a temporary wall, I want an ability system for things like becoming enraged, an ability that flings all enemies back, an ability that makes you invonrable for a short periods, etc. I want each floor to have a theme. The theme should drive the vibe of the floor, the enemies, the loot, etc. I want a shield bash attack as it level up the bash does more damage or pushes the enemy back futher or moves the player futher, etc. I want Glock. We need to make sure that unique items feel rare so they don't get boring or overwhelming. They should have low drop rates and high prices. We should have a system for organizing all items, enemies, etc by rarity which drives their spawn rate, price, etc. I want a shield spell that erects a shield in front of the player that only the players spells and arrows can go through. I want a system for mounts and compainions with them being wacky like maybe your companion is a flying bat that smacks people. note everything above. We are not implementing these features this are just ideas for the future. I want you to organize the documentation such that I can word vomit ideas for things I want to add in the future so they won't be lost and so we can build on them and eventually implement them into the game."
+- Dedicated Future Ideas Backlog (`docs/IDEAS_BACKLOG.md`) organized for frictionless "word-vomit" idea capture so nothing is lost and ideas can be expanded and promoted to implementation later. — `Done` — `D-053`
+- Future spell: Slow enemies. — `Done (logged)` / `Open (future)` — `D-054` (`IDEA-001`)
+- Future items: Variety of bows applying different effects on enemies. — `Done (logged)` / `Open (future)` — `D-054` (`IDEA-002`)
+- Future spell: Glue on the floor (sticky movement-trap ground hazard). — `Done (logged)` / `Open (future)` — `D-054` (`IDEA-003`)
+- Future items & system: Variety of bombs with different effects + Crafting System for bombs and potions. — `Done (logged)` / `Open (future)` — `D-054` (`IDEA-004`, `IDEA-005`)
+- Future spell: Temporary wall (erects a physical barrier). — `Done (logged)` / `Open (future)` — `D-054` (`IDEA-006`)
+- Future system: Active Ability System (e.g., Enrage, radial knockback fling, brief invulnerability, etc.). — `Done (logged)` / `Open (future)` — `D-054` (`IDEA-007`)
+- Future world pillar: Floor Themes (each floor has a theme driving vibe/visuals, enemies, loot, hazards). — `Done (logged)` / `Open (future)` — `D-054` (`IDEA-008`)
+- Future combat mechanic: Shield Bash attack that scales with level (more damage, further enemy pushback, further player lunge, etc.). — `Done (logged)` / `Open (future)` — `D-054` (`IDEA-009`)
+- Future weapon (DCC goofy payload): Glock. — `Done (logged)` / `Open (future)` — `D-054` (`IDEA-010`)
+- Future economy/organization system: Unified Rarity & Scarcity System across items, enemies, etc. driving spawn/drop rates and prices so unique items stay rare (low drop rates, high prices) and exciting. — `Done (logged)` / `Open (future)` — `D-054` (`IDEA-011`)
+- Future spell: One-way front shield barrier (blocks enemy attacks/projectiles while allowing only the player's spells and arrows to pass through). — `Done (logged)` / `Open (future)` — `D-054` (`IDEA-012`)
+- Future system: Wacky Mounts & Companions (e.g., a flying bat companion that smacks enemies). — `Done (logged)` / `Open (future)` — `D-054` (`IDEA-013`)
+- Documentation-only pass (zero edits to `game/` or `art/`). — `Done`
+
+### FB-020 — "Implement these changes all in one refactor. make sure it makes now changes to how the game plays."
+- Implement all proposed architectural refactor upgrades in one cohesive pass with **zero changes to how the game plays** (same seeds, layouts, visuals, combat feel, loot, prices, animations, and passing test/visual QA baselines): — `Done` — `D-055`
+  1. Unified `EntityStats` + `StatusComponent` (shared stat & resistance sheet for player, enemies, bosses, and future summons/companions, plus shared power-vs-resistance resolution).
+  2. Modular `CombatActor` architecture for `EnemyActor` (faction support, pluggable `ActorLocomotion`, pluggable `ActorBrain` incl. utility-scoring readiness, data-driven `AbilityScaling` tiers).
+  3. Reusable world combat primitives (`GroundZone`, `Barrier`, `AbilityExecutor`, `CombatResolver`) extracted out of `main.gd`, plus `ViewmodelRig` extracted cleanly out of `player_controller.gd`.
+  4. First-class `FloorTheme` & `RarityTable` data packs (`rarities.json`, `themes.json`, `abilities.json`) + modular folder-capable `DataLoader`, driving `DungeonBuilder` and `LootGenerator`/`DungeonGenerator`/`TestModePanel` with 100% identical runtime output.
+- Guard: Full 5-layer `./scripts/run-tests.sh` green (**20 scripts, 116/116 tests, 135,916 assertions** — all 109 existing tests unchanged + 7 new tests in `game/tests/test_architecture_refactor_d055.gd`) + live Player-POV Visual QA (`01`–`06`, `09_corridor`) & tri-view `./scripts/fp-pose-probe.sh` motion inspection (`D-028`).
+
+### FB-021 — "Note that I always want you to give me the command to sync my local folder with github after an edit. If a branch is used I want the command to sync to the branch"
+- **Standing rule: Always include the exact local GitHub sync command after every edit** (for `main`, or for the specific branch if a branch is used). — `Done` — `D-056`
+- Guard: `AGENTS.md` §2 & §3, `docs/ROLES_AND_GOVERNANCE.md` §6, `docs/DECISION_LOG.md` (`D-056`).
+
 
 ## 2026-11-21
 

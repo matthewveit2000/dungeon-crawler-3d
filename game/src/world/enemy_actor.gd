@@ -1,20 +1,18 @@
 class_name EnemyActor
-extends CharacterBody3D
-## 3D Enemy & Floor Boss Actor (Phase 6 + rigged skeletal animation).
-## Implements aggro, melee/ranged attacks, Safe Room repulsion (D-021),
-## Boss Arena dormancy/enrage phases (D-022) and lootable corpses.
-## Presentation: rigged Blender character (CharacterVisual) with cross-faded idle/walk/run,
-## telegraphed attack clips whose impact frame lands exactly when damage resolves,
-## hit flinches + flashes, death falls that remain as lootable bodies, and a sleek health bar.
-
-enum AiState { DORMANT, IDLE, CHASE, ATTACK, FLEE_SAFE_ZONE, DEAD }
+extends CombatActor
+## 3D Enemy & Floor Boss Actor (Phase 6 + rigged skeletal animation + D-055 modular CombatActor refactor).
+## Extends CombatActor for shared faction, EntityStats, StatusComponent, ActorLocomotion, and ActorBrain.
+## Preserves exact aggro, melee/ranged attacks, Safe Room repulsion (D-021), Boss Arena dormancy/enrage (D-022),
+## impact-synced skeletal clips (D-033), A* pathfinding (D-048), and level-scaled traits (D-049, D-052).
 
 ## Seconds from the start of each attack clip to its impact frame (clip timing authored in Blender).
 const BOMB_GRAVITY := 9.0
 const IMPACT_TIME := {"attack_1h": 0.47, "attack_2h": 0.6, "shoot": 1.08, "slam": 0.6}
+const HEARING_RADIUS := ActorBrain.HEARING_RADIUS
+const LOSE_SIGHT_SEC := ActorBrain.LOSE_SIGHT_SEC
+const LEASH_MULT := ActorBrain.LEASH_MULT
 
 var enemy_id: String = ""
-var display_name: String = "Enemy"
 var archetype: String = "melee"
 var is_boss: bool = false
 var is_champion: bool = false  ## FB-022: a promoted, named mini-boss guarding a champion lair
@@ -22,13 +20,7 @@ var champion_title: String = ""
 var room_id: int = -1
 var floor_number: int = 1
 
-var max_health: float = 60.0
-var current_health: float = 60.0
-var damage: float = 12.0
-var armor: float = 6.0
-var move_speed: float = 3.8
 var aggro_radius: float = 13.0
-var body_radius: float = 0.5  ## collision radius; melee reach is measured to the body's edge
 var attack_range: float = 2.2
 var preferred_distance: float = 1.8
 var attack_cooldown_sec: float = 1.4
@@ -41,20 +33,15 @@ var gold_min: int = 8
 var gold_max: int = 18
 var loot_drop_chance: float = 0.5
 var guaranteed_rarity: String = ""
-## D-049: level, unique traits and status effects
-var level: int = 1
-var traits: Dictionary = {}  ## trait id -> params
+
+## D-049 / D-052: active traits resolved for this spawn's level
+var traits: Dictionary = {}
 var projectile_kind: String = "arrow"
 var projectile_color: String = "#ffffff"
-var statuses: Dictionary = {}  ## "bleed"/"burn" -> {"dps","t"}; "poison" -> {"stacks": [...]}; "chill" -> {"slow","t"}; "stun"/"sunder"/"rally" ...
-var _stun_t: float = 0.0
-var _knock_vel: Vector3 = Vector3.ZERO
-var _since_hurt: float = 99.0
 var _berserk: bool = false
 var _attack_count: int = 0
 var _war_cry_t: float = 2.0
 
-var state: AiState = AiState.IDLE
 var enraged: bool = false
 var spawn_pos: Vector3 = Vector3.ZERO
 var visual: CharacterVisual = null
@@ -72,6 +59,7 @@ var _lag_ratio: float = 1.0
 var _bar_visible_t: float = 0.0
 var _boss_ember_light: OmniLight3D = null
 var _height: float = 1.85
+var _size_mult: float = 1.0  ## FB-022: champions are bigger
 var _bow_node: Node3D = null
 var _string_top: Node3D = null
 var _string_bot: Node3D = null
@@ -84,31 +72,6 @@ var _stride_walk_mps: float = 1.65
 var _stride_run_mps: float = 4.2
 
 var _layout: DungeonGenerator.FloorLayout = null
-# Wandering & awareness (D-046): idle enemies roam their room; they engage on sight (or hearing range) from far
-# away, and give up after losing sight of the player for a while
-const HEARING_RADIUS := 6.0
-const LOSE_SIGHT_SEC := 4.0
-const LEASH_MULT := 2.2
-var _wander_target: Vector3 = Vector3.INF
-var _wander_pause: float = 0.0
-var _unseen_t: float = 0.0
-var _los_timer: float = 0.0
-var _los_cached: bool = false
-# Pathfinding (FB-014): enemies follow a tile path around walls/props and unstick themselves
-var _path: Array[Vector2i] = []
-var _path_i: int = 0
-var _path_goal: Vector2i = Vector2i(-9999, -9999)
-var _repath_t: float = 0.0
-var _pull_i: int = 0
-var _pull_t: float = 0.0
-const PULL_LOOKAHEAD := 16
-const DIRECT_WALK_DIST := 32.0
-var _stuck_t: float = 0.0
-var _sidestep_t: float = 0.0
-var _sidestep_dir: Vector3 = Vector3.ZERO
-var _last_pos: Vector3 = Vector3.ZERO
-var _walk_timer: float = 0.0
-var _walk_cached: bool = true
 var _player_ref: Node3D = null
 var _rng: SeededRng = null
 var _on_attack_player: Callable = Callable()
@@ -129,7 +92,7 @@ var _dot_pop_t: float = 0.0
 
 func setup(
 	enemy_def: Dictionary,
-	scaling_cfg: Dictionary,
+	_scaling_cfg: Dictionary,
 	p_floor_number: int,
 	p_room_id: int,
 	p_spawn_pos: Vector3,
@@ -143,6 +106,7 @@ func setup(
 	display_name = str(enemy_def["name"])
 	archetype = str(enemy_def.get("archetype", "melee"))
 	is_boss = bool(enemy_def.get("is_boss", false))
+	faction = str(enemy_def.get("faction", FACTION_ENEMY))
 	room_id = p_room_id
 	floor_number = p_floor_number
 	spawn_pos = p_spawn_pos
@@ -154,25 +118,31 @@ func setup(
 	_on_died = callbacks.get("died", Callable())
 	_on_dot_tick = callbacks.get("dot_tick", Callable())
 
-	# D-049: stats come from the enemy's level (each type has its own level range; floors pick levels)
+	# D-049 / D-051 / D-052: unified EntityStats, level scaling, and tiered abilities
 	var pack := DataLoader.get_enemies_pack()
 	level = p_level if p_level > 0 else EnemyLevels.roll_level(enemy_def, floor_number, pack, p_rng)
 	var ls := EnemyLevels.scale_for(level, pack)
-	var hp_scale := float(ls["health"])
-	var dmg_scale := float(ls["damage"])
-	var xp_scale := float(ls["xp"])
-	var gold_scale := float(ls["gold"])
-	traits.clear()
-	for t in enemy_def.get("traits", []):
-		traits[str(t["id"])] = t
+	entity_stats = EntityStats.from_enemy_def(enemy_def, ls)
+	status_comp = StatusComponent.new()
+	locomotion = ActorLocomotion.new()
+	locomotion.mode = str(enemy_def.get("locomotion_mode", ActorLocomotion.MODE_GROUND))
+	brain = ActorBrain.new()
+	brain.brain_kind = str(enemy_def.get("brain_kind", ActorBrain.BRAIN_STANDARD))
+
+	traits = AbilityScaling.resolve_traits(enemy_def, level)
 	projectile_kind = str(enemy_def.get("projectile_kind", "arrow"))
 	projectile_color = str(enemy_def.get("projectile_color", "#ffffff"))
 
-	max_health = snappedf(float(enemy_def["max_health"]) * hp_scale, 1.0)
+	var dmg_scale := float(ls["damage"])
+	var reward_mult := RarityTable.enemy_reward_multiplier(enemy_def)
+	var xp_scale := float(ls["xp"]) * reward_mult
+	var gold_scale := float(ls["gold"]) * reward_mult
+
+	max_health = entity_stats.get_base("max_health")
 	current_health = max_health
 	damage = snappedf(float(enemy_def["damage"]) * dmg_scale, 0.5)
-	armor = float(enemy_def.get("armor", 5.0)) + float(ls["armor"])
-	move_speed = float(enemy_def.get("move_speed", 3.6))
+	armor = entity_stats.get_base("armor")
+	move_speed = entity_stats.get_base("move_speed")
 	aggro_radius = float(enemy_def.get("aggro_radius", 13.0))
 	attack_range = float(enemy_def.get("attack_range", 2.2))
 	preferred_distance = float(enemy_def.get("preferred_distance", 1.8))
@@ -184,6 +154,9 @@ func setup(
 	xp_reward = int(round(float(enemy_def.get("xp_reward", 35)) * xp_scale))
 	gold_min = int(round(float(enemy_def.get("gold_min", 8)) * gold_scale))
 	gold_max = int(round(float(enemy_def.get("gold_max", 18)) * gold_scale))
+	loot_drop_chance = float(enemy_def.get("loot_drop_chance", 0.45))
+	guaranteed_rarity = str(enemy_def.get("guaranteed_rarity", ""))
+	_anim_time = _rng.next_float("ai") * TAU if _rng != null else 0.0
 	# FB-022 power-scale knobs: balance.json globals x the floor's power_scale x this type's own power_scale
 	max_health = maxf(1.0, snappedf(max_health * PowerScale.enemy(enemy_def, "health", floor_number), 1.0))
 	current_health = max_health
@@ -191,9 +164,6 @@ func setup(
 	xp_reward = maxi(1, int(round(float(xp_reward) * PowerScale.enemy(enemy_def, "xp", floor_number))))
 	gold_min = int(round(float(gold_min) * PowerScale.enemy(enemy_def, "gold", floor_number)))
 	gold_max = int(round(float(gold_max) * PowerScale.enemy(enemy_def, "gold", floor_number)))
-	loot_drop_chance = float(enemy_def.get("loot_drop_chance", 0.45))
-	guaranteed_rarity = str(enemy_def.get("guaranteed_rarity", ""))
-	_anim_time = _rng.next_float("ai") * TAU if _rng != null else 0.0
 
 	state = AiState.DORMANT if is_boss else AiState.IDLE
 
@@ -218,8 +188,12 @@ func setup(
 		enrage_hp_threshold = float(cc.get("enrage_hp_threshold", 0.4))
 		aggro_radius *= 1.2
 		ch_size = float(cc.get("size_mult", 1.35))
+	_size_mult = ch_size
 
-	add_to_group("enemies")
+	if faction == FACTION_ENEMY:
+		add_to_group("enemies")
+	elif faction == FACTION_ALLY:
+		add_to_group("allies")
 	if is_boss:
 		add_to_group("bosses")
 	if is_champion:
@@ -230,7 +204,6 @@ func setup(
 	var radius := float(enemy_def.get("radius", 0.5)) * ch_size
 	body_radius = radius
 	_height = float(enemy_def.get("height", 1.85)) * ch_size
-	# Natural clip stride velocity matching char_anims.py (4*stride_half / clip_duration)
 	var leg_len := _height * 0.48
 	var g_mult := 1.08 if archetype == "charger" else 1.0
 	_stride_walk_mps = maxf(0.8, (4.0 * 0.30 * leg_len * g_mult) / (32.0 / 30.0))
@@ -244,11 +217,16 @@ func setup(
 	col.position.y = _height * 0.5
 	add_child(col)
 
+	_build_visual(enemy_def)
+	global_position = spawn_pos
+
+
+func _build_visual(enemy_def: Dictionary) -> void:
 	var vdef: Dictionary = enemy_def.get("visual", {})
 	var kind := str(vdef.get("kind", str(enemy_def.get("model", "")).get_file().get_basename()))
 	visual = CharacterVisual.create(kind)
 	add_child(visual)
-	var vscale := float(vdef.get("scale", 1.0)) * ch_size
+	var vscale := float(vdef.get("scale", 1.0)) * _size_mult
 	if not is_equal_approx(vscale, 1.0):
 		visual.scale = Vector3.ONE * vscale
 	if vdef.has("tint"):
@@ -327,7 +305,6 @@ func setup(
 			rl.light_energy = 1.1
 			rl.omni_range = 3.5
 			hoop.add_child(rl)
-	global_position = spawn_pos
 
 
 ## FB-022: one billboarded quad drawn by a tiny shader (frame, trailing "recent damage" bar and the live fill).
@@ -457,12 +434,12 @@ func step_ai(delta: float, is_paused: bool) -> void:
 		return
 
 	_anim_time += delta
+	entity_stats.tick(delta)
 	_tick_statuses(delta)
 	if state == AiState.DEAD:
 		return
-	if _stun_t > 0.0:
-		# stunned / frozen: no thinking, no moving (knockback still slides the body)
-		_stun_t = maxf(0.0, _stun_t - delta)
+	if status_comp.is_incapacitated():
+		status_comp.tick_control(delta)
 		velocity = Vector3(_knock_vel.x, -4.0 if not is_on_floor() else 0.0, _knock_vel.z)
 		_knock_vel = _knock_vel.move_toward(Vector3.ZERO, delta * 18.0)
 		move_and_slide()
@@ -487,7 +464,7 @@ func step_ai(delta: float, is_paused: bool) -> void:
 		retreat_dir.y = 0.0
 		if retreat_dir.length() > 0.6:
 			var spd := move_speed * 1.15
-			retreat_dir = _steer_toward(spawn_pos, retreat_dir.length(), delta)
+			retreat_dir = locomotion.steer_toward(self, spawn_pos, retreat_dir.length(), delta, move_speed, body_radius, _layout, _player_ref, _rng)
 			velocity.x = retreat_dir.x * spd
 			velocity.z = retreat_dir.z * spd
 			_face_dir(retreat_dir, delta)
@@ -508,10 +485,10 @@ func step_ai(delta: float, is_paused: bool) -> void:
 		state = AiState.IDLE
 
 	if state == AiState.IDLE:
-		if dist <= HEARING_RADIUS or (dist <= aggro_radius and _sees_player(delta)):
+		if brain.should_engage(dist, aggro_radius, self, _player_ref, delta):
 			state = AiState.CHASE
-			_unseen_t = 0.0
-			_wander_target = Vector3.INF
+			brain.unseen_t = 0.0
+			locomotion.wander_target = Vector3.INF
 			if is_champion and not _roared and visual != null and visual.play_action("roar", 0.15):
 				_roared = true
 				_attack_timer = maxf(_attack_timer, 1.2)
@@ -519,15 +496,12 @@ func step_ai(delta: float, is_paused: bool) -> void:
 			_wander(delta)
 			return
 	else:
-		# Lose interest once the player is out of sight for a while or far beyond engagement range
-		if not is_boss:
-			_unseen_t = 0.0 if _sees_player(delta) else _unseen_t + delta
-			if _unseen_t > LOSE_SIGHT_SEC or dist > aggro_radius * LEASH_MULT:
-				state = AiState.IDLE
-				_wander_pause = 1.0
-				_attack_anim_started = false
-				_wander(delta)
-				return
+		if brain.should_disengage(dist, aggro_radius, is_boss, self, _player_ref, delta):
+			state = AiState.IDLE
+			locomotion.wander_pause = 1.0
+			_attack_anim_started = false
+			_wander(delta)
+			return
 
 	var eff_speed := move_speed * (enrage_speed_mult if enraged else 1.0) * _speed_mult()
 	if traits.has("war_cry"):
@@ -552,11 +526,11 @@ func step_ai(delta: float, is_paused: bool) -> void:
 			_attack_anim_started = true
 			if visual != null:
 				visual.play_action(_attack_clip, 0.1, _anim_speed())
-		if _attack_timer <= 0.0 and (archetype != "ranged" or _sees_player(delta)):
+		if _attack_timer <= 0.0 and (archetype != "ranged" or brain.sees_target(self, _player_ref, delta)):
 			_perform_attack(flat_to_player)
 	else:
 		state = AiState.CHASE
-		var dir := _steer_toward(player_pos, dist, delta)
+		var dir := locomotion.steer_toward(self, player_pos, dist, delta, move_speed, body_radius, _layout, _player_ref, _rng)
 		_face_dir(dir if dir.length() > 0.01 else flat_to_player, delta)
 		var next_probe := global_position + dir * 1.1
 		if not is_boss and _layout != null and _layout.is_world_in_safe_room(next_probe):
@@ -567,7 +541,7 @@ func step_ai(delta: float, is_paused: bool) -> void:
 			velocity.x = dir.x * eff_speed
 			velocity.z = dir.z * eff_speed
 
-	velocity.y = -6.0 if not is_on_floor() else 0.0
+	velocity.y = 0.0 if locomotion.mode == ActorLocomotion.MODE_FLYING else (-6.0 if not is_on_floor() else 0.0)
 	if _knock_vel.length_squared() > 0.01:
 		velocity.x += _knock_vel.x
 		velocity.z += _knock_vel.z
@@ -576,83 +550,52 @@ func step_ai(delta: float, is_paused: bool) -> void:
 	_update_animation(delta, Vector2(velocity.x, velocity.z).length())
 
 
-# --- D-049 status effects & traits ----------------------------------------------------------------------------
-## Applies a status from a player's mastery ability: bleed / burn / poison (damage over time), chill (slow),
-## freeze / stun (no action), sunder (armor loss), rally (war-cry buff from an ally).
+# --- D-049 / D-055 status effects, knockback & traits ----------------------------------------------------------
+
 func apply_status(kind: String, params: Dictionary) -> void:
 	if state == AiState.DEAD:
 		return
-	match kind:
-		"bleed", "burn":
-			var cur: Dictionary = statuses.get(kind, {})
-			statuses[kind] = {"dps": maxf(float(cur.get("dps", 0.0)), float(params.get("dps", 3.0))),
-				"t": maxf(float(cur.get("t", 0.0)), float(params.get("duration", 3.0)))}
-		"poison":
-			var cur: Dictionary = statuses.get("poison", {"stacks": []})
-			var stacks: Array = cur["stacks"]
-			stacks.append({"dps": float(params.get("dps", 4.0)), "t": float(params.get("duration", 5.0))})
-			while stacks.size() > maxi(1, int(params.get("stacks", 1))):
-				stacks.pop_front()
-			statuses["poison"] = {"stacks": stacks}
-		"chill":
-			var cur: Dictionary = statuses.get("chill", {})
-			statuses["chill"] = {"slow": maxf(float(cur.get("slow", 0.0)), float(params.get("slow", 0.3))),
-				"t": maxf(float(cur.get("t", 0.0)), float(params.get("duration", 3.0)))}
-		"freeze", "stun":
-			if is_boss:
-				_stun_t = maxf(_stun_t, float(params.get("duration", 1.0)) * 0.35)
-			else:
-				_stun_t = maxf(_stun_t, float(params.get("duration", 1.0)))
-			_attack_anim_started = false
-			if visual != null:
-				visual.flash(Color(0.55, 0.85, 1.0) if kind == "freeze" else Color(1.0, 0.95, 0.5), 0.4)
-		"sunder":
-			statuses["sunder"] = {"armor": maxf(float(statuses.get("sunder", {}).get("armor", 0.0)), float(params.get("armor", 5.0))),
-				"t": float(params.get("duration", 5.0))}
-		"rally":
-			statuses["rally"] = {"haste": float(params.get("haste", 1.3)), "damage": float(params.get("damage", 1.25)),
-				"t": float(params.get("duration", 6.0))}
-			if visual != null:
-				visual.flash(Color(1.0, 0.8, 0.2), 0.3)
+	var res := status_comp.apply(kind, params, entity_stats)
+	if not bool(res["applied"]):
+		return
+	if kind in ["freeze", "stun", "paralyze"]:
+		_attack_anim_started = false
+		if visual != null:
+			visual.flash(Color(0.55, 0.85, 1.0) if kind == "freeze" else Color(1.0, 0.95, 0.5), 0.4)
+	elif kind == "rally" and visual != null:
+		visual.flash(Color(1.0, 0.8, 0.2), 0.3)
 
 
-func has_status(kind: String) -> bool:
-	return statuses.has(kind) or (kind in ["stun", "freeze"] and _stun_t > 0.0)
-
-
-## Pushes the enemy away and interrupts its attack (mastery Shove / power shots).
-func apply_knockback(dir: Vector3, force: float) -> void:
+## Pushes the enemy away and interrupts its attack (resolved via EntityStats knockback_res & mass).
+func apply_knockback(dir: Vector3, force: float, knockback_power: float = -1.0) -> void:
 	if state == AiState.DEAD:
 		return
+	var kb := entity_stats.resolve_knockback(force, knockback_power)
+	if bool(kb["resisted"]):
+		return
 	var d := Vector3(dir.x, 0.0, dir.z).normalized()
-	_knock_vel = d * force * (0.35 if is_boss else 1.0)
-	if not is_boss:
+	_knock_vel = d * float(kb["impulse"])
+	if bool(kb["interrupts"]):
 		_attack_timer = maxf(_attack_timer, 0.6)
 		_attack_anim_started = false
 
 
-func effective_armor() -> float:
-	return maxf(0.0, armor - float(statuses.get("sunder", {}).get("armor", 0.0)))
-
-
 func _speed_mult() -> float:
-	var m := 1.0 - float(statuses.get("chill", {}).get("slow", 0.0))
-	m *= float(statuses.get("rally", {}).get("haste", 1.0))
+	var m := status_comp.speed_mult()
 	if _berserk:
 		m *= float(traits.get("berserk", {}).get("haste", 1.35))
-	return maxf(0.2, m)
+	return maxf(0.2, m) if not status_comp.is_rooted() else 0.0
 
 
 func _haste() -> float:
-	var h := float(statuses.get("rally", {}).get("haste", 1.0))
+	var h := status_comp.attack_haste_mult()
 	if _berserk:
 		h *= float(traits.get("berserk", {}).get("haste", 1.35))
-	return h * (1.0 - float(statuses.get("chill", {}).get("slow", 0.0)) * 0.5)
+	return h
 
 
-## Damage multiplier from rally / berserk.
 func damage_mult() -> float:
-	var m := float(statuses.get("rally", {}).get("damage", 1.0))
+	var m := status_comp.damage_mult()
 	if _berserk:
 		m *= float(traits.get("berserk", {}).get("damage", 1.25))
 	return m
@@ -660,32 +603,14 @@ func damage_mult() -> float:
 
 func _tick_statuses(delta: float) -> void:
 	_since_hurt += delta
-	var dot := 0.0
-	for k in ["bleed", "burn"]:
-		if statuses.has(k):
-			var st: Dictionary = statuses[k]
-			var d := float(st["dps"]) * delta
-			dot += d
-			_dot_accum[k] = float(_dot_accum.get(k, 0.0)) + d
-			st["t"] = float(st["t"]) - delta
-			if float(st["t"]) <= 0.0:
-				statuses.erase(k)
-	if statuses.has("poison"):
-		var stacks: Array = statuses["poison"]["stacks"]
-		for i in range(stacks.size() - 1, -1, -1):
-			var d := float(stacks[i]["dps"]) * delta
-			dot += d
-			_dot_accum["poison"] = float(_dot_accum.get("poison", 0.0)) + d
-			stacks[i]["t"] = float(stacks[i]["t"]) - delta
-			if float(stacks[i]["t"]) <= 0.0:
-				stacks.remove_at(i)
-		if stacks.is_empty():
-			statuses.erase("poison")
-	for k in ["chill", "sunder", "rally"]:
-		if statuses.has(k):
-			statuses[k]["t"] = float(statuses[k]["t"]) - delta
-			if float(statuses[k]["t"]) <= 0.0:
-				statuses.erase(k)
+	var res := status_comp.tick(delta, entity_stats)
+	var dot := float(res["dot_damage"])
+	var heal := float(res["heal"])
+	var by_kind: Dictionary = res.get("dot_by_kind", {})
+	for k in by_kind.keys():
+		_dot_accum[k] = float(_dot_accum.get(k, 0.0)) + float(by_kind[k])
+	if heal > 0.0:
+		current_health = minf(max_health, current_health + heal)
 	if traits.has("regenerate") and _since_hurt > 4.0 and current_health < max_health:
 		current_health = minf(max_health, current_health + float(traits["regenerate"].get("hps", 3.0)) * delta)
 	_dot_pop_t -= delta
@@ -712,18 +637,19 @@ func _pop_dot_numbers() -> void:
 ## Active statuses as [kind, seconds left, stacks], worst damage-over-time first.
 func status_list() -> Array:
 	var out: Array = []
+	var entries: Dictionary = status_comp.entries
 	for k in ["burn", "bleed", "poison", "chill", "sunder"]:
-		if not statuses.has(k):
+		if not entries.has(k):
 			continue
 		if k == "poison":
 			var mt := 0.0
-			for st in statuses["poison"]["stacks"]:
+			for st in entries["poison"]["stacks"]:
 				mt = maxf(mt, float(st["t"]))
-			out.append([k, mt, (statuses["poison"]["stacks"] as Array).size()])
+			out.append([k, mt, (entries["poison"]["stacks"] as Array).size()])
 		else:
-			out.append([k, float(statuses[k]["t"]), 1])
-	if _stun_t > 0.0:
-		out.append(["stun", _stun_t, 1])
+			out.append([k, float(entries[k]["t"]), 1])
+	if status_comp.stun_t > 0.0:
+		out.append(["stun", status_comp.stun_t, 1])
 	return out
 
 
@@ -731,7 +657,7 @@ func status_list() -> Array:
 func _sync_status_visuals() -> void:
 	var active := {}
 	for k in ["burn", "bleed", "poison", "chill"]:
-		if statuses.has(k):
+		if status_comp.entries.has(k):
 			active[k] = true
 	for k in _status_fx.keys():
 		if not active.has(k):
@@ -753,12 +679,12 @@ func _sync_status_visuals() -> void:
 	if _health_mat != null:
 		var fill := Color(0.86, 0.16, 0.12, 1.0)
 		for k in ["poison", "burn", "bleed"]:
-			if statuses.has(k):
+			if status_comp.entries.has(k):
 				var c: Color = STATUS_COLORS[k]
 				fill = Color(c.r, c.g, c.b, 1.0).lerp(Color(1, 1, 1, 1), 0.12 + 0.12 * sin(_anim_time * 9.0))
 				break
 		_health_mat.set_shader_parameter("fill_color", fill)
-	if not statuses.is_empty() or _stun_t > 0.0:
+	if not status_comp.entries.is_empty() or status_comp.stun_t > 0.0:
 		_bar_visible_t = maxf(_bar_visible_t, 0.5)
 
 
@@ -842,156 +768,11 @@ func _do_war_cry() -> void:
 			EventBus.sfx_requested.emit("door_seal")
 
 
-## Direction to move toward `target`: straight when close with a clear view, otherwise along an A* tile path
-## around walls and props; sidesteps and re-plans when it stops making progress (FB-014).
-func _steer_toward(target: Vector3, dist: float, delta: float) -> Vector3:
-	var flat := Vector3(target.x - global_position.x, 0.0, target.z - global_position.z)
-	# progress / stuck tracking
-	var moved := Vector2(global_position.x - _last_pos.x, global_position.z - _last_pos.z).length()
-	_last_pos = global_position
-	_stuck_t = _stuck_t + delta if moved < move_speed * delta * 0.25 else maxf(0.0, _stuck_t - delta * 2.0)
-	if _sidestep_t > 0.0:
-		_sidestep_t -= delta
-		return _sidestep_dir
-	if _stuck_t > 0.8:
-		_stuck_t = 0.0
-		_sidestep_t = 0.45
-		var side := Vector3(-flat.z, 0.0, flat.x).normalized()
-		_sidestep_dir = side * (1.0 if (_rng == null or _rng.next_float("ai") < 0.5) else -1.0)
-		_path.clear()
-		return _sidestep_dir
-	var my_t := _layout.world_to_tile(global_position) if _layout != null else Vector2i.ZERO
-	var goal_t := _layout.world_to_tile(target) if _layout != null else Vector2i.ZERO
-	var tile_gap := absi(goal_t.x - my_t.x) + absi(goal_t.y - my_t.y)
-	# FB-022: walk straight at the target whenever the way is open (no zig-zag along tile centres)
-	if _layout == null or tile_gap > 40 or ((dist < 9.0 or (dist < DIRECT_WALK_DIST and _layout.has_tile_los(my_t, goal_t))) and _walk_clear(target, delta)):
-		_path.clear()
-		return flat.normalized() if flat.length() > 0.01 else Vector3.ZERO
-	_repath_t -= delta
-	if _path.is_empty() or goal_t != _path_goal or _repath_t <= 0.0:
-		_path = _layout.find_path(my_t, goal_t)
-		_path_i = 1
-		_path_goal = goal_t
-		_pull_t = 0.0
-		_repath_t = 0.6 + (float(get_instance_id() % 7) * 0.03)
-	while _path_i < _path.size():
-		var wp := _layout.tile_to_world(_path[_path_i])
-		if Vector2(wp.x - global_position.x, wp.z - global_position.z).length() > 0.7:
-			break
-		_path_i += 1
-	if _path_i >= _path.size():
-		return flat.normalized() if flat.length() > 0.01 else Vector3.ZERO
-	# String-pull: head for the farthest waypoint still in a straight, open line (re-checked a few times a second)
-	_pull_t -= delta
-	if _pull_t <= 0.0:
-		_pull_t = 0.2
-		# visibility along a path is close to monotonic: binary-search the farthest waypoint in straight view
-		var lo := _path_i
-		var hi := mini(_path.size() - 1, _path_i + PULL_LOOKAHEAD)
-		if not _layout.has_tile_los(my_t, _path[lo]):
-			hi = lo
-		while lo < hi:
-			var mid := (lo + hi + 1) >> 1
-			if _layout.has_tile_los(my_t, _path[mid]):
-				lo = mid
-			else:
-				hi = mid - 1
-		_pull_i = lo
-	var aim_i := clampi(maxi(_pull_i, _path_i), 0, _path.size() - 1)
-	var aim := goal_t if aim_i == _path.size() - 1 else _path[aim_i]
-	var wp2 := target if aim == goal_t else _layout.tile_to_world(aim)
-	var d := Vector3(wp2.x - global_position.x, 0.0, wp2.z - global_position.z)
-	return d.normalized() if d.length() > 0.01 else (flat.normalized() if flat.length() > 0.01 else Vector3.ZERO)
-
-
-## True when a body-height sweep (centre + both shoulders) to `target` hits no wall or prop: walk straight.
-func _walk_clear(target: Vector3, delta: float) -> bool:
-	_walk_timer -= delta
-	if _walk_timer > 0.0:
-		return _walk_cached
-	_walk_timer = 0.25
-	if not is_inside_tree():
-		_walk_cached = true
-		return true
-	var space := get_world_3d().direct_space_state
-	var to := Vector3(target.x, global_position.y, target.z) - global_position
-	var side := Vector3(-to.z, 0.0, to.x).normalized() * maxf(0.3, body_radius * 0.85)
-	var ex: Array[RID] = [get_rid()]
-	if _player_ref is CollisionObject3D:
-		ex.append((_player_ref as CollisionObject3D).get_rid())
-	_walk_cached = true
-	for off in [Vector3.ZERO, side, -side]:
-		var a: Vector3 = global_position + Vector3(0.0, 0.45, 0.0) + off
-		var q := PhysicsRayQueryParameters3D.create(a, a + to, 1)
-		q.exclude = ex
-		var hit := space.intersect_ray(q)
-		if not hit.is_empty() and not (hit.get("collider") is EnemyActor):
-			_walk_cached = false
-			break
-	return _walk_cached
-
-
-## Idle roaming inside the enemy's own room: walk to a random spot, pause, repeat.
 func _wander(delta: float) -> void:
-	var speed := 0.0
-	if _wander_pause > 0.0:
-		_wander_pause -= delta
-		velocity.x = 0.0
-		velocity.z = 0.0
-	else:
-		if _wander_target == Vector3.INF:
-			_wander_target = _pick_wander_target()
-		var to_t := _wander_target - global_position
-		to_t.y = 0.0
-		if to_t.length() < 0.6:
-			_wander_target = Vector3.INF
-			_wander_pause = _rng.next_float_range("ai", 1.2, 3.8) if _rng != null else 2.0
-			velocity.x = 0.0
-			velocity.z = 0.0
-		else:
-			speed = move_speed * 0.38
-			var dir := to_t.normalized()
-			velocity.x = dir.x * speed
-			velocity.z = dir.z * speed
-			_face_dir(to_t, delta)
-	velocity.y = -4.0 if not is_on_floor() else 0.0
-	move_and_slide()
-	if speed > 0.0 and get_real_velocity().length() < speed * 0.2:
-		_wander_target = Vector3.INF  # bumped into something: pick somewhere else
-		_wander_pause = 0.6
+	var face := locomotion.step_wander(self, delta, move_speed, room_id, spawn_pos, _layout, _rng)
+	if face.length_squared() > 0.001:
+		_face_dir(face, delta)
 	_update_animation(delta, Vector2(velocity.x, velocity.z).length())
-
-
-func _pick_wander_target() -> Vector3:
-	if _layout == null:
-		return spawn_pos
-	var room := _layout.get_room(room_id)
-	if room.is_empty():
-		return spawn_pos
-	var rect: Rect2i = room["rect"]
-	var inner := rect.grow(-1) if rect.size.x > 2 and rect.size.y > 2 else rect
-	var tx := _rng.next_int_range("ai", inner.position.x, inner.end.x - 1) if _rng != null else inner.position.x
-	var ty := _rng.next_int_range("ai", inner.position.y, inner.end.y - 1) if _rng != null else inner.position.y
-	var jitter := Vector3(_rng.next_float_range("ai", -1.2, 1.2), 0.0, _rng.next_float_range("ai", -1.2, 1.2)) if _rng != null else Vector3.ZERO
-	return _layout.tile_to_world(Vector2i(tx, ty)) + jitter + Vector3(0.0, global_position.y, 0.0)
-
-
-## Line of sight to the player through the world geometry (cached for 0.2 s).
-func _sees_player(delta: float) -> bool:
-	_los_timer -= delta
-	if _los_timer > 0.0:
-		return _los_cached
-	_los_timer = 0.2
-	if not is_inside_tree() or _player_ref == null:
-		_los_cached = false
-		return false
-	var from := global_position + Vector3(0.0, 1.5, 0.0)
-	var to := _player_ref.global_position + Vector3(0.0, 1.3, 0.0)
-	var q := PhysicsRayQueryParameters3D.create(from, to, 1)
-	q.exclude = [get_rid(), (_player_ref as CollisionObject3D).get_rid()] if _player_ref is CollisionObject3D else [get_rid()]
-	var hit := get_world_3d().direct_space_state.intersect_ray(q)
-	_los_cached = hit.is_empty() or hit.get("collider") == _player_ref
-	return _los_cached
 
 
 func _anim_speed() -> float:
@@ -999,14 +780,15 @@ func _anim_speed() -> float:
 
 
 func take_damage(amount: float) -> Dictionary:
-	if state == AiState.DEAD:
+	if state == AiState.DEAD or is_invulnerable():
 		return {"killed": false, "damage_taken": 0.0}
 	if state == AiState.DORMANT or state == AiState.IDLE:
 		state = AiState.CHASE
 		if is_boss and not _roared:
 			wake_boss()
 
-	current_health = maxf(0.0, current_health - maxf(1.0, amount))
+	var scaled := maxf(1.0, amount) * status_comp.damage_taken_mult()
+	current_health = maxf(0.0, current_health - scaled)
 	_since_hurt = 0.0
 	if traits.has("berserk") and not _berserk and current_health > 0.0 \
 			and current_health / max_health <= float(traits["berserk"].get("threshold", 0.4)):
@@ -1063,7 +845,7 @@ func detach_visual() -> Node3D:
 	return v
 
 
-func _update_animation(delta: float, horiz_speed: float) -> void:
+func _update_animation(_delta: float, horiz_speed: float) -> void:
 	if visual == null:
 		return
 	var target := "idle"
@@ -1092,7 +874,6 @@ func _update_archer_bowstring() -> void:
 	var nock_local := Vector3(0.0, 0.0, _string_rest_z)
 	if drawing and _grip_r_node != null and is_instance_valid(_grip_r_node):
 		var p_local := _bow_node.to_local(_grip_r_node.global_position)
-		# Clamp nock neatly along the string's draw axis (-Z in Godot bow space)
 		var pull_z := clampf(p_local.z, _string_rest_z - 0.52, _string_rest_z)
 		nock_local = Vector3(clampf(p_local.x, -0.04, 0.04), clampf(p_local.y, -0.05, 0.08), pull_z)
 	if _string_top != null and _string_bot != null:
@@ -1112,15 +893,7 @@ func _update_archer_bowstring() -> void:
 
 
 static func _aim_bow_seg(seg: Node3D, tip: Vector3, target: Vector3) -> void:
-	var d := target - tip
-	var ln := d.length()
-	if ln < 0.0005:
-		return
-	var y := d / ln
-	var x := Vector3.RIGHT if absf(y.dot(Vector3.RIGHT)) < 0.9 else Vector3.FORWARD
-	var z := x.cross(y).normalized()
-	x = y.cross(z).normalized()
-	seg.transform = Transform3D(Basis(x, y * ln, z), tip)
+	ViewmodelRig.aim_segment(seg, tip, target)
 
 
 func _perform_attack(flat_dir: Vector3) -> void:
@@ -1133,14 +906,12 @@ func _perform_attack(flat_dir: Vector3) -> void:
 		var target := _player_ref.global_position + Vector3(0.0, 1.2, 0.0)
 		var vel := (target - origin).normalized() * projectile_speed
 		if projectile_kind == "bomb":
-			# lobbed pot: arcs onto where the player stands
 			var flat := Vector3(target.x - origin.x, 0.0, target.z - origin.z)
 			var t := maxf(0.4, flat.length() / projectile_speed)
 			vel = flat / t
 			vel.y = ((target.y - 1.0) - origin.y + 0.5 * BOMB_GRAVITY * t * t) / t
 		_on_shoot_projectile.call(self, origin, vel, eff_dmg)
 	elif traits.has("ground_slam") and _attack_count % int(traits["ground_slam"].get("every", 3)) == 0:
-		# every Nth blow cracks the floor: hits anywhere inside the slam radius
 		var slam_r := float(traits["ground_slam"].get("radius", 3.5))
 		var burst := VfxFactory.make_impact_burst(Color(0.6, 0.5, 0.35), 40, slam_r)
 		get_parent().add_child(burst)

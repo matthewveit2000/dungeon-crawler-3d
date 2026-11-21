@@ -117,6 +117,8 @@ func _on_body_entered(body: Node3D) -> void:
 		return
 	if not from_player and body.is_in_group("enemies"):
 		return
+	if body is Barrier and (body as Barrier).allows_projectile(from_player, _kind):
+		return
 	if hit_bodies.has(body):
 		return
 	hit_bodies.append(body)

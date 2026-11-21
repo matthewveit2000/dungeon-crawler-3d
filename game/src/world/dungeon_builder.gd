@@ -55,6 +55,7 @@ var _occluder_idx: PackedInt32Array = PackedInt32Array()
 var _reserved_tiles: Dictionary = {}
 var _tile_room: Dictionary = {}
 var _floor_cfg: Dictionary = {}
+var active_theme: FloorTheme = null
 var _stream_specs: Dictionary = {}  ## chunk -> Array[Callable] that spawn that chunk's decor and return the nodes
 var _stream_live: Dictionary = {}  ## chunk -> Array[Node] currently spawned
 var _stream_center := Vector2i(-99999, -99999)
@@ -214,6 +215,7 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 	clear_floor()
 	layout = p_layout
 	_floor_cfg = floor_cfg
+	active_theme = FloorTheme.resolve(floor_cfg)
 	boss_arena_sealed = false
 	vault_unlocked = false
 	traps_disarmed = false
@@ -235,7 +237,7 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 	_world_root = Node3D.new()
 	_world_root.name = "DungeonGeometry"
 	add_child(_world_root)
-	_setup_environment(floor_cfg)
+	_setup_environment(active_theme.to_env_config())
 
 	_static_world = StaticBody3D.new()
 	_static_world.name = "WorldColliders"
@@ -245,6 +247,11 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 
 	var ts := layout.tile_size
 	var wall_h := float(DataLoader.get_world()["grid"]["wall_height_meters"])
+	var kit_dir := active_theme.kit_dir
+	var props_dir := active_theme.props_dir
+	var floor_vars: Array = active_theme.floor_variants
+	var wall_vars: Array = active_theme.wall_variants
+	var torch_wall_vars: Array = active_theme.torch_wall_variants
 	# One infinite floor plane and one ceiling plane replace per-tile slabs: walls enclose every walkable tile,
 	# so nothing can reach the void around the labyrinth (vast floors would otherwise need ~30k slab colliders)
 	for plane_def in [[Plane(Vector3.UP, 0.0), "FloorPlane"], [Plane(Vector3.DOWN, -wall_h), "CeilingPlane"]]:
@@ -254,7 +261,7 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 		wb.plane = plane_def[0]
 		pcol.shape = wb
 		_static_world.add_child(pcol)
-	var torch_color := Color.html(str(floor_cfg.get("torch_color", "#ffa34d")))
+	var torch_color := Color.html(active_theme.torch_color)
 
 	for room in layout.rooms:
 		var rect: Rect2i = room["rect"]
@@ -292,9 +299,9 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 			var pos := layout.tile_to_world(t)
 			var spin := float(rng.next_int_range("gen", 0, 3)) * PI * 0.5
 			if not stairs_centers.has(t):
-				_batch(KIT + FLOOR_VARIANTS[rng.next_int_range("gen", 0, 2)] + ".glb", t, Transform3D(Basis(Vector3.UP, spin), pos))
-			var ceil_name := "ceiling_b" if rng.next_float("gen") < 0.08 else "ceiling_a"
-			_batch(KIT + ceil_name + ".glb", t, Transform3D(Basis(Vector3.UP, spin), pos))
+				_batch(kit_dir + str(floor_vars[rng.next_int_range("gen", 0, floor_vars.size() - 1)]) + ".glb", t, Transform3D(Basis(Vector3.UP, spin), pos))
+			var ceil_name := active_theme.ceiling_alt if rng.next_float("gen") < active_theme.ceiling_alt_chance else active_theme.ceiling_primary
+			_batch(kit_dir + ceil_name + ".glb", t, Transform3D(Basis(Vector3.UP, spin), pos))
 
 			for wd in wall_dirs:
 				var d: Vector2i = wd["d"]
@@ -336,13 +343,13 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 		else:
 			want_torch = (t.x + t.y) % 2 == 0
 		if want_torch:
-			s["variant"] = ["wall_a", "wall_b", "wall_c"][rng.next_int_range("gen", 0, 2)]
+			s["variant"] = str(torch_wall_vars[rng.next_int_range("gen", 0, torch_wall_vars.size() - 1)])
 			torch_slots.append(s)
 			torch_count += 1
 		else:
-			s["variant"] = _pick_weighted(WALL_VARIANTS, rng)
+			s["variant"] = _pick_weighted(wall_vars, rng)
 		var tf := Transform3D(Basis(Vector3.UP, float(s["rot_y"])), s["pos"])
-		_batch(KIT + str(s["variant"]) + ".glb", t, tf)
+		_batch(kit_dir + str(s["variant"]) + ".glb", t, tf)
 
 	for s in torch_slots:
 		_place_torch(s, torch_color, rng)
@@ -355,7 +362,7 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 				for py in [rect.position.y + 1, rect.end.y - 2]:
 					var pt := Vector2i(px, py)
 					var pil_pos := layout.tile_to_world(pt) + Vector3(-ts * 0.5 if px == rect.position.x + 1 else ts * 0.5, 0, -ts * 0.5 if py == rect.position.y + 1 else ts * 0.5)
-					_batch(KIT + "pillar.glb", pt, Transform3D(Basis.IDENTITY, pil_pos))
+					_batch(kit_dir + "pillar.glb", pt, Transform3D(Basis.IDENTITY, pil_pos))
 					_add_box_collider(_static_world, pil_pos + Vector3(0.0, wall_h * 0.5, 0.0), Vector3(0.8, wall_h, 0.8))
 					layout.blocked_corners[Vector2i(px if px == rect.position.x + 1 else px + 1, py if py == rect.position.y + 1 else py + 1)] = true
 		elif str(room["role"]) == "boss":
@@ -364,7 +371,7 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 			for k in range(6):
 				var a := float(k) / 6.0 * TAU + PI / 6.0
 				var pp := c + Vector3(cos(a), 0, sin(a)) * 9.2
-				_batch(KIT + "pillar.glb", room["center"], Transform3D(Basis.IDENTITY, pp))
+				_batch(kit_dir + "pillar.glb", room["center"], Transform3D(Basis.IDENTITY, pp))
 				_add_box_collider(_static_world, pp + Vector3(0.0, wall_h * 0.5, 0.0), Vector3(0.8, wall_h, 0.8))
 
 	_flush_batches()
@@ -399,14 +406,14 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 			_apply_handcrafted_setpiece(setpieces_map[sp_key], center_w, rng)
 		match role:
 			"safe":
-				_build_safe_room_interactables(center_w, Color.html(str(floor_cfg.get("safe_zone_color", "#45e6b8"))), interact_cb)
+				_build_safe_room_interactables(center_w, Color.html(active_theme.safe_zone_color), interact_cb)
 			"stairs":
 				_build_stairs_interactable(center_w, interact_cb)
 			"boss":
 				# Warm key from above keeps the boss readable; the red crucible glow stays low so it reads
 				# as an accent instead of tinting the whole arena through the volumetric fog
 				_add_light(_world_root, center_w + Vector3(0.0, 3.9, 0.0), Color(1.0, 0.72, 0.5), 2.0, 16.0, true)
-				var glow := _add_light(_world_root, center_w + Vector3(0.0, 0.9, 0.0), Color.html(str(floor_cfg.get("boss_color", "#e04838"))), 1.2, 8.0, false)
+				var glow := _add_light(_world_root, center_w + Vector3(0.0, 0.9, 0.0), Color.html(active_theme.boss_color), 1.2, 8.0, false)
 				glow.light_volumetric_fog_energy = 0.35
 			"entrance":
 				_add_light(_world_root, center_w + Vector3(0.0, 3.4, 0.0), Color(1.0, 0.78, 0.55), 1.0, 14.0, false)
@@ -415,8 +422,8 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 		_dress_room(room, room_slots, rng)
 		_add_room_atmosphere(room)
 
-	boss_gate_node = _build_gate(layout.boss_gate_tile, "BossGate", PROPS + "boss_gate.glb", false)
-	vault_gate_node = _build_gate(layout.vault_gate_tile, "VaultGate", PROPS + "vault_gate.glb", true)
+	boss_gate_node = _build_gate(layout.boss_gate_tile, "BossGate", props_dir + "boss_gate.glb", false)
+	vault_gate_node = _build_gate(layout.vault_gate_tile, "VaultGate", props_dir + "vault_gate.glb", true)
 
 	for idx in range(layout.chests.size()):
 		var c: Dictionary = layout.chests[idx]
@@ -672,7 +679,8 @@ func _build_occluder() -> void:
 func _place_arch(edge_pos: Vector3, rot_y: float) -> void:
 	var tile := layout.world_to_tile(edge_pos + Vector3(0.01, 0, 0.01))
 	var basis := Basis(Vector3.UP, rot_y)
-	_batch(KIT + "door_arch.glb", tile, Transform3D(basis, edge_pos))
+	var kit_dir := active_theme.kit_dir if active_theme != null else KIT
+	_batch(kit_dir + "door_arch.glb", tile, Transform3D(basis, edge_pos))
 	var wall_h := float(DataLoader.get_world()["grid"]["wall_height_meters"])
 	for sx in [-1.0, 1.0]:
 		var jp: Vector3 = edge_pos + basis.x * (sx * 1.78)
@@ -830,7 +838,8 @@ const DRESSING_COLLIDE := {"barrel": Vector3(0.8, 1.0, 0.8), "crate": Vector3(0.
 
 func _dress_room(room: Dictionary, wall_slots: Array[Dictionary], rng: SeededRng) -> void:
 	var role := str(room["role"])
-	var options: Array = DRESSING.get(role, DRESSING["combat"])
+	var options: Array = active_theme.dressing_for_role(role, DRESSING) if active_theme != null else DRESSING.get(role, DRESSING["combat"])
+	var props_dir := active_theme.props_dir if active_theme != null else PROPS
 	var rect: Rect2i = room["rect"]
 	var density := float(DataLoader.get_world().get("labyrinth", {}).get("ambient_prop_density", 0.42))
 	var chance := density if role != "boss" else density * 0.6
@@ -847,18 +856,19 @@ func _dress_room(room: Dictionary, wall_slots: Array[Dictionary], rng: SeededRng
 		var kind := _pick_weighted(options, rng)
 		var inward: Vector3 = s["inward"]
 		var along := Basis(Vector3.UP, float(s["rot_y"])).x
-		var depth := float(DRESSING_DEPTH.get(kind, 0.8))
+		var depth := active_theme.prop_depth(kind, float(DRESSING_DEPTH.get(kind, 0.8))) if active_theme != null else float(DRESSING_DEPTH.get(kind, 0.8))
 		var p: Vector3 = s["pos"] + inward * (0.32 + depth * 0.5) + along * rng.next_float_range("gen", -0.9, 0.9)
 		var rot := float(s["rot_y"])
 		if kind in ["barrel", "urn", "crate", "rubble_pile", "bone_pile", "candle_cluster"]:
 			rot += rng.next_float_range("gen", -0.6, 0.6)
 		_spawn_dressing(kind, p, rot, rng)
-		if DRESSING_COLLIDE.has(kind):
+		var has_col := active_theme.has_prop_collider(kind) if active_theme != null else DRESSING_COLLIDE.has(kind)
+		if has_col:
 			layout.nav_weights[t] = maxf(float(layout.nav_weights.get(t, 1.0)), 3.0 if kind in ["sarcophagus", "table", "weapon_rack"] else 2.0)
 		if kind == "barrel" and rng.next_float("gen") < 0.6:
 			_spawn_dressing("barrel", p + along * 0.82 + inward * rng.next_float_range("gen", -0.1, 0.15), rot + 1.3, rng)
 		elif kind == "crate" and rng.next_float("gen") < 0.4:
-			var top := ModelLoader.instantiate_model(PROPS + "crate.glb")
+			var top := ModelLoader.instantiate_model(props_dir + "crate.glb")
 			top.position = p + Vector3(0, 0.87, 0)
 			top.rotation.y = rot + rng.next_float_range("gen", -0.4, 0.4)
 			top.scale = Vector3.ONE * 0.8
@@ -869,8 +879,9 @@ func _dress_room(room: Dictionary, wall_slots: Array[Dictionary], rng: SeededRng
 func _spawn_dressing(kind: String, p: Vector3, rot: float, _rng: SeededRng) -> void:
 	_stream_add(p, _spawn_dressing_visual.bind(kind, p, rot))
 	spawned_dressing_props += 1
-	if DRESSING_COLLIDE.has(kind):
-		var cs: Vector3 = DRESSING_COLLIDE[kind]
+	var has_col := active_theme.has_prop_collider(kind) if active_theme != null else DRESSING_COLLIDE.has(kind)
+	if has_col:
+		var cs: Vector3 = active_theme.prop_collider(kind) if active_theme != null else DRESSING_COLLIDE[kind]
 		var col := CollisionShape3D.new()
 		var box := BoxShape3D.new()
 		box.size = cs
@@ -886,7 +897,8 @@ func _spawn_dressing(kind: String, p: Vector3, rot: float, _rng: SeededRng) -> v
 
 
 func _spawn_dressing_visual(kind: String, p: Vector3, rot: float) -> Array:
-	var n := ModelLoader.instantiate_model(PROPS + kind + ".glb")
+	var props_dir := active_theme.props_dir if active_theme != null else PROPS
+	var n := ModelLoader.instantiate_model(props_dir + kind + ".glb")
 	n.position = p
 	n.rotation.y = rot
 	_world_root.add_child(n)
@@ -1113,7 +1125,8 @@ func _setup_environment(floor_cfg: Dictionary) -> void:
 
 func refresh_environment_quality() -> void:
 	if environment_node != null and is_instance_valid(environment_node):
-		environment_node.environment = build_environment(_floor_cfg, GameSettings.get_quality() if GameSettings != null else 2)
+		var env_cfg := active_theme.to_env_config() if active_theme != null else _floor_cfg
+		environment_node.environment = build_environment(env_cfg, GameSettings.get_quality() if GameSettings != null else 2)
 	update_light_budget()
 
 

@@ -228,7 +228,9 @@ var _status_sig: String = ""
 const STATUS_COLORS := {"buff": Color(0.45, 0.92, 0.62), "debuff": Color(1.0, 0.38, 0.3), "cooldown": Color(0.7, 0.68, 0.62)}
 const STATUS_ICONS := {"haste": "icon_bolt", "ironbark": "icon_shield", "regen": "icon_heart", "renewal": "icon_heart",
 	"ward": "icon_shield", "frenzy": "icon_sword", "riposte": "icon_sword", "slowed": "icon_skull", "queasy": "icon_skull",
-	"second_wind": "icon_heart", "clarity": "icon_diamond", "vigor": "icon_bolt", "fortify": "icon_shield"}
+	"second_wind": "icon_heart", "clarity": "icon_diamond", "vigor": "icon_bolt", "fortify": "icon_shield",
+	"burn": "icon_flame", "bleed": "icon_skull", "poison": "icon_skull", "chill": "icon_skull", "stun": "icon_bolt",
+	"sunder": "icon_shield", "root": "icon_skull", "hasted": "icon_bolt", "enrage": "icon_flame", "invulnerable": "icon_shield"}
 var _damage_flash: float = 0.0
 var _heal_flash: float = 0.0
 var _lowhp_phase: float = 0.0

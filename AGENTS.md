@@ -33,7 +33,7 @@ See [`docs/VISION_AND_CONSTRAINTS.md`](docs/VISION_AND_CONSTRAINTS.md) and [`doc
 
 - **Phase:** `Active Development — Milestone 1 (v0.1 Vertical Slice)`
 - **Pre-Production Alignment:** Completed (`Rounds 0–5`, Decisions `D-001` through `D-027`).
-- **Workflow (`D-050`, standing User rule):** Work **directly on `main`** — no feature branches or pull requests. Keep good notes so any change can be backtracked: small, well-described commits; run the full test suite before every push; log every change in `CHANGELOG.md` and the domain changelogs; and add a `docs/WORK_LOG.md` entry with the commit SHA(s) and how to undo it (`git revert <sha>`). Never force-push or rewrite `main`'s history.
+- **Workflow (`D-050`, `D-056`, standing User rules):** Work **directly on `main`** — no feature branches or pull requests. Keep good notes so any change can be backtracked: small, well-described commits; run the full test suite before every push; log every change in `CHANGELOG.md` and the domain changelogs; and add a `docs/WORK_LOG.md` entry with the commit SHA(s) and how to undo it (`git revert <sha>`). Never force-push or rewrite `main`'s history. **Always end every response after an edit with the exact copy-paste git command for the User to sync their local folder with GitHub** (to `main`, or to the specific branch if a branch is used).
 
 ---
 
@@ -44,7 +44,7 @@ See [`docs/VISION_AND_CONSTRAINTS.md`](docs/VISION_AND_CONSTRAINTS.md) and [`doc
 - **User = Product Owner & Creative Director:** Owns vision, feel, fun, art taste, scope approvals, and milestone PR sign-off.
 - **AI = Full Technical Lead, Engineer & Technical Artist:** Owns all architecture, code cleanliness/organization, libraries, automated testing, CI, documentation/changelogs, minor balance tuning (logged), and Blender 3D asset execution.
 - **Ask First ONLY For:** (1) Core gameplay feel / Skyrim north star changes, (2) Art style direction & batched 3D preview approvals, (3) Major scope changes, (4) Major irreversible tech/platform choices.
-- **Workflow & Communication:** Plain-English, jargon-free updates with proactive push-back authority. Commit and push directly to `main` (`D-050`), keep CI green, and keep `docs/WORK_LOG.md` up to date so every change can be traced and reverted. Only request manual playtesting at meaningful playable milestones and visual review via batched Blender preview renders.
+- **Workflow & Communication:** Plain-English, jargon-free updates with proactive push-back authority. Commit and push directly to `main` (`D-050`), keep CI green, keep `docs/WORK_LOG.md` up to date so every change can be traced and reverted, and **always include the local GitHub sync command** (`D-056`) after any edit. Only request manual playtesting at meaningful playable milestones and visual review via batched Blender preview renders.
 
 ---
 
@@ -82,12 +82,13 @@ Because this repository must be seamlessly usable by **any AI tool** across sess
 3. `docs/ROLES_AND_GOVERNANCE.md`
 4. `docs/VISION_AND_CONSTRAINTS.md`
 5. `docs/GAME_DESIGN.md`
-6. `docs/CONTENT_CATALOG.md` (planned & brainstormed enemies, magic tomes, items, arenas, unified entity stats)
-7. `docs/ARCHITECTURE.md`
-8. `docs/ART_PIPELINE.md`
-9. `docs/TESTING_STRATEGY.md`
-10. `docs/PLAYTEST_GUIDE.md`
-11. `docs/ROADMAP.md`
-12. `docs/DECISION_LOG.md`
-13. `docs/ALIGNMENT_LOG.md`
-14. `CHANGELOG.md` and `docs/changelogs/`
+6. `docs/IDEAS_BACKLOG.md` (Future Ideas Vault — capture raw User "word-vomit" ideas here with `IDEA-###` per `D-053`; do not implement until asked)
+7. `docs/CONTENT_CATALOG.md` (planned & brainstormed enemies, magic tomes, items, abilities, themes, companions, arenas, unified entity stats)
+8. `docs/ARCHITECTURE.md`
+9. `docs/ART_PIPELINE.md`
+10. `docs/TESTING_STRATEGY.md`
+11. `docs/PLAYTEST_GUIDE.md`
+12. `docs/ROADMAP.md`
+13. `docs/DECISION_LOG.md`
+14. `docs/ALIGNMENT_LOG.md`
+15. `CHANGELOG.md` and `docs/changelogs/`
