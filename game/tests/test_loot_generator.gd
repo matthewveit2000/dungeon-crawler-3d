@@ -34,8 +34,9 @@ func test_aggregate_equipment_stats_sums_all_skyrim_slots() -> void:
 		"amulet": DataLoader.get_item_def("bone_ward_amulet"),
 	}
 	var totals := LootGenerator.aggregate_equipment_stats(eq)
-	assert_almost_eq(float(totals["armor"]), 42.0, 0.01)
-	assert_almost_eq(float(totals["bonus_damage"]), 10.0, 0.01)
+	# FB-022: worn items' level-1 passives count too (helm Iron Skin +2 armor, gauntlets Brutal +4 damage)
+	assert_almost_eq(float(totals["armor"]), 42.0 + 2.0, 0.01)
+	assert_almost_eq(float(totals["bonus_damage"]), 10.0 + 4.0, 0.01)
 	assert_almost_eq(float(totals["bonus_health"]), 30.0, 0.01)
 	assert_almost_eq(float(totals["bonus_magicka"]), 25.0, 0.01)
 	assert_true(totals["legendary_effects"].has("explosive_crits"))

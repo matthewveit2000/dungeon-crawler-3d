@@ -162,7 +162,10 @@ func test_combat_quick_loadouts_spells_and_archery_execute_cleanly() -> void:
 func test_melee_combat_kills_enemy_grants_xp_skyrim_skill_use_and_corpse_loot() -> void:
 	var target: EnemyActor = null
 	for child in game.enemies_root.get_children():
-		if child is EnemyActor and not (child as EnemyActor).is_boss:
+		# FB-022: champions (7x health mini-bosses) are not "a regular enemy", and ranged types back away from a sword
+		# by design; enemies are created near the player in spawn order, so pick a melee one explicitly
+		var ea := child as EnemyActor
+		if ea != null and not ea.is_boss and not ea.is_champion and ea.archetype == "melee":
 			target = child as EnemyActor
 			break
 	assert_not_null(target, "Must have a regular enemy to fight")
