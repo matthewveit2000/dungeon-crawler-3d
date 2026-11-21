@@ -31,4 +31,4 @@
 
 
 
-| 2026-11-21 | `cbaa0b9` + merge `MERGE_SHA` | FB-022: exact enemy health bars, straight-walking enemies, 2.5× weaker enemies + champion lairs, power-scale knobs (`balance.json`), hotbar 1–8, stacking consumables/ingredients + vendor quantities, status-effect list, visible damage over time, level-1 abilities + level-up instructions, safe-room area maps, full removal of the TV-show/sponsor theme (merged onto the D-055 refactor) | FB-022, `D-057` | `git revert -m 1 MERGE_SHA` (undoes the whole round) |
+| 2026-11-21 | `cbaa0b9` + merge `665d75a` | FB-022: exact enemy health bars, straight-walking enemies, 2.5× weaker enemies + champion lairs, power-scale knobs (`balance.json`), hotbar 1–8, stacking consumables/ingredients + vendor quantities, status-effect list, visible damage over time, level-1 abilities + level-up instructions, safe-room area maps, full removal of the TV-show/sponsor theme (merged onto the D-055 refactor) | FB-022, `D-057` | `git revert -m 1 665d75a` (undoes the whole round) |
