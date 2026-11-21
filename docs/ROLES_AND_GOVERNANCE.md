@@ -65,6 +65,7 @@ The AI **MUST stop and get explicit User approval** before proceeding on any of 
 - **Current rule — work directly on `main` (`D-050`, User: "I always want you edit main directly. Just keep good notes so we can back track if needed"):**
   - The AI commits and pushes straight to `main`; no feature branches or pull requests.
   - `D-058` (User: "you should always automatically merge to main unless I tell you to create a branch"): if a session or tool starts on a branch, the AI merges the finished, tested work into `main` and pushes it without asking; a branch is kept only when the User asks for one.
+  - `D-059`: commands for the User always come in one code block, one command per line, so the whole block can be pasted at once (PowerShell-friendly, no `&&`).
   - **Notes for backtracking:** small, self-contained commits with descriptive messages; `CHANGELOG.md` + domain changelogs updated in the same commit; a `docs/WORK_LOG.md` entry per change with the commit SHA(s), what changed and how to undo it (`git revert <sha>`, or `git revert -m 1 <merge-sha>` for the older PR merges).
   - The full automated test suite runs locally before every push and CI must stay green on `main`; a red `main` is fixed immediately.
   - `main`'s history is never rewritten (no force-push, rebase or amend of pushed commits).

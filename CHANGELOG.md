@@ -10,6 +10,7 @@ For detailed domain-specific logs (design, art, architecture, testing), see [`do
 ## [Unreleased]
 
 ### Added
+- **2026-11-21 — Communication: Commands in One Paste-Ready Block (`D-059`, `FB-024`):** command sequences for the User come in a single code block, one per line.
 - **2026-11-21 — Workflow: Always Merge to `main` Automatically (`D-058`, `FB-023`):** reaffirms `D-050` — branch-started sessions merge finished, tested work into `main` without asking; branches only on request. FB-022 work merged into `main`.
 - **2026-11-21 — FB-022: Own Identity, Swarms & Champions, Power-Scale Knobs, Hotbar, Stacks, Area Maps, Visible DoT (`D-057`):**
   - **Fixed:** enemy health bars emptied at ~half health (billboarded quads ignore scale); now a shader bar shows the exact ratio. Enemies no longer stair-step: paths are string-pulled into straight lines (`FloorLayout.has_tile_los`, pillar corners registered).

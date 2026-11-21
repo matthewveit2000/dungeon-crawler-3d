@@ -172,3 +172,6 @@ distinct request as its own line with its status (`Done`, `Partial`, `Open`, `Pr
 ### FB-023 — "merge to main. you should always automatically merge to main unless I tell you to create a branch"
 - Merged the FB-022 work (branch `claude/adoring-pascal-57hgro`) into `main`. — `Done` — `D-058`
 - **Standing rule (reaffirms `D-050`):** always land work on `main` automatically, even when a tool or session starts on a branch; only keep work on a separate branch when the User explicitly asks for one. — `Done` — `D-058` — Guard: `AGENTS.md` §2, `docs/ROLES_AND_GOVERNANCE.md` §6
+
+### FB-024 — "Note that you should always give me commands broken out by line item in the same code block so that I can just copy and paste the entire thing into the command line"
+- **Standing rule:** every set of commands for the User goes in ONE code block, one command per line, so the whole block can be pasted into the terminal at once (PowerShell-friendly: no `&&`). — `Done` — `D-059` — Guard: `AGENTS.md` §2, `docs/ROLES_AND_GOVERNANCE.md` §6
