@@ -10,6 +10,7 @@ For detailed domain-specific logs (design, art, architecture, testing), see [`do
 ## [Unreleased]
 
 ### Added
+- **2026-11-21 — Workflow: Always Merge to `main` Automatically (`D-058`, `FB-023`):** reaffirms `D-050` — branch-started sessions merge finished, tested work into `main` without asking; branches only on request. FB-022 work merged into `main`.
 - **2026-11-21 — FB-022: Own Identity, Swarms & Champions, Power-Scale Knobs, Hotbar, Stacks, Area Maps, Visible DoT (`D-057`):**
   - **Fixed:** enemy health bars emptied at ~half health (billboarded quads ignore scale); now a shader bar shows the exact ratio. Enemies no longer stair-step: paths are string-pulled into straight lines (`FloorLayout.has_tile_los`, pillar corners registered).
   - **More, weaker enemies:** 2.5× enemy budget (1,100 on Floor 1), each type ~0.42× health / ~0.55× damage / ~0.45× xp & gold; enemies are created only within 100 m of the player.

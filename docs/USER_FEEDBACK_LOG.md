@@ -168,3 +168,7 @@ distinct request as its own line with its status (`Done`, `Partial`, `Open`, `Pr
 - Boss fights more common (champion lairs: titled mini-bosses with a boss health bar, roar, enrage and guaranteed loot). — `Done` — `D-057` — Guard: `test_champion_lairs_make_boss_fights_common`
 - Damage over time more visible (burning / bleeding / poison / frost effects on the body, coloured tick numbers, status line under the name, DoT-coloured health bar). — `Done` — `D-057` — Guard: `test_damage_over_time_shows_numbers_effects_and_a_status_line`
 - Regression check: the FB-013 guard "very hard at the start of a floor, easier as you scale" now measures a typical pack (two weak draugr ≈ the old single draugr; three overwhelm a fresh player) and still requires the same pack to become clearly easier once scaled. — `Done` — Guard: `test_floor_starts_very_hard_and_gets_easier_as_the_player_scales`
+
+### FB-023 — "merge to main. you should always automatically merge to main unless I tell you to create a branch"
+- Merged the FB-022 work (branch `claude/adoring-pascal-57hgro`) into `main`. — `Done` — `D-058`
+- **Standing rule (reaffirms `D-050`):** always land work on `main` automatically, even when a tool or session starts on a branch; only keep work on a separate branch when the User explicitly asks for one. — `Done` — `D-058` — Guard: `AGENTS.md` §2, `docs/ROLES_AND_GOVERNANCE.md` §6
