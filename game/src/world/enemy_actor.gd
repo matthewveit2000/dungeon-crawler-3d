@@ -5,9 +5,9 @@ extends CombatActor
 ## Preserves exact aggro, melee/ranged attacks, Safe Room repulsion (D-021), Boss Arena dormancy/enrage (D-022),
 ## impact-synced skeletal clips (D-033), A* pathfinding (D-048), and level-scaled traits (D-049, D-052).
 
-## Seconds from the start of each attack clip to its impact frame (clip timing authored in Blender).
+## Seconds from the start of each premade CC0 attack clip to its visual impact frame (D-060).
 const BOMB_GRAVITY := 9.0
-const IMPACT_TIME := {"attack_1h": 0.47, "attack_2h": 0.6, "shoot": 1.08, "slam": 0.6}
+const IMPACT_TIME := {"attack_1h": 0.42, "attack_2h": 0.50, "shoot": 1.20, "slam": 0.65}
 const HEARING_RADIUS := ActorBrain.HEARING_RADIUS
 const LOSE_SIGHT_SEC := ActorBrain.LOSE_SIGHT_SEC
 const LEASH_MULT := ActorBrain.LEASH_MULT

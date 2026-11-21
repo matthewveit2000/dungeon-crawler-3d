@@ -1,4 +1,6 @@
-"""Biomechanical character animation library (30 FPS, quaternion-sampled, 2-bone IK + ground contact).
+"""[SUPERSEDED on branch trial/premade-animations by premade_retarget.py (D-060 / FB-025)]
+
+Legacy biomechanical procedural character animation library (30 FPS, quaternion-sampled, 2-bone IK + ground contact).
 
 Every character animation is authored in armature space (+X left, -Y forward, +Z up, floor at z=0)
 relative to each rig's true skeleton proportions so 1.25m goblins, 1.84m crawlers and 2.95m bosses

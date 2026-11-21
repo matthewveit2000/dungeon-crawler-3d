@@ -19,7 +19,7 @@ import bmesh  # noqa: E402
 import bpy  # noqa: E402
 from mathutils import Matrix, Vector  # noqa: E402
 
-from dclib import char_anims, core, render, rig, shapes  # noqa: E402
+from dclib import core, premade_retarget, render, rig, shapes  # noqa: E402
 from build_props import make_bone, make_skull  # noqa: E402
 
 FPS = 30
@@ -883,7 +883,7 @@ def draw_hold_keys(style):
 def animate(arm_ob, style, extra=()):
     grip_r = next((c for c in arm_ob.children if c.name.startswith("GripR")), None)
     grip_l = next((c for c in arm_ob.children if c.name.startswith("GripL")), None)
-    char_anims.animate_character(arm_ob, style, extra, grip_r=grip_r, grip_l=grip_l)
+    premade_retarget.animate_character(arm_ob, style, extra, grip_r=grip_r, grip_l=grip_l)
 
 
 CHARACTERS = {

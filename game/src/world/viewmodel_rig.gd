@@ -6,10 +6,13 @@ extends RefCounted
 ## Preserves pixel-for-pixel identical framing, blade-away rule (D-048), and test hooks.
 
 const GEAR_DIR := "res://assets/models/gear/"
+const FP_ANIMS_PATH := "res://data/fp_animations.json"
 const TRAIL_LIFE := 0.095
 
 # ---------------------------------------------------------------------------
-# First-person pose library (D-040)
+# First-person rig geometry & framing anchors (D-040, D-048, D-060)
+# All FP idle/walk/sprint/attack/power/cast/draw/recoil curves come from
+# premade CC0 animations baked in `res://data/fp_animations.json`.
 # Rig space = camera space: +X right, +Y up, -Z forward into the world.
 # ---------------------------------------------------------------------------
 const FP_SHOULDER := Vector3(0.20, -0.30, 0.12)
@@ -19,72 +22,18 @@ const FP_FOREARM := 0.30
 const FP_ELBOW_GRIP := Vector3(0.03, -0.141, 0.271)
 const FP_ELBOW_OPEN := Vector3(0.0, -0.097, 0.226)
 
-# One-handed blade (right hand; off-hand uses mirror image). FB-014 standing rule: blades face away at rest/sprint.
-const FP_SWORD_REST := [Vector3(0.27, -0.29, -0.50), Vector3(-0.10, 0.88, -0.46), Vector3(0.0, 0.46, -0.88)]
-const FP_SWORD_SPRINT := [Vector3(0.24, -0.38, -0.44), Vector3(0.30, 0.55, -0.78), Vector3(0.0, 0.82, 0.58)]
-const FP_SWORD_LIGHT_1 := [
-	[Vector3(0.35, -0.05, -0.36), Vector3(0.30, 0.70, 0.65), Vector3(-0.45, -0.30, -0.84)],
-	[Vector3(0.06, -0.15, -0.60), Vector3(-0.62, 0.22, -0.75), Vector3(-0.35, -0.93, 0.10)],
-	[Vector3(-0.10, -0.33, -0.54), Vector3(-0.70, -0.38, -0.60), Vector3(-0.30, -0.60, 0.74)],
-]
-const FP_SWORD_LIGHT_2 := [
-	[Vector3(-0.06, -0.32, -0.44), Vector3(-0.75, -0.10, 0.25), Vector3(0.40, 0.20, -0.90)],
-	[Vector3(0.08, -0.15, -0.62), Vector3(0.55, 0.30, -0.78), Vector3(0.30, 0.92, 0.25)],
-	[Vector3(0.36, -0.04, -0.44), Vector3(0.62, 0.62, -0.10), Vector3(0.20, 0.40, 0.90)],
-]
-const FP_SWORD_CHARGE := [Vector3(0.32, 0.0, -0.36), Vector3(0.20, 0.80, 0.55), Vector3(-0.20, -0.50, -0.84)]
-const FP_SWORD_POWER := [
-	[Vector3(0.10, -0.10, -0.64), Vector3(-0.55, 0.12, -0.83), Vector3(-0.40, -0.92, 0.0)],
-	[Vector3(-0.08, -0.33, -0.54), Vector3(-0.62, -0.45, -0.64), Vector3(-0.20, -0.55, 0.80)],
-]
-
-# Two-handed axe
+# Two-handed battleaxe leather wrap positions along haft (+Y in weapon space)
 const FP_AXE_HAND_R := 0.47
 const FP_AXE_HAND_L := -0.11
-const FP_AXE_REST := [Vector3(0.30, -0.26, -0.50), Vector3(0.30, 0.80, -0.52), Vector3(-0.25, 0.0, -0.97)]
-const FP_AXE_SPRINT := [Vector3(0.24, -0.34, -0.42), Vector3(0.62, 0.62, -0.48), Vector3(-0.15, 0.0, -0.99)]
-const FP_AXE_LIGHT_1 := [
-	[Vector3(0.36, 0.02, -0.34), Vector3(0.28, 0.55, 0.79), Vector3(0.0, 0.82, -0.57)],
-	[Vector3(0.08, -0.20, -0.58), Vector3(-0.50, 0.25, -0.83), Vector3(-0.45, -0.89, 0.0)],
-	[Vector3(-0.12, -0.34, -0.50), Vector3(-0.72, -0.28, -0.64), Vector3(-0.20, -0.60, 0.77)],
-]
-const FP_AXE_LIGHT_2 := [
-	[Vector3(-0.14, -0.18, -0.40), Vector3(-0.82, 0.30, 0.20), Vector3(0.10, 0.10, -1.0)],
-	[Vector3(0.06, -0.14, -0.62), Vector3(0.05, 0.25, -0.97), Vector3(1.0, 0.0, 0.0)],
-	[Vector3(0.32, -0.10, -0.46), Vector3(0.86, 0.25, -0.05), Vector3(0.0, 0.0, 1.0)],
-]
-const FP_AXE_CHARGE := [Vector3(0.26, 0.10, -0.30), Vector3(0.10, 0.55, 0.83), Vector3(0.0, 0.83, -0.55)]
-const FP_AXE_POWER := [
-	[Vector3(0.16, -0.04, -0.46), Vector3(-0.12, 0.85, -0.52), Vector3(-0.40, -0.45, -0.80)],
-	[Vector3(0.10, -0.26, -0.56), Vector3(-0.30, 0.10, -0.95), Vector3(-0.45, -0.89, 0.0)],
-	[Vector3(0.0, -0.40, -0.50), Vector3(-0.36, -0.25, -0.90), Vector3(-0.30, -0.90, 0.30)],
-]
-const FP_AXE_POWER_TIMES := [0.0, 0.16, 0.30, 0.48, 1.0]
-const FP_AXE_POWER_CURVES := [1.6, 0.9, 0.45, -1.8]
 
-# Spell hands
-const FP_SPELL_REST_R := [Vector3(0.30, -0.31, -0.52), Vector3(-0.30, 0.10, -0.95), Vector3(-0.10, 0.95, 0.30)]
-const FP_SPELL_REST_L := [Vector3(-0.30, -0.31, -0.52), Vector3(0.30, 0.10, -0.95), Vector3(0.10, 0.95, 0.30)]
-const FP_SPELL_CAST_R := [
-	[Vector3(0.33, -0.34, -0.42), Vector3(-0.40, 0.30, -0.87), Vector3(0.0, 0.95, 0.30)],
-	[Vector3(0.14, -0.17, -0.72), Vector3(-0.10, 0.0, -1.0), Vector3(0.0, 0.95, -0.30)],
-	[Vector3(0.17, -0.19, -0.66), Vector3(-0.15, 0.05, -0.99), Vector3(0.0, 0.97, -0.20)],
-]
-
-# Bow
+# Bow framing anchors (modulated by premade Mesh2Motion bow_pull / bow_release curves)
 const FP_BOW_IDLE := [Vector3(-0.30, -0.36, -0.56), Vector3(0.42, 0.84, -0.34), Vector3(0.25, -0.20, -0.95)]
 const FP_BOW_AIM := [Vector3(-0.07, -0.125, -0.62), Vector3(-0.04, 0.998, -0.04), Vector3(0.06, 0.0, -1.0)]
 const FP_BOW_ANCHOR := Vector3(0.085, -0.035, 0.52)
 const FP_BOW_HOOK := Vector3(0.03, -0.035, 0.035)
 const FP_BOW_HAND_REST := Vector3(0.38, -0.60, -0.28)
 
-const FP_SWING_TIMES := [0.0, 0.22, 0.42, 0.60, 1.0]
-const FP_SWING_TIMES_2H := [0.0, 0.26, 0.46, 0.64, 1.0]
-const FP_SWING_CURVES := [0.7, 1.4, 0.5, -1.8]
-const FP_POWER_TIMES := [0.0, 0.30, 0.50, 1.0]
-const FP_POWER_CURVES := [1.9, 0.45, -1.8]
-const FP_CAST_TIMES := [0.0, 0.22, 0.42, 0.62, 1.0]
-const FP_CAST_CURVES := [-1.6, 1.8, 0.5, -1.8]
+static var _fp_bank: Dictionary = {}
 
 # Node references owned under PlayerController's Camera3D and body
 var fp_rig: Node3D = null
@@ -433,23 +382,29 @@ func update_frame(p: PlayerController, delta: float, move_amount: float, is_spri
 	fp_rig.position = Vector3(breathe_x + walk_x + p._look_sway.x, breathe_y + walk_y + p._look_sway.y - p._sprint_blend * 0.03 - equip_drop, 0.0)
 	fp_rig.rotation_degrees = Vector3(p._look_sway.y * 38.0 - ease(p._equip_raise, 2.0) * 16.0, p._look_sway.x * 46.0, -p._look_sway.x * 28.0 - walk_x * 45.0)
 
-	# --- RIGHT HAND ---
-	var r_key: Array = FP_AXE_REST if is_two_hand else FP_SWORD_REST
-	if r_spell:
-		r_key = FP_SPELL_REST_R
-	var sprint_key: Array = FP_AXE_SPRINT if is_two_hand else FP_SWORD_SPRINT
+	# --- RIGHT HAND (premade CC0 clips from res://data/fp_animations.json) ---
+	var walk_u := fposmod(p._walk_bob_phase / TAU, 1.0)
+	var r_key: Array = []
+	if is_two_hand:
+		r_key = sample_clip("axe_idle", p._anim_time * 0.36, true)
+	elif r_spell:
+		r_key = mirror_key(sample_clip("spell_idle_l", p._anim_time * 0.42, true))
+	else:
+		r_key = sample_clip("sword_idle", p._anim_time * 0.45, true)
+		if p._move_blend > 0.01 and not is_bow and not r_shield and p._right_swing_t <= 0.0:
+			var walk_k := sample_clip("sword_walk", walk_u, true)
+			r_key = blend_keys(r_key, walk_k, clampf(p._move_blend * bob_k * (1.0 - p._sprint_blend), 0.0, 1.0))
+
 	if p._sprint_blend > 0.01 and p._right_swing_t <= 0.0 and not is_bow and not r_spell and not r_shield:
-		var sp_pump := sin(p._walk_bob_phase) * bob_k
-		var pumped := [
-			(sprint_key[0] as Vector3) + Vector3(sp_pump * 0.03, cos(p._walk_bob_phase * 2.0) * 0.015 * bob_k, -sp_pump * 0.025),
-			(sprint_key[1] as Vector3) + Vector3(0.0, 0.0, sp_pump * 0.12),
-			sprint_key[2],
-		]
-		r_key = blend_keys(r_key, pumped, ease(p._sprint_blend, -1.5))
+		var sp_clip := "axe_sprint" if is_two_hand else "sword_sprint"
+		var sprint_k := sample_clip(sp_clip, walk_u, true)
+		r_key = blend_keys(r_key, sprint_k, ease(p._sprint_blend, -1.5))
 
 	if p.is_right_holding and not is_bow and str(rh.get("category", "")) == "weapon" and p._right_swing_t <= 0.0:
 		var charge := clampf(p.right_attack_hold / float(p.player_cfg["combat"]["power_attack_hold_sec"]), 0.0, 1.0)
-		r_key = blend_keys(r_key, FP_AXE_CHARGE if is_two_hand else FP_SWORD_CHARGE, ease(charge, -1.8))
+		var ch_clip := "axe_charge" if is_two_hand else "sword_charge"
+		var ch_k := sample_clip(ch_clip, ease(charge, -1.35), false)
+		r_key = blend_keys(r_key, ch_k, clampf(charge * 4.0, 0.0, 1.0))
 		var trem := maxf(0.0, charge - 0.6) / 0.4
 		r_key = [(r_key[0] as Vector3) + Vector3(sin(p._anim_time * 36.0), cos(p._anim_time * 43.0), 0.0) * 0.0025 * trem, r_key[1], r_key[2]]
 
@@ -463,31 +418,24 @@ func update_frame(p: PlayerController, delta: float, move_amount: float, is_spri
 	if p._right_swing_t > 0.0:
 		var u := 1.0 - (p._right_swing_t / maxf(0.01, p._right_swing_dur))
 		var sw := sin(u * PI)
-		var keys: Array = []
-		var times: Array = FP_SWING_TIMES
-		var curves: Array = FP_SWING_CURVES
 		if r_spell:
-			keys = [_swing_start_key] + FP_SPELL_CAST_R + [r_key]
-			times = FP_CAST_TIMES
-			curves = FP_CAST_CURVES
+			r_key = sample_oneshot("spell_cast_l", u, _swing_start_key, r_key, 0.10, 0.14, true)
 		elif p._right_swing_power:
-			keys = [_swing_start_key] + (FP_AXE_POWER if is_two_hand else FP_SWORD_POWER) + [r_key]
-			times = FP_AXE_POWER_TIMES if is_two_hand else FP_POWER_TIMES
-			curves = FP_AXE_POWER_CURVES if is_two_hand else FP_POWER_CURVES
+			var pw_clip := "axe_power" if is_two_hand else "sword_power"
+			r_key = sample_oneshot(pw_clip, u, _swing_start_key, r_key, 0.10, 0.18, false)
 			target_cam_swing = Vector3(-3.2 * sw, 0.4 * sw, 1.0 * sw)
 		elif p._right_combo_step % 2 == 1:
-			keys = [_swing_start_key] + (FP_AXE_LIGHT_1 if is_two_hand else FP_SWORD_LIGHT_1) + [r_key]
+			var l1_clip := "axe_light_1" if is_two_hand else "sword_light_1"
+			r_key = sample_oneshot(l1_clip, u, _swing_start_key, r_key, 0.10, 0.16, false)
 			target_cam_swing = Vector3(-1.2 * sw, 1.6 * sw, 1.6 * sw)
 		else:
-			keys = [_swing_start_key] + (FP_AXE_LIGHT_2 if is_two_hand else FP_SWORD_LIGHT_2) + [r_key]
+			var l2_clip := "axe_light_2" if is_two_hand else "sword_light_2"
+			r_key = sample_oneshot(l2_clip, u, _swing_start_key, r_key, 0.10, 0.16, false)
 			target_cam_swing = Vector3(-0.6 * sw, -1.8 * sw, -1.2 * sw)
-		if is_two_hand and not r_spell and not p._right_swing_power:
-			times = FP_SWING_TIMES_2H
-		r_key = sample_keys(u, keys, times, curves)
 
-	r_key = [(r_key[0] as Vector3) + Vector3(0.0, sin(p._walk_bob_phase + 0.6) * 0.006 * p._move_blend * bob_k, 0.0), r_key[1], r_key[2]]
+	r_key = [(r_key[0] as Vector3) + Vector3(0.0, sin(p._walk_bob_phase + 0.6) * 0.004 * p._move_blend * bob_k, 0.0), r_key[1], r_key[2]]
 
-	# --- LEFT HAND ---
+	# --- LEFT HAND (premade CC0 clips from res://data/fp_animations.json) ---
 	var l_key: Array = []
 	var l_pos := Vector3(-0.36, -0.38, -0.56)
 	var l_quat := Basis.from_euler(Vector3(-6.0, 22.0, -6.0) * (PI / 180.0)).get_rotation_quaternion()
@@ -499,20 +447,25 @@ func update_frame(p: PlayerController, delta: float, move_amount: float, is_spri
 		l_pos = sp[0]
 		l_quat = sp[1]
 	elif lcat == "spell":
-		l_key = FP_SPELL_REST_L
+		l_key = sample_clip("spell_idle_l", p._anim_time * 0.42 + 0.35, true)
 		if p._left_action_t > 0.0:
 			var u2 := 1.0 - (p._left_action_t / maxf(0.01, p._left_action_dur))
-			l_key = sample_keys(u2, [l_key] + mirror_keys(FP_SPELL_CAST_R) + [l_key], FP_CAST_TIMES, FP_CAST_CURVES)
+			l_key = sample_oneshot("spell_cast_l", u2, l_key, l_key, 0.10, 0.14, false)
 	elif not lh.is_empty():
-		l_key = away_edge(mirror_key(FP_SWORD_REST), 0.55)
+		var l_rest := sample_clip("sword_idle", p._anim_time * 0.45 + 0.4, true)
+		if p._move_blend > 0.01 and p._left_action_t <= 0.0:
+			l_rest = blend_keys(l_rest, sample_clip("sword_walk", fposmod(walk_u + 0.5, 1.0), true), clampf(p._move_blend * bob_k * (1.0 - p._sprint_blend), 0.0, 1.0))
+		if p._sprint_blend > 0.01 and p._left_action_t <= 0.0:
+			l_rest = blend_keys(l_rest, sample_clip("sword_sprint", fposmod(walk_u + 0.5, 1.0), true), ease(p._sprint_blend, -1.5))
+		l_key = away_edge(mirror_key(l_rest), 0.55)
 		if p._left_action_t > 0.0:
 			var u3 := 1.0 - (p._left_action_t / maxf(0.01, p._left_action_dur))
 			var sw3 := sin(u3 * PI)
-			var lib: Array = FP_SWORD_LIGHT_1 if p._left_combo_step % 2 == 1 else FP_SWORD_LIGHT_2
-			l_key = sample_keys(u3, [l_key] + mirror_keys(lib) + [l_key], FP_SWING_TIMES, FP_SWING_CURVES)
+			var l_clip := "sword_light_1" if p._left_combo_step % 2 == 1 else "sword_light_2"
+			l_key = sample_oneshot(l_clip, u3, l_key, l_key, 0.10, 0.16, true)
 			target_cam_swing += Vector3(-1.0 * sw3, -1.4 * sw3, -1.4 * sw3) if p._left_combo_step % 2 == 1 else Vector3(-0.5 * sw3, 1.6 * sw3, 1.1 * sw3)
 	if not l_key.is_empty():
-		l_key = [(l_key[0] as Vector3) + Vector3(0.0, sin(p._walk_bob_phase + 2.2) * 0.006 * p._move_blend * bob_k, 0.0), l_key[1], l_key[2]]
+		l_key = [(l_key[0] as Vector3) + Vector3(0.0, sin(p._walk_bob_phase + 2.2) * 0.004 * p._move_blend * bob_k, 0.0), l_key[1], l_key[2]]
 	l_pos.y += sin(p._walk_bob_phase + 2.2) * 0.006 * p._move_blend * bob_k
 
 	# Apply camera bob, shake & subtle melee swing coupling in first-person
@@ -545,7 +498,8 @@ func update_frame(p: PlayerController, delta: float, move_amount: float, is_spri
 	elif not rh.is_empty():
 		_pose_fist(fp_right_anchor, fp_right_weapon_holder, r_key, false, _right_single_edge)
 	else:
-		fp_right_anchor.transform = Transform3D(fist_basis(FP_SWORD_REST[0], FP_SWORD_REST[1], false), FP_SWORD_REST[0])
+		var unarmed_k := sample_clip("sword_idle", p._anim_time * 0.45, true)
+		fp_right_anchor.transform = Transform3D(fist_basis(unarmed_k[0], unarmed_k[1], false), unarmed_k[0])
 	if not is_bow and not is_two_hand:
 		if lcat == "spell":
 			_pose_palm(fp_left_anchor, l_key)
@@ -624,9 +578,10 @@ func _shield_pose(p: PlayerController) -> Array:
 	if p._sprint_blend > 0.01 and p._block_blend < 0.2:
 		pos += Vector3(0.06, -0.06, 0.05) * p._sprint_blend
 	if p._shield_hit_t > 0.0:
-		var bu := 1.0 - (p._shield_hit_t / 0.16)
-		var imp := sin(minf(1.0, bu * 2.2) * PI * 0.5) * exp(-bu * 3.8)
-		pos += Vector3(-0.025, -0.035, 0.13) * imp
+		var bu := clampf(1.0 - (p._shield_hit_t / 0.16), 0.0, 1.0)
+		var sh_disp := sample_curve("shield_hit", bu)
+		var imp := sin(minf(1.0, bu * 2.2) * PI * 0.5) * exp(-bu * 3.2)
+		pos += sh_disp * 0.65 + Vector3(-0.015, -0.02, 0.09) * imp
 		quat = quat * Basis.from_euler(Vector3(16.0, 12.0, -8.0) * imp * (PI / 180.0)).get_rotation_quaternion()
 	return [pos, quat]
 
@@ -689,10 +644,13 @@ func _pose_bow(p: PlayerController) -> void:
 	var reach := ease(clampf(p._bow_reach_blend, 0.0, 1.0), -1.6)
 	var rec := clampf(p._bow_release_recoil, 0.0, 1.0)
 	var raise := maxf(reach, ease(rec, 0.5))
-	var pull := ease(clampf(p._draw_blend, 0.0, 1.0), 0.85) * reach
+	var draw_u := clampf(p._draw_blend, 0.0, 1.0)
+	var bd := sample_curve("bow_draw", draw_u)
+	var pull := clampf(lerpf(draw_u, bd.x, 0.65), 0.0, 1.0) * reach
 	var k := blend_keys(FP_BOW_IDLE, FP_BOW_AIM, raise)
 	var kick := rec * rec
-	var bow_pos: Vector3 = (k[0] as Vector3) + Vector3(-0.006, -0.012, -0.03) * kick
+	var rel_off := sample_curve("bow_release", 1.0 - rec) if rec > 0.01 else Vector3.ZERO
+	var bow_pos: Vector3 = (k[0] as Vector3) + Vector3(bd.y * 0.25, bd.z * 0.25, 0.0) * reach + (Vector3(-0.006, -0.012, -0.03) + rel_off * 0.22) * kick
 	if pull > 0.75:
 		bow_pos += Vector3(sin(p._anim_time * 2.1), cos(p._anim_time * 1.7), 0.0) * 0.002 * (pull - 0.75) / 0.25
 	var bow_axis := ((k[1] as Vector3) + Vector3(0.0, 0.0, -0.25) * kick).normalized()
@@ -765,6 +723,98 @@ func _update_blade_trail(p: PlayerController) -> void:
 	im.surface_end()
 
 
+# --- Premade CC0 First-Person Clip Bank (D-060 / FB-025) ----------------------
+
+static func get_fp_bank() -> Dictionary:
+	if _fp_bank.is_empty():
+		var txt := FileAccess.get_file_as_string(FP_ANIMS_PATH)
+		var parsed: Variant = JSON.parse_string(txt)
+		if parsed is Dictionary:
+			var clips_out: Dictionary = {}
+			var raw_clips: Dictionary = parsed.get("clips", {})
+			for k in raw_clips:
+				var c: Dictionary = raw_clips[k]
+				var frames_out: Array = []
+				for fr in c.get("frames", []):
+					var p: Array = fr[0]
+					var d: Array = fr[1]
+					var e: Array = fr[2]
+					frames_out.append([
+						Vector3(float(p[0]), float(p[1]), float(p[2])),
+						Vector3(float(d[0]), float(d[1]), float(d[2])),
+						Vector3(float(e[0]), float(e[1]), float(e[2])),
+					])
+				clips_out[k] = {
+					"source": str(c.get("source", "")),
+					"license": str(c.get("license", "")),
+					"fps": float(c.get("fps", 30.0)),
+					"frames": frames_out,
+				}
+			var curves_out: Dictionary = {}
+			var raw_curves: Dictionary = parsed.get("curves", {})
+			for k in raw_curves:
+				var cv: Dictionary = raw_curves[k]
+				var pts: Array = []
+				for s in cv.get("samples", []):
+					pts.append(Vector3(float(s[0]), float(s[1]), float(s[2])))
+				curves_out[k] = {"source": str(cv.get("source", "")), "samples": pts}
+			_fp_bank = {
+				"schema": str(parsed.get("schema", "")),
+				"license": str(parsed.get("license", "")),
+				"sources": parsed.get("sources", []),
+				"clips": clips_out,
+				"curves": curves_out,
+			}
+	return _fp_bank
+
+
+static func sample_clip(clip_name: String, u: float, cyclic: bool = false) -> Array:
+	var bank := get_fp_bank()
+	var clips: Dictionary = bank.get("clips", {})
+	if not clips.has(clip_name):
+		return [Vector3(0.27, -0.29, -0.50), Vector3(-0.10, 0.88, -0.46).normalized(), Vector3(0.0, 0.46, -0.88).normalized()]
+	var frames: Array = clips[clip_name]["frames"]
+	var n := frames.size()
+	if n <= 1:
+		return frames[0]
+	var t_u := fposmod(u, 1.0) if cyclic else clampf(u, 0.0, 1.0)
+	var pos := t_u * float(n - 1)
+	var i0 := int(floor(pos))
+	var i1 := mini(n - 1, i0 + 1)
+	var frac := pos - float(i0)
+	return blend_keys(frames[i0], frames[i1], frac)
+
+
+static func sample_oneshot(clip_name: String, u: float, start_key: Array, end_key: Array, blend_in: float = 0.10, blend_out: float = 0.16, mirror_x: bool = false) -> Array:
+	var k := sample_clip(clip_name, u, false)
+	if mirror_x:
+		k = mirror_key(k)
+	if blend_in > 0.0 and u < blend_in and not start_key.is_empty():
+		var wi := smoothstep(0.0, blend_in, u)
+		k = blend_keys(start_key, k, wi)
+	if blend_out > 0.0 and u > 1.0 - blend_out and not end_key.is_empty():
+		var wo := smoothstep(1.0 - blend_out, 1.0, u)
+		k = blend_keys(k, end_key, wo)
+	return k
+
+
+static func sample_curve(curve_name: String, u: float) -> Vector3:
+	var bank := get_fp_bank()
+	var curves: Dictionary = bank.get("curves", {})
+	if not curves.has(curve_name):
+		return Vector3.ZERO
+	var pts: Array = curves[curve_name]["samples"]
+	var n := pts.size()
+	if n == 0:
+		return Vector3.ZERO
+	if n == 1:
+		return pts[0]
+	var pos := clampf(u, 0.0, 1.0) * float(n - 1)
+	var i0 := int(floor(pos))
+	var i1 := mini(n - 1, i0 + 1)
+	return (pts[i0] as Vector3).lerp(pts[i1] as Vector3, pos - float(i0))
+
+
 # --- Pure Math & Rig Helpers --------------------------------------------------
 
 func _arm(model_name: String) -> Node3D:
@@ -817,7 +867,15 @@ static func fist_basis(hand: Vector3, grip_dir: Vector3, left: bool, pole_overri
 	var s := -1.0 if left else 1.0
 	var shoulder := Vector3(FP_SHOULDER.x * s, FP_SHOULDER.y, FP_SHOULDER.z)
 	var pole := pole_override if pole_override != Vector3.ZERO else Vector3(FP_ELBOW_POLE.x * s, FP_ELBOW_POLE.y, FP_ELBOW_POLE.z)
-	return hand_basis(grip_dir, ik_elbow(shoulder, hand, pole) - hand)
+	var forearm := (ik_elbow(shoulder, hand, pole) - hand).normalized()
+	var g := grip_dir.normalized()
+	# When a horizontal slash drives the blade nearly straight forward (-Z), forearm and -grip_dir
+	# become nearly collinear and Gram-Schmidt projection can flip +Z upward above the wrist.
+	# Smoothly biasing toward the downward-outward elbow pole keeps the elbow anatomically low.
+	var anti := clampf((-g.dot(forearm) - 0.45) / 0.45, 0.0, 1.0)
+	if anti > 0.0:
+		forearm = (forearm + pole.normalized() * (anti * 1.15)).normalized()
+	return hand_basis(g, forearm)
 
 
 static func away_edge(k: Array, reach: float) -> Array:
@@ -843,26 +901,6 @@ static func blend_keys(a: Array, b: Array, t: float) -> Array:
 		(a[1] as Vector3).normalized().slerp((b[1] as Vector3).normalized(), t),
 		(a[2] as Vector3).normalized().slerp((b[2] as Vector3).normalized(), t),
 	]
-
-
-static func sample_keys(u: float, keys: Array, times: Array, curves: Array) -> Array:
-	var n := keys.size()
-	var i := 0
-	while i < n - 2 and u > float(times[i + 1]):
-		i += 1
-	var span := maxf(0.0001, float(times[i + 1]) - float(times[i]))
-	var k := ease(clampf((u - float(times[i])) / span, 0.0, 1.0), float(curves[i]))
-	var a: Array = keys[maxi(i - 1, 0)]
-	var b: Array = keys[i]
-	var c: Array = keys[i + 1]
-	var d: Array = keys[mini(i + 2, n - 1)]
-	var out: Array = [(b[0] as Vector3).cubic_interpolate(c[0], a[0], d[0], k)]
-	for j in [1, 2]:
-		var bj := (b[j] as Vector3).normalized()
-		var cj := (c[j] as Vector3).normalized()
-		var v := bj.cubic_interpolate(cj, (a[j] as Vector3).normalized(), (d[j] as Vector3).normalized(), k)
-		out.append(v.normalized() if v.length() > 0.05 else bj.slerp(cj, k).normalized())
-	return out
 
 
 static func mirror_basis(b: Basis) -> Basis:

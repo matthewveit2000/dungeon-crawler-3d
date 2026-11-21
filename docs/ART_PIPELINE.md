@@ -72,6 +72,17 @@ Preview sheets for review: [`kit room`](../art/previews/batch1_kit_room.png), [`
 ## 6. Validation & Visual QA (`D-009`, `D-028`)
 
 `scripts/validate-assets.py` (CI) checks GLB integrity, per-category triangle budgets (kit 20k, props 30k, gear 12k, characters 32k), required animation clips, material/texture existence, item icons, UI kit and font licences.
-First-person viewmodel animation is data: the `FP_*` pose library in `player_controller.gd` (`D-040`). Iterate on it with `./scripts/fp-pose-probe.sh [out_dir] [sword,axe,spell,bow,shield,dual]`, which renders each move as [player view | side | top] strips in seconds, then confirm in-game with `./scripts/record-anim-review.sh`.
+First-person viewmodel animation is data-driven in `ViewmodelRig` (`game/src/world/viewmodel_rig.gd`), sampling premade CC0 curves from `game/data/fp_animations.json` (`D-060`). Iterate on it with `./scripts/fp-pose-probe.sh [out_dir] [sword,axe,spell,bow,shield,dual]`, which renders each move as `[player view | side | top]` strips in seconds, then confirm in-game with `./scripts/record-anim-review.sh`.
 
 `./scripts/run-visual-qa.sh` captures the real game (Vulkan Forward+, Mesa lavapipe when no GPU) into `art/visual_qa/`: title, every first-person loadout, third-person, staged combat with each enemy, corridor, safe room, boss arena, all menus, death screen and a 40-frame combat clip (`combat_motion.mp4`). `QA_ONLY=fp,tp,...` limits the groups; for quick iterations run the capture scene directly with `QA_OUT=<dir>` (keeps `art/visual_qa/` intact) and optionally `QA_QUALITY=0..3`.
+
+## 7. Premade CC0 Animation Pipeline (`D-060` Trial Branch)
+
+On branch `trial/premade-animations`, all 3rd-person character animations and 1st-person viewmodel animations are retargeted from curated, offline-baked **CC0 1.0 Universal** animation banks (see [`docs/PREMADE_ANIMATIONS_RESEARCH.md`](PREMADE_ANIMATIONS_RESEARCH.md) and `art/premade_anims/SOURCES.md`):
+
+| Stage | Tool | Script | Output |
+|---|---|---|---|
+| Fetch & bake upstream CC0 banks (Mesh2Motion/Quaternius + ItsPogle) | Blender 4.5 | `scripts/fetch-premade-anims.py` | `art/premade_anims/{m2m_human_bank,itspogle_fp_bank}.json.gz` |
+| Retarget 3rd-person clips onto all 6 characters | Blender 4.5 | `art/blender/dclib/premade_retarget.py` (via `build_characters.py`) | `game/assets/models/characters/*.glb` |
+| Extract 1st-person camera-space curves | Python 3 | `scripts/extract-fp-anims.py` | `game/data/fp_animations.json` |
+

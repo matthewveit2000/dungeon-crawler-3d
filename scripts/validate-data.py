@@ -22,6 +22,7 @@ REQUIRED_FILES = [
     "tutorials.json",
     "setpieces.json",
     "balance.json",
+    "fp_animations.json",
 ]
 
 
@@ -214,6 +215,29 @@ def main() -> int:
     for floor in world.get("floors", []):
         if not isinstance(floor.get("power_scale"), (int, float)) or floor["power_scale"] <= 0:
             errors.append(f"world.json: floor {floor.get('floor_number')} needs a positive power_scale")
+
+    # 11. Validate fp_animations.json (D-060 / FB-025 premade CC0 first-person animation bank)
+    fp_anim = packs["fp_animations.json"]
+    if fp_anim.get("schema") != "fp_premade_animations_v1":
+        errors.append("fp_animations.json: expected schema == 'fp_premade_animations_v1'")
+    if fp_anim.get("license") != "CC0-1.0":
+        errors.append("fp_animations.json: D-004/D-060 requires license == 'CC0-1.0'")
+    fp_clips = fp_anim.get("clips", {})
+    for req_clip in [
+        "sword_idle", "sword_walk", "sword_sprint", "sword_light_1", "sword_light_2", "sword_charge", "sword_power",
+        "axe_idle", "axe_sprint", "axe_light_1", "axe_light_2", "axe_charge", "axe_power",
+        "spell_idle_l", "spell_cast_l",
+    ]:
+        c = fp_clips.get(req_clip)
+        if not isinstance(c, dict) or len(c.get("frames", [])) < 6:
+            errors.append(f"fp_animations.json: clip '{req_clip}' missing or has fewer than 6 frames")
+        elif c.get("license") != "CC0-1.0":
+            errors.append(f"fp_animations.json: clip '{req_clip}' must be CC0-1.0")
+    fp_curves = fp_anim.get("curves", {})
+    for req_cv in ["bow_draw", "bow_release", "shield_hit"]:
+        cv = fp_curves.get(req_cv)
+        if not isinstance(cv, dict) or len(cv.get("samples", [])) < 6:
+            errors.append(f"fp_animations.json: curve '{req_cv}' missing or has fewer than 6 samples")
 
     if errors:
         for e in errors:

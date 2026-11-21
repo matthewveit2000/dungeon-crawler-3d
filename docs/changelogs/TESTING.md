@@ -113,3 +113,9 @@ See [`docs/TESTING_STRATEGY.md`](../TESTING_STRATEGY.md) and [`docs/DECISION_LOG
 ## 2026-11-21 — FB-022 Regression Guards (`D-057`)
 - `game/tests/test_feedback_fb022.gd`: exact health bar, more/weaker enemies, on-demand creation, champion lairs, no show/sponsor text left in data/UI, legacy-id save migration, straight walking + string-pulled paths, hotbar, level-up text + level-1 abilities, status list, power-scale knobs, stacks + vendor quantities, safe-room area maps, visible damage over time.
 - Updated: loot/combat tests for legendary effects, the integration test's quest board → area map, FB-015 Hollerer id.
+
+## 2026-11-21 — Premade CC0 Animation Regression Suite (`D-060`, `FB-025`)
+- Added `game/tests/test_premade_animations.gd` (3 tests, 209 assertions): verifies `fp_animations.json` schema, CC0-1.0 provenance, all 15 FP clips + 3 curves, seamless charge→power continuity, anatomical FP elbow posture during `light_1`/`light_2`/`power` slashes (guarding against the horizontal-slash elbow-up flip), and all 6 rigged characters' premade clip rosters and grounded floor-flush deaths.
+- Extended `scripts/validate-data.py` to validate `game/data/fp_animations.json`.
+- Captured and visually inspected full MP4 animation review reels + contact sheets (`./scripts/record-anim-review.sh`) and 3-angle first-person strips (`./scripts/fp-pose-probe.sh`) across all 6 characters and all first-person loadouts.
+

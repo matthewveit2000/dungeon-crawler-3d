@@ -98,3 +98,11 @@ Every screenshot and the 40-frame combat clip from the full Forward+ capture wer
 - `goblin_streamer` → `goblin`: the neon ring-light pole is now a pack-frame with an iron hoop of stolen candles (`CandleHoop` socket, warm light).
 - `ratings_cleaver` → `gravefeast_cleaver` (glowing blood-runes instead of neon rating bars); `sponsored_gauntlets` → `thunderclap_gauntlets`. Old files removed; `batch2`/`batch3` previews re-rendered.
 - Enemy health bar is a single shader-drawn billboard; damage-over-time body effects (fire, blood drips, poison haze, frost aura); HUD hotbar strip and status list.
+
+## 2026-11-21 — Premade Free CC0 Animations Trial (`D-060`, `FB-025`, branch `trial/premade-animations`)
+
+- Curated offline CC0 1.0 animation banks baked via `scripts/fetch-premade-anims.py` into `art/premade_anims/` from pinned commits of **Mesh2Motion (`mesh2motion-assets` / Quaternius UAL 1 & 2, 56 clips)** and **ItsPogle (`Unity-First-Person-Melee`, 9 clips)**; see [`docs/PREMADE_ANIMATIONS_RESEARCH.md`](../PREMADE_ANIMATIONS_RESEARCH.md).
+- Replaced all 3rd-person procedural animations (`char_anims.py`) with `art/blender/dclib/premade_retarget.py` across all 6 characters (`crawler`, `draugr`, `bone_archer`, `goblin`, `iron_warden`, `vendor`) — including T→A calibration, floor-grounded strides & deaths, 2H battleaxe upper-wrap IK lock & `polearm_run` upright orientation, heavy-weapon floor clearance, upright bow alignment, and dual-wield left blade guard. Refreshed `art/previews/batch3_characters.png`.
+- Replaced all hardcoded AI first-person pose arrays in `ViewmodelRig` with `game/data/fp_animations.json` (extracted by `scripts/extract-fp-anims.py`: 15 premade CC0 clips + 3 curves for sword, dual-wield, battleaxe, spells, bow, and shield) and fixed horizontal-slash elbow-up flips in `ViewmodelRig.fist_basis`.
+- Iterated and visually verified every character reel and first-person 3-angle strip via `./scripts/record-anim-review.sh` and `./scripts/fp-pose-probe.sh`.
+
