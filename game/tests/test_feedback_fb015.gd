@@ -68,7 +68,7 @@ func test_world_loot_is_all_common_and_varied() -> void:
 			LootGenerator.world_rarity(DataLoader.get_affixes_pack(), forced), true)
 		assert_eq(str(it.get("rarity", "")), "common", "every world drop is Common for now (%s)" % str(it.get("id")))
 		assert_true((it.get("affixes", []) as Array).is_empty(), "no generic affix rolls")
-		assert_ne(str(it.get("forced_rarity", "")), "legendary", "sponsored uniques stay out of the pool")
+		assert_ne(str(it.get("forced_rarity", "")), "legendary", "legendary relics stay out of the pool")
 		ids[str(it["id"])] = true
 	assert_gte(ids.size(), 28, "a large variety of different items drops (%d kinds)" % ids.size())
 
@@ -322,7 +322,7 @@ func test_enemy_traits_make_each_type_play_differently() -> void:
 	var frost := _enemy_ahead(2.0, -3.0, "frostbound_draugr")
 	game._enemy_hit_player(frost, 10.0, true)
 	assert_true(pl.is_slowed(), "Frostbound hits slow the crawler")
-	var hype := _enemy_ahead(4.0, 0.0, "goblin_hype_man")
+	var hype := _enemy_ahead(4.0, 0.0, "goblin_hollerer")
 	hype._do_war_cry()
 	assert_true(plain.has_status("rally"), "the Hype-Man's war cry rallies nearby enemies")
 

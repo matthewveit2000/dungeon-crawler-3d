@@ -61,7 +61,7 @@
     },
     {
       "id": "crawler_grit",
-      "name": "Crawler's Grit",
+      "name": "Delver's Grit",
       "branch": "survival",
       "description": "+30 Max Health and +20 Max Stamina.",
       "health_bonus": 30.0,

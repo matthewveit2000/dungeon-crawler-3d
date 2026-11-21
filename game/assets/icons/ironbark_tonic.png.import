@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bjssgcf14qsbw"
-path="res://.godot/imported/ratings_cleaver.png-0020870b294cb85cff2d7cd83e8cbee6.ctex"
+uid="uid://dt5rqfxp7sn2u"
+path="res://.godot/imported/ironbark_tonic.png-6812b5e57065b0db8bdafd8815995e05.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/icons/ratings_cleaver.png"
-dest_files=["res://.godot/imported/ratings_cleaver.png-0020870b294cb85cff2d7cd83e8cbee6.ctex"]
+source_file="res://assets/icons/ironbark_tonic.png"
+dest_files=["res://.godot/imported/ironbark_tonic.png-6812b5e57065b0db8bdafd8815995e05.ctex"]
 
 [params]
 

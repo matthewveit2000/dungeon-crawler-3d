@@ -1,8 +1,8 @@
 extends GutTest
-## Automated Tests for Loot Rarity Scaling, Affix Rolling, Sponsored Effects & Stat Aggregation.
+## Automated Tests for Loot Rarity Scaling, Affix Rolling, Legendary Effects & Stat Aggregation.
 
 
-func test_sponsored_loot_always_rolls_sponsored_effect_and_high_value() -> void:
+func test_legendary_loot_always_rolls_legendary_effect_and_high_value() -> void:
 	var items_pack := DataLoader.get_items_pack()
 	var affixes_pack := DataLoader.get_affixes_pack()
 	var rng := SeededRng.new(404)
@@ -10,7 +10,7 @@ func test_sponsored_loot_always_rolls_sponsored_effect_and_high_value() -> void:
 	for i in range(15):
 		var item := LootGenerator.roll_loot(items_pack, affixes_pack, 1, rng, "legendary", true)
 		assert_eq(str(item["rarity"]), "legendary")
-		assert_false(str(item.get("sponsored_effect", "")).is_empty(), "Sponsored loot must have a sponsored_effect")
+		assert_false(str(item.get("legendary_effect", "")).is_empty(), "Legendary loot must have a legendary_effect")
 		assert_gt(int(item["value"]), 100)
 
 
@@ -29,7 +29,7 @@ func test_aggregate_equipment_stats_sums_all_skyrim_slots() -> void:
 	var eq := {
 		"head": DataLoader.get_item_def("iron_horned_helm"),
 		"chest": DataLoader.get_item_def("tattered_crawler_tunic"),
-		"hands": DataLoader.get_item_def("sponsored_gauntlets_boom"),
+		"hands": DataLoader.get_item_def("thunderclap_gauntlets"),
 		"ring": DataLoader.get_item_def("silver_focus_ring"),
 		"amulet": DataLoader.get_item_def("bone_ward_amulet"),
 	}
@@ -38,4 +38,4 @@ func test_aggregate_equipment_stats_sums_all_skyrim_slots() -> void:
 	assert_almost_eq(float(totals["bonus_damage"]), 10.0, 0.01)
 	assert_almost_eq(float(totals["bonus_health"]), 30.0, 0.01)
 	assert_almost_eq(float(totals["bonus_magicka"]), 25.0, 0.01)
-	assert_true(totals["sponsored_effects"].has("explosive_crits"))
+	assert_true(totals["legendary_effects"].has("explosive_crits"))

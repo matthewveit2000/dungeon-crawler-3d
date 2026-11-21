@@ -88,3 +88,10 @@ Detailed record of gameplay systems, rules, tuning, and DCC flavor implemented f
   - **Planned weapons:** `Swift Blade` (1H forward-launch sword: longer lunge & faster cooldown with mastery) and `Titanbreaker Greataxe` (2H knockback axe: further knockback & overcomes higher enemy knockback resistance).
   - Added brainstormed bonus enemies, tomes, gear, and arena/hazard mechanics for iteration.
 
+## 2026-11-21 — FB-022: Swarms, Champions, Power Scaling, Re-Theme (`D-057`)
+- 2.5× enemies per floor, each ~0.42× health / ~0.55× damage / ~0.45× xp & gold; champion lairs (one per ~12 combat rooms, ≥6 per floor).
+- `balance.json` power-scale knobs × floor `power_scale` × per-enemy / per-item `power_scale`.
+- Hotbar 1–8; stacking consumables & ingredients; vendor quantities; status-effect list; visible damage over time.
+- Every gear item has a level-1 ability (starter tier of a later ability or a signature trait); cards explain how to level.
+- Safe-room area maps (40-tile radius) reveal tiles, treasure, champion lairs and landmarks; the quest board became the map board and its +35 g bounty advance was dropped.
+- Re-theme: no TV show / sponsors / Syndicate / achievements; the announcer is the voice of the dungeon; renamed legendary effects, relics and two goblins.

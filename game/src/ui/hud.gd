@@ -55,23 +55,9 @@ class CompassStrip extends Control:
 			var x := cx + nx * (w * 0.46)
 			var id := str(m.get("id", ""))
 			var disc := bool(m.get("discovered", false))
-			var icon_name := "diamond"
-			var col := Color(0.8, 0.78, 0.72)
-			if disc:
-				match id:
-					"safe_room":
-						icon_name = "shield"
-						col = Color(0.36, 0.95, 0.78)
-					"boss_arena":
-						icon_name = "skull"
-						col = Color(1.0, 0.38, 0.3)
-					"vault":
-						icon_name = "chest"
-						col = Color(1.0, 0.82, 0.36)
-					"stairs":
-						icon_name = "stairs"
-						col = Color(0.55, 0.78, 1.0)
-			var t := UiTheme.tex("icon_" + icon_name)
+			var mk := UiTheme.map_mark(id if disc else "")
+			var col: Color = mk[1]
+			var t := UiTheme.tex(str(mk[0]))
 			var s := 22.0
 			var dist := float(m.get("distance", 30.0))
 			col.a = clampf(1.15 - dist / 70.0, 0.45, 1.0) * clampf((1.0 - absf(nx)) * 3.0, 0.0, 1.0)
@@ -233,6 +219,16 @@ var _tut_body: Label = null
 var _tut_action: Label = null
 
 var _vignette: TextureRect = null
+## FB-022 hotbar strip (keys 1-8) and the player's status-effect list with countdowns
+var _hotbar_box: HBoxContainer = null
+var _hotbar_sig: String = ""
+var _hotbar_flash: Array = []
+var _status_box: VBoxContainer = null
+var _status_sig: String = ""
+const STATUS_COLORS := {"buff": Color(0.45, 0.92, 0.62), "debuff": Color(1.0, 0.38, 0.3), "cooldown": Color(0.7, 0.68, 0.62)}
+const STATUS_ICONS := {"haste": "icon_bolt", "ironbark": "icon_shield", "regen": "icon_heart", "renewal": "icon_heart",
+	"ward": "icon_shield", "frenzy": "icon_sword", "riposte": "icon_sword", "slowed": "icon_skull", "queasy": "icon_skull",
+	"second_wind": "icon_heart", "clarity": "icon_diamond", "vigor": "icon_bolt", "fortify": "icon_shield"}
 var _damage_flash: float = 0.0
 var _heal_flash: float = 0.0
 var _lowhp_phase: float = 0.0
@@ -266,7 +262,8 @@ func _ready() -> void:
 			show_toast(null, "%s increased to %d" % [sname.replace("_", " ").capitalize(), lvl], UiTheme.COL_CYAN)
 		)
 		EventBus.item_acquired.connect(func(item: Dictionary) -> void:
-			show_toast(UiTheme.item_icon(item), str(item.get("name", "Item")), UiTheme.rarity_color(str(item.get("rarity", "common"))))
+			var nm := str(item.get("name", "Item")) + (("  ×%d" % int(item["count"])) if int(item.get("count", 1)) > 1 else "")
+			show_toast(UiTheme.item_icon(item), nm, UiTheme.rarity_color(str(item.get("rarity", "common"))))
 		)
 		EventBus.level_up_occurred.connect(show_level_up)
 		EventBus.floor_entered.connect(func(fnum: int, fname: String, _seed: int) -> void:
@@ -418,6 +415,33 @@ func _build_ui() -> void:
 	_hp.reverse = true
 	_sp = _make_vital(UiTheme.COL_STAMINA, 210)
 
+	# --- FB-022 Hotbar (above the vitals) --------------------------------------------------
+	_hotbar_box = HBoxContainer.new()
+	_hotbar_box.name = "Hotbar"
+	_hotbar_box.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_hotbar_box.offset_left = -240
+	_hotbar_box.offset_right = 240
+	_hotbar_box.offset_top = -108
+	_hotbar_box.offset_bottom = -58
+	_hotbar_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	_hotbar_box.add_theme_constant_override("separation", 6)
+	_hotbar_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_hotbar_box)
+
+	# --- FB-022 Status effects (bottom left, above the off hand, growing upward) -------------
+	_status_box = VBoxContainer.new()
+	_status_box.name = "StatusEffects"
+	_status_box.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	_status_box.offset_left = 24
+	_status_box.offset_right = 300
+	_status_box.offset_top = -330
+	_status_box.offset_bottom = -100
+	_status_box.alignment = BoxContainer.ALIGNMENT_END
+	_status_box.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_status_box.add_theme_constant_override("separation", 4)
+	_status_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_status_box)
+
 	# --- Equipped hands (bottom corners) -------------------------------------------------
 	var lb := _make_hand_box(true)
 	_root.add_child(lb)
@@ -444,7 +468,7 @@ func _build_ui() -> void:
 	av.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	av.add_theme_constant_override("separation", 1)
 	ah.add_child(av)
-	_ai_kicker = UiTheme.label("SYNDICATE AI  ·  BROADCAST", 13, UiTheme.COL_CYAN, UiTheme.font_ui_bold())
+	_ai_kicker = UiTheme.label("THE DUNGEON SPEAKS", 13, UiTheme.COL_CYAN, UiTheme.font_ui_bold())
 	av.add_child(_ai_kicker)
 	_ai_title = UiTheme.label("", 18, UiTheme.COL_GOLD_BRIGHT, UiTheme.font_heading())
 	_ai_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -695,6 +719,122 @@ func update_stats(stats: Dictionary) -> void:
 	_potion_lbl.text = ("Q  ·  Health Draught ×%d" % pots) if pots >= 0 else ""
 	_crosshair.draw_ratio = float(stats.get("bow_draw_ratio", 0.0))
 	_crosshair.blocking = bool(stats.get("is_blocking", false))
+	if stats.has("hotbar"):
+		update_hotbar(stats["hotbar"])
+	if stats.has("statuses"):
+		update_statuses(stats["statuses"])
+
+
+## FB-022: redraws the hotbar strip when its contents change. view: one {"item", "count", "equipped"} per slot.
+func update_hotbar(view: Array) -> void:
+	var sig := ""
+	for e in view:
+		sig += "%s:%d:%s|" % [str(e.get("item", {}).get("instance_id", e.get("item", {}).get("id", ""))), int(e.get("count", 0)), str(e.get("equipped", false))] if not e.is_empty() else "-|"
+	if sig == _hotbar_sig:
+		return
+	_hotbar_sig = sig
+	for c in _hotbar_box.get_children():
+		_hotbar_box.remove_child(c)
+		c.free()
+	_hotbar_flash.resize(view.size())
+	for i in range(view.size()):
+		var e: Dictionary = view[i]
+		var item: Dictionary = e.get("item", {})
+		var badge := ""
+		if bool(e.get("stack", false)):
+			badge = "×%d" % int(e.get("count", 0))
+		var slot := UiTheme.item_slot(item, 50, badge)
+		slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		slot.name = "Slot%d" % (i + 1)
+		if not e.is_empty() and bool(e.get("stack", false)) and int(e.get("count", 0)) <= 0:
+			slot.modulate = Color(1, 1, 1, 0.4)
+		var key := UiTheme.label(GameSettings.action_label("hotbar_%d" % (i + 1)) if GameSettings != null else str(i + 1), 13,
+			UiTheme.COL_GOLD_BRIGHT, UiTheme.font_ui_bold())
+		key.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 1))
+		key.position = Vector2(5, 1)
+		slot.add_child(key)
+		if bool(e.get("equipped", false)):
+			var eq := ColorRect.new()
+			eq.color = UiTheme.COL_GOLD_BRIGHT
+			eq.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			eq.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+			eq.offset_top = 1
+			eq.offset_bottom = 4
+			eq.offset_left = 8
+			eq.offset_right = -8
+			slot.add_child(eq)
+		_hotbar_box.add_child(slot)
+
+
+## Brief highlight when a hotbar key is pressed.
+func flash_hotbar_slot(i: int) -> void:
+	if _hotbar_box == null or i < 0 or i >= _hotbar_box.get_child_count():
+		return
+	var slot := _hotbar_box.get_child(i) as Control
+	slot.pivot_offset = slot.size * 0.5
+	var tw := slot.create_tween()
+	tw.tween_property(slot, "scale", Vector2.ONE * 1.12, 0.06)
+	tw.tween_property(slot, "scale", Vector2.ONE, 0.12)
+
+
+## FB-022: every temporary effect on the player with its countdown. statuses from PlayerController.active_statuses().
+func update_statuses(statuses: Array) -> void:
+	var sig := ""
+	for st in statuses:
+		sig += "%s:%d:%d|" % [str(st["id"]), int(ceil(float(st["remaining"]))), int(st.get("stacks", 0))]
+	if sig == _status_sig:
+		# only the bars move between whole seconds
+		for i in range(mini(statuses.size(), _status_box.get_child_count())):
+			var bar := _status_box.get_child(i).find_child("Bar", true, false) as ProgressBar
+			if bar != null:
+				bar.value = clampf(float(statuses[i]["remaining"]) / maxf(0.01, float(statuses[i]["duration"])), 0.0, 1.0)
+		return
+	_status_sig = sig
+	for c in _status_box.get_children():
+		_status_box.remove_child(c)
+		c.free()
+	for st in statuses:
+		_status_box.add_child(_status_row(st))
+
+
+func _status_row(st: Dictionary) -> Control:
+	var col: Color = STATUS_COLORS.get(str(st.get("kind", "buff")), Color.WHITE)
+	var row := PanelContainer.new()
+	row.name = "Status_%s" % str(st["id"])
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_stylebox_override("panel", UiTheme.make_panel_style(Color(0.04, 0.035, 0.03, 0.72), Color(col.r, col.g, col.b, 0.55), 1, 4, 8, 3))
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 1)
+	row.add_child(v)
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 6)
+	v.add_child(h)
+	h.add_child(UiTheme.icon_rect(UiTheme.tex(str(STATUS_ICONS.get(str(st["id"]), "icon_diamond"))), 16, col))
+	var nm := str(st["name"]) + ("  ×%d" % int(st["stacks"]) if int(st.get("stacks", 0)) > 1 else "")
+	var n := UiTheme.label(nm, 15, col, UiTheme.font_ui_semibold())
+	n.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(n)
+	h.add_child(UiTheme.label(_fmt_countdown(float(st["remaining"])), 15, UiTheme.COL_TEXT, UiTheme.font_ui_bold(), HORIZONTAL_ALIGNMENT_RIGHT))
+	var bar := ProgressBar.new()
+	bar.name = "Bar"
+	bar.show_percentage = false
+	bar.custom_minimum_size = Vector2(0, 3)
+	bar.max_value = 1.0
+	bar.value = clampf(float(st["remaining"]) / maxf(0.01, float(st["duration"])), 0.0, 1.0)
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = Color(0, 0, 0, 0.5)
+	var fg := StyleBoxFlat.new()
+	fg.bg_color = col
+	bar.add_theme_stylebox_override("background", bg)
+	bar.add_theme_stylebox_override("fill", fg)
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.add_child(bar)
+	return row
+
+
+static func _fmt_countdown(sec: float) -> String:
+	var s := int(ceil(sec))
+	return "%d:%02d" % [s / 60, s % 60] if s >= 60 else "%ds" % s
 
 
 func update_clock(floor_num: int, floor_name: String, formatted_clock: String) -> void:
@@ -724,18 +864,21 @@ func update_compass(player_yaw_rad: float, markers: Array) -> void:
 	_compass.queue_redraw()
 
 
-func update_boss_bar(visible_flag: bool, boss_name: String = "", hp: float = 0.0, max_hp: float = 1.0) -> void:
+func update_boss_bar(visible_flag: bool, boss_name: String = "", hp: float = 0.0, max_hp: float = 1.0, kind: String = "boss") -> void:
 	_boss_box.visible = visible_flag
 	if visible_flag:
 		var enraged := boss_name.find("[ENRAGED]") >= 0
 		_boss_name_lbl.text = boss_name.replace(" [ENRAGED]", "")
-		_boss_sub.text = "ENRAGED  ·  FURNACE CORE OVERDRIVE" if enraged else "FLOOR BOSS"
+		if kind == "champion":
+			_boss_sub.text = "ENRAGED CHAMPION" if enraged else "CHAMPION"
+		else:
+			_boss_sub.text = "ENRAGED  ·  FURNACE CORE OVERDRIVE" if enraged else "FLOOR BOSS"
 		_boss_sub.add_theme_color_override("font_color", UiTheme.COL_DANGER if enraged else UiTheme.COL_MUTED)
 		_boss_bar.value = clampf(hp / maxf(1.0, max_hp), 0.0, 1.0)
 		_boss_bar.fill_col = Color(0.95, 0.3, 0.08) if enraged else Color(0.78, 0.14, 0.1)
 
 
-## Drops queued/visible broadcasts, toasts and the area title (e.g. after a floor change or teleport).
+## Drops queued/visible announcements, toasts and the area title (e.g. after a floor change or teleport).
 func clear_transient_messages() -> void:
 	if _ai_card == null:
 		return

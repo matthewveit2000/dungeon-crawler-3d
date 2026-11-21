@@ -110,7 +110,7 @@ func _build_ui() -> void:
 	_status_lbl = UiTheme.label("", 22, UiTheme.COL_TEXT, UiTheme.font_ui_semibold())
 	_status_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_info_box.add_child(_status_lbl)
-	_info_box.add_child(UiTheme.body("The Syndicate's broadcast is on hold. While paused, the five-day collapse timer, enemies and traps are frozen. Your game saves your exact position and remaining time whenever you save or quit.", 19, UiTheme.COL_MUTED, true))
+	_info_box.add_child(UiTheme.body("The dungeon holds its breath. While paused, the five-day collapse timer, enemies and traps are frozen. Your game saves your exact position and remaining time whenever you save or quit.", 19, UiTheme.COL_MUTED, true))
 	var tut_row := HBoxContainer.new()
 	tut_row.add_theme_constant_override("separation", 10)
 	_tut_btn = UiTheme.button("Tutorial Hints: On", 230, 17)
@@ -174,7 +174,7 @@ func _build_controls() -> void:
 		["%s %s %s %s" % mv, "Move"], ["Mouse", "Look around"], [GameSettings.action_label("sprint"), "Sprint"],
 		[GameSettings.action_label("jump"), "Jump"], [GameSettings.action_label("right_hand_action"), "Attack — hold for a power attack / draw the bow"],
 		[GameSettings.action_label("left_hand_action"), "Block with shield / cast off-hand spell"], [GameSettings.action_label("interact"), "Open, loot, talk, pull levers"],
-		["1  2  3  4", "Quick loadouts"], [GameSettings.action_label("quick_potion"), "Drink a health draught"],
+		["1 – 8", "Hotbar (weapons, spells, potions)"], [GameSettings.action_label("quick_potion"), "Drink a health draught"],
 		[GameSettings.action_label("toggle_inventory"), "Inventory, character & perks"], [GameSettings.action_label("toggle_map"), "Dungeon map"],
 		[GameSettings.action_label("toggle_camera"), "Switch 1st / 3rd person"], [GameSettings.action_label("dismiss_hint"), "Hide tutorial hint"],
 		["Esc", "Pause / back"],

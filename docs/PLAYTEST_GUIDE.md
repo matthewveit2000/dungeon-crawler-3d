@@ -29,11 +29,11 @@ Choose **Test Mode** on the title screen. You start on a compact floor with ever
 
 | Tab | What you can do |
 |---|---|
-| **Enemies** | Spawn any enemy (including the Iron Warden) 1, 3 or 5 at a time in front of you; kill nearby / all; remove all; freeze AI. |
+| **Enemies** | Spawn any enemy (including the Iron Warden) 1, 3 or 5 at a time in front of you; toggle "spawn as Champion" to get titled mini-bosses (`D-057`); kill nearby / all; remove all; freeze AI. |
 | **Items** | Pick a rarity, then add any item to your bag (or every item at once); +1,000 gold; health potions; open the inventory. |
-| **World** | Place chests (standard / rare / vault), crates, urns, trap levers, spike traps, braziers, lights, a stairwell, a full safe-room kit (vendor, quest board, ward) or any handcrafted room setpiece where you are looking. |
+| **World** | Place chests (standard / rare / vault), crates, urns, trap levers, spike traps, braziers, lights, a stairwell, a full safe-room kit (vendor, area map, ward) or any handcrafted room setpiece where you are looking. |
 | **Player** | God mode, infinite stamina & magicka, +1 / +5 levels, full heal, first / third person, die (tests the floor reset). |
-| **Floor** | Teleport to every room type, open the boss + vault gates, pause / run the floor clock, advance a day, collapse the floor, rebuild the test floor, jump to a real vast floor, next / previous floor. |
+| **Floor** | Teleport to every room type (incl. the nearest champion lair on a vast floor), open the boss + vault gates, pause / run the floor clock, advance a day, collapse the floor, rebuild the test floor, jump to a real vast floor, next / previous floor. |
 
 ## 2. Controls Cheat Sheet (Skyrim-Inspired)
 
@@ -46,8 +46,8 @@ Choose **Test Mode** on the title screen. You start on a compact floor with ever
 | **V** | Toggle **1st-Person** (default) ↔ **3rd-Person Over-the-Shoulder** |
 | **Left Click** | Right-Hand Action (Tap = Light Attack, Hold = Power Attack, or Hold & Release = Draw/Fire Bow) |
 | **Right Click** | Left-Hand Action (Hold = Shield Block, Tap = Off-Hand Swing, or Cast Equipped Spell) |
-| **1 / 2 / 3 / 4** | Quick Loadouts: `1` Sword + Shield · `2` Two-Handed Greatsword · `3` Sword + Firebolt Spell · `4` Hunting Bow |
-| **E** | Interact / Loot (Chests, Crates, Urns, Enemy Corpses, Trap Levers, Safe Room Vendor, Quest Board, Hidden Staircase) |
+| **1 – 8** | Hotbar (`D-057`): equip that weapon / spell / shield, or use one of that potion / ingredient stack. Assign in the inventory: the item's Hotbar 1–8 buttons, or hover it and press 1–8. |
+| **E** | Interact / Loot (Chests, Crates, Urns, Enemy Corpses, Trap Levers, Safe Room Vendor, Area Map, Hidden Staircase) |
 | **Q** | Quick-drink Health Potion |
 | **I** or **Tab** | Open **Inventory & Character** *(pauses the 5-day clock!)* — click to inspect, double-click to equip/use, right-click to equip off-hand, click an equipped slot to unequip; **Skills & Perks** tab for level-up points |
 | **M** | Open the **Dungeon Map** (explored areas, landmarks; mouse wheel zoom, drag to pan) |
@@ -62,11 +62,11 @@ All keys except Esc can be re-bound in **Settings → Controls**.
 ## 3. Recommended 5-Minute `v0.1` Playtest Tour
 
 1. **Feel the Upgraded Visuals, Skyrim Movement & Tutorial Mode:** Start in the handcrafted **Arrival Hall** (carved stone masonry, flaming braziers, crimson runner). Notice the unobtrusive bottom-right **Tutorial Card** (`D-030`) that updates automatically as you first encounter each mechanic (or toggle it OFF anytime in `Esc`). Walk, sprint (`Shift`), jump (`Space`), and press `V` for 3rd-person over-the-shoulder with smooth wall-collision pullback.
-2. **Test Left/Right-Hand Combat & Animations:** Notice the sleek lower-left shield framing (~11% screen area) and sculpted armored gauntlets. Cycle loadouts `1`–`4` against Draugr Raiders, Bone Archers, and **Sponsored Goblin Streamers** (glowing neon ring-light halo + hovering twin-rotor drone!). Block with `Right Click`, land alternating diagonal sword combos and overhead power attacks (`Hold Left Click`), hurl Firebolts (`3` → `Right Click`), and snipe with the bow (`4` → hold & release `Left Click` with FOV zoom).
+2. **Test Left/Right-Hand Combat & Animations:** Notice the sleek lower-left shield framing (~11% screen area) and sculpted armored gauntlets. Use the hotbar keys `1`–`8` against Draugr Raiders, Bone Archers, and **Goblin Glory-Hounds** (glowing neon ring-light halo + hovering twin-rotor drone!). Block with `Right Click`, land alternating diagonal sword combos and overhead power attacks (`Hold Left Click`), hurl Firebolts (`3` → `Right Click`), and snipe with the bow (`4` → hold & release `Left Click` with FOV zoom).
 3. **Loot, Pause & Level Up:** Loot chests and fallen enemy corpses (`E`). Open the dark-fantasy Inventory (`I`) — confirm the 5-day countdown freezes while you equip gear, spend Attribute/Perk points, or inspect your Skyrim use-to-improve weapon/magic skills.
-4. **Visit the Handcrafted Safe Room Sanctuary:** Follow the **Top Compass Bar** (`◆ SAFE`) or type `teleport safe` in the `` ` `` console. Step into the warm hearth-lit Sanctuary with the striped **Merchant Stall**, robed **Safe Room Vendor**, glowing **Sanctuary Beacon**, and **Syndicate Quest Board** — pursuing monsters flee immediately on sight!
+4. **Visit the Handcrafted Safe Room Sanctuary:** Follow the **Top Compass Bar** (`◆ SAFE`) or type `teleport safe` in the `` ` `` console. Step into the warm hearth-lit Sanctuary with the striped **Merchant Stall**, robed **Safe Room Vendor**, glowing **Sanctuary Beacon**, and **Area Map** board (study it to mark the surrounding area, treasure and champion lairs on your map) — pursuing monsters flee immediately on sight!
 5. **Challenge the Handcrafted Boss Crucible & Treasure Vault:** Follow the `☠ BOSS` compass marker (or type `teleport boss`). Step inside — the iron portcullis slams shut behind you as the towering 3m **Iron Warden** strides off the glowing Rune Dais! Defeat him (or type `kill_boss`) to unlock the adjoining gilded **Treasure Vault** packed with guaranteed Sponsored/Mythic loot.
-6. **Test the 5-Day Floor Collapse & Snapshot Reset:** Earn some gold or spawn loot (`spawn_loot common`), then type `advance_days 5.1`. Watch the Syndicate AI collapse toast fire and confirm your run resets cleanly to the start of Floor 1 with your pre-floor inventory/gold intact and a fresh 5-day clock!
+6. **Test the 5-Day Floor Collapse & Snapshot Reset:** Earn some gold or spawn loot (`spawn_loot common`), then type `advance_days 5.1`. Watch the dungeon's collapse announcement fire and confirm your run resets cleanly to the start of Floor 1 with your pre-floor inventory/gold intact and a fresh 5-day clock!
 7. **Descend to Floor 2 (No Preview!) & Save-and-Quit:** Type `teleport stairs`, press `E` on the hidden staircase to descend straight into Floor 2 with zero preview, then press `Esc` → **Save & Quit** and relaunch to confirm you resume in the exact same spot with the exact same remaining time and tutorial progress.
 
 ---
@@ -85,7 +85,7 @@ These shortcuts exist so you never have to grind to inspect any feature:
 | `kill_player` | Triggers a Combat-Death reset to the Floor-Entry Snapshot |
 | `kill_boss` | Defeats the Floor Boss immediately to inspect the Treasure Vault unlock |
 | `spawn_loot <rarity>` | Drops a freshly rolled item (`common`, `uncommon`, `rare`, `epic`, `legendary`) into your bag |
-| `add_gold <N>` | Adds `<N>` Syndicate Gold for testing the Safe Room Vendor |
+| `add_gold <N>` | Adds `<N>` gold for testing the Safe Room Vendor |
 | `add_xp <N>` | Grants `<N>` Character XP to test leveling, attributes & perks |
 | `god` | Toggles invincibility ON/OFF |
 | `camera` | Toggles 1st-Person ↔ 3rd-Person Over-the-Shoulder camera |
@@ -105,3 +105,12 @@ When you review this milestone, let me know:
 1. **Skyrim Feel:** Does movement speed, camera height/FOV, left/right-hand combat, and menu pausing feel right?
 2. **Art Direction (5 Preview Sheets):** Look at `art/previews/batch1_kit_room.png`, `batch1_props.png`, `batch2_weapons_gear.png`, `batch3_characters.png` and `texture_library.png` (plus the live screenshots from `./scripts/run-visual-qa.sh`) — what do you love, and what would you tweak before we expand art in `v0.2`?
 3. **Pacing & Tone:** How do the 5-day floor clock, Safe Room sanctuary, Boss Arena tension, and Dungeon AI snarky banners feel?
+
+## FB-022 Checks (`D-057`)
+
+- **Power scaling:** edit `game/data/balance.json` (global knobs), a floor's `power_scale` in `world.json`, or any enemy's /
+  item's own `power_scale` (1.0 = default; 2.0 = twice as strong). Reload the floor to see it.
+- **Champions:** on a real floor, open the console and type `teleport champion`; a titled mini-boss guards the room.
+- **Safe-room maps:** `teleport safe`, then press **M**: the surrounding area, treasure and champion lairs are marked.
+- **Stacks & quantities:** loot crates/urns for ingredients; at a vendor, select a stack and set the amount with − / + / Max.
+- **Status effects & DoT:** drink a Draught of Swiftness (status list bottom-left); hit enemies with fire, bleed or venom.

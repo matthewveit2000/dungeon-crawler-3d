@@ -93,9 +93,9 @@ func test_floor_collapse_and_combat_death_restore_floor_entry_snapshot() -> void
 	var entry_gold := game.player.gold
 	var entry_bag_size := game.player.inventory.size()
 
-	# Earn gold & sponsored loot during attempt, then trigger 5-day floor collapse
+	# Earn gold & legendary loot during attempt, then trigger 5-day floor collapse
 	game.run_console_command("add_gold 500")
-	game.run_console_command("spawn_loot sponsored")
+	game.run_console_command("spawn_loot legendary")
 	assert_eq(game.player.gold, entry_gold + 500)
 	assert_eq(game.player.inventory.size(), entry_bag_size + 1)
 
@@ -207,10 +207,10 @@ func test_melee_combat_kills_enemy_grants_xp_skyrim_skill_use_and_corpse_loot() 
 	assert_false(corpse.trigger(game.player), "Already-looted corpse must not grant loot twice")
 
 
-func test_interactive_chest_quest_board_vendor_and_audit_console_shortcuts() -> void:
+func test_interactive_chest_area_map_vendor_and_audit_console_shortcuts() -> void:
 	# 1. Interactive Chest looting
 	var chest: InteractableObject = null
-	var quest_board: InteractableObject = null
+	var area_map: InteractableObject = null
 	var vendor_inter: InteractableObject = null
 	for node in get_tree().get_nodes_in_group("interactables"):
 		if not (node is InteractableObject):
@@ -218,13 +218,13 @@ func test_interactive_chest_quest_board_vendor_and_audit_console_shortcuts() -> 
 		var inter := node as InteractableObject
 		if inter.kind == "chest" and chest == null:
 			chest = inter
-		elif inter.kind == "quest_board" and quest_board == null:
-			quest_board = inter
+		elif inter.kind == "area_map" and area_map == null:
+			area_map = inter
 		elif inter.kind == "vendor" and vendor_inter == null:
 			vendor_inter = inter
 
 	assert_not_null(chest, "Floor must spawn lootable chests")
-	assert_not_null(quest_board, "Safe Room must spawn Quest Board")
+	assert_not_null(area_map, "Safe Room must spawn its Area Map board (FB-022)")
 	assert_not_null(vendor_inter, "Safe Room must spawn Vendor")
 
 	var gold_before := game.player.gold
@@ -234,10 +234,12 @@ func test_interactive_chest_quest_board_vendor_and_audit_console_shortcuts() -> 
 	assert_gt(game.player.inventory.size(), bag_before, "Chest must grant rolled loot item")
 	assert_false(chest.trigger(game.player), "Opened chest must not be lootable twice")
 
-	# 2. Safe Room Quest Board advance
-	var pre_bounty_gold := game.player.gold
-	assert_true(quest_board.trigger(game.player))
-	assert_eq(game.player.gold, pre_bounty_gold + 35, "Quest Board must grant +35g advance")
+	# 2. Safe Room Area Map board (FB-022): studying it inks the surrounding area onto the player's map
+	var seen_before := game.map_seen.size()
+	assert_true(area_map.trigger(game.player))
+	assert_gt(game.map_seen.size(), seen_before + 50, "Studying the area map reveals the surrounding area")
+	assert_false(game.maps_read.is_empty(), "the safe room's map counts as read")
+	game.close_all_menus()
 
 	# 3. Safe Room Vendor interaction pauses clock and supports buying
 	assert_true(vendor_inter.trigger(game.player))

@@ -14,10 +14,12 @@ var _action_row: HBoxContainer = null
 var _status_lbl: Label = null
 var _sel_side: String = ""
 var _sel_idx: int = -1
+var _qty: int = 1  ## FB-022: how many of a stack to buy / sell
+var _qty_spin: SpinBox = null
 
 const GREETINGS := [
-	"\"Coin first, questions never. The Syndicate takes its cut either way.\"",
-	"\"Everything here is guaranteed authentic, crawler. Mostly.\"",
+	"\"Coin first, questions never. The dark takes its cut either way.\"",
+	"\"Everything here is guaranteed authentic, wanderer. Mostly.\"",
 	"\"Sanctuary rates apply. Monsters pay double.\"",
 ]
 
@@ -147,7 +149,10 @@ func refresh() -> void:
 
 
 func _slot(side: String, idx: int, item: Dictionary, price: int) -> Control:
-	var w := UiTheme.item_slot(item, 76, "%dg" % price)
+	var badge := "%dg" % price
+	if side == "bag" and InventoryStacks.is_stackable(item):
+		badge = "×%d  %dg" % [InventoryStacks.count(item), price]
+	var w := UiTheme.item_slot(item, 76, badge)
 	w.mouse_filter = Control.MOUSE_FILTER_STOP
 	w.tooltip_text = "%s\n%s gold" % [str(item.get("name", "")), price]
 	if side == "stock" and price > _player.gold:
@@ -160,6 +165,8 @@ func _slot(side: String, idx: int, item: Dictionary, price: int) -> Control:
 			if mb.double_click:
 				_transact(side, idx)
 			elif mb.button_index == MOUSE_BUTTON_LEFT:
+				if side != _sel_side or idx != _sel_idx:
+					_qty = 1
 				_sel_side = side
 				_sel_idx = idx
 				refresh()
@@ -171,6 +178,7 @@ func _refresh_detail() -> void:
 	for c in _detail.get_children():
 		c.queue_free()
 	for c in _action_row.get_children():
+		_action_row.remove_child(c)
 		c.queue_free()
 	var item: Dictionary = {}
 	var price := 0
@@ -188,31 +196,82 @@ func _refresh_detail() -> void:
 	_detail.add_child(ItemInfo.build_card(item, compare, price_txt))
 	if item.is_empty():
 		return
-	var b := UiTheme.button(("Buy for %d" % price) if _sel_side == "stock" else ("Sell for %d" % price), 0, 18)
+	# FB-022: stacks are bought / sold in any amount
+	var max_q := _max_qty(item)
+	_qty = clampi(_qty, 1, maxi(1, max_q))
+	var b := UiTheme.button("", 0, 18)
+	b.name = "TradeButton"
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	b.disabled = _sel_side == "stock" and price > _player.gold
-	b.pressed.connect(func() -> void: _transact(_sel_side, _sel_idx))
+	var upd := func() -> void:
+		var total := price * _qty
+		var verb := "Buy" if _sel_side == "stock" else "Sell"
+		b.text = ("%s %d for %d" % [verb, _qty, total]) if InventoryStacks.is_stackable(item) else ("%s for %d" % [verb, total])
+		b.disabled = (_sel_side == "stock" and total > _player.gold) or max_q <= 0
+	if InventoryStacks.is_stackable(item) and max_q > 1:
+		var minus := UiTheme.button("−", 0, 18)
+		minus.custom_minimum_size = Vector2(36, 0)
+		_action_row.add_child(minus)
+		_qty_spin = SpinBox.new()
+		_qty_spin.name = "Quantity"
+		_qty_spin.min_value = 1
+		_qty_spin.max_value = max_q
+		_qty_spin.value = _qty
+		_qty_spin.custom_minimum_size = Vector2(84, 0)
+		_qty_spin.tooltip_text = "How many to %s (max %d)" % ["buy" if _sel_side == "stock" else "sell", max_q]
+		_action_row.add_child(_qty_spin)
+		var plus := UiTheme.button("+", 0, 18)
+		plus.custom_minimum_size = Vector2(36, 0)
+		_action_row.add_child(plus)
+		var all := UiTheme.button("Max", 0, 16)
+		_action_row.add_child(all)
+		_qty_spin.value_changed.connect(func(v: float) -> void:
+			_qty = int(v)
+			upd.call())
+		minus.pressed.connect(func() -> void: _qty_spin.value = maxf(1.0, _qty_spin.value - 1.0))
+		plus.pressed.connect(func() -> void: _qty_spin.value = minf(float(max_q), _qty_spin.value + 1.0))
+		all.pressed.connect(func() -> void: _qty_spin.value = float(max_q))
+	upd.call()
+	b.pressed.connect(func() -> void: _transact(_sel_side, _sel_idx, _qty))
 	_action_row.add_child(b)
 
 
-func _transact(side: String, idx: int) -> void:
+## Most of the selected entry that can be traded right now (gold for buying, stack size for selling).
+func _max_qty(item: Dictionary) -> int:
+	if _sel_side == "stock":
+		return _vendor.max_affordable(_sel_idx, _player.gold)
+	return InventoryStacks.count(item)
+
+
+## Sets how many to trade (also used by tests / Test Mode).
+func set_quantity(q: int) -> void:
+	_qty = maxi(1, q)
+	_refresh_detail()
+
+
+func _transact(side: String, idx: int, qty: int = 1) -> void:
 	if side == "stock":
-		var res := _vendor.buy_item(idx, _player.gold, _player.inventory)
+		var res := _vendor.buy_item(idx, _player.gold, _player.inventory, qty)
 		if bool(res["ok"]):
 			_player.gold = int(res["gold"])
-			_status_lbl.text = "Purchased %s." % str(res["item"]["name"])
+			_status_lbl.text = ("Purchased %d × %s." % [int(res["qty"]), str(res["item"]["name"])]) if int(res["qty"]) > 1 else "Purchased %s." % str(res["item"]["name"])
 			if EventBus != null:
 				EventBus.sfx_requested.emit("chest_open")
 		else:
 			_status_lbl.text = str(res.get("reason", "You can't afford that."))
 	else:
-		var res2 := _vendor.sell_item(idx, _player.gold, _player.inventory)
+		var res2 := _vendor.sell_item(idx, _player.gold, _player.inventory, qty)
 		if bool(res2["ok"]):
 			_player.gold = int(res2["gold"])
-			_status_lbl.text = "Sold for %d gold." % int(res2.get("payout", 0))
+			_status_lbl.text = "Sold %d for %d gold." % [int(res2.get("qty", 1)), int(res2.get("payout", 0))]
 	_player.emit_stats()
-	_sel_side = ""
-	_sel_idx = -1
+	# keep a stack selected after a partial sale so the next sale is one click away
+	if not (side == "bag" and idx < _player.inventory.size() and InventoryStacks.is_stackable(_player.inventory[idx])) and side != "stock":
+		_sel_side = ""
+		_sel_idx = -1
+	elif side == "stock" and (idx >= _vendor.stock.size() or not InventoryStacks.is_stackable(_vendor.stock[idx])):
+		_sel_side = ""
+		_sel_idx = -1
+	_qty = 1
 	refresh()
 
 

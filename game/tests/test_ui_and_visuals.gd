@@ -21,7 +21,7 @@ func after_each() -> void:
 
 
 func test_all_menus_open_refresh_and_close() -> void:
-	game.run_console_command("spawn_loot sponsored")
+	game.run_console_command("spawn_loot legendary")
 	game.run_console_command("spawn_loot rare")
 	for menu in ["inventory", "vendor", "map", "pause"]:
 		game.open_exclusive_menu(menu)
@@ -100,7 +100,7 @@ func test_map_fog_of_war_tracks_exploration_and_persists() -> void:
 
 
 func test_rigged_characters_expose_clips_and_sockets() -> void:
-	for kind in ["crawler", "draugr", "bone_archer", "goblin_streamer", "iron_warden", "vendor"]:
+	for kind in ["crawler", "draugr", "bone_archer", "goblin", "iron_warden", "vendor"]:
 		var cv := CharacterVisual.create(kind)
 		add_child_autofree(cv)
 		assert_not_null(cv.anim, "%s has an AnimationPlayer" % kind)
@@ -116,7 +116,7 @@ func test_rigged_characters_expose_clips_and_sockets() -> void:
 func test_each_character_plays_its_own_clips() -> void:
 	# Regression: a batch export once gave every enemy the player's clips (their own were renamed "idle.001").
 	var attack_len := {}
-	for kind in ["crawler", "draugr", "bone_archer", "goblin_streamer", "iron_warden", "vendor"]:
+	for kind in ["crawler", "draugr", "bone_archer", "goblin", "iron_warden", "vendor"]:
 		var cv := CharacterVisual.create(kind)
 		add_child_autofree(cv)
 		var names := cv.anim.get_animation_list()

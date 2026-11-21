@@ -76,10 +76,24 @@ func _draw() -> void:
 		var lp := tile_to_screen(Vector2(wp.x, wp.z) / layout.tile_size)
 		if not r.has_point(lp):
 			continue
-		var icons := {"safe_room": "icon_shield", "boss_arena": "icon_skull", "vault": "icon_chest", "stairs": "icon_stairs"}
-		var tex := UiTheme.tex(str(icons.get(str(lm.get("id", "")), "icon_diamond")))
+		var tex := UiTheme.tex(str(UiTheme.map_mark(str(lm.get("id", "")))[0]))
 		if tex != null:
 			draw_texture_rect(tex, Rect2(lp - Vector2(9, 9), Vector2(18, 18)), false, ink)
+	# FB-022: points of interest revealed by safe-room maps (crossed off once looted / slain)
+	for poi in layout.pois:
+		if not bool(poi.get("revealed", false)):
+			continue
+		var pw: Vector3 = poi["world_pos"]
+		var pp := tile_to_screen(Vector2(pw.x, pw.z) / layout.tile_size)
+		if not r.has_point(pp):
+			continue
+		var mk := UiTheme.map_mark(str(poi["kind"]))
+		var ptex := UiTheme.tex(str(mk[0]))
+		var pc: Color = mk[2]
+		if bool(poi.get("done", false)):
+			pc.a = 0.3
+		if ptex != null:
+			draw_texture_rect(ptex, Rect2(pp - Vector2(7, 7), Vector2(14, 14)), false, pc)
 	var c := size * 0.5
 	var pt_tex := UiTheme.tex("icon_player")
 	draw_set_transform(c, player_yaw, Vector2.ONE)

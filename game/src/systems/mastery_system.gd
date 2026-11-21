@@ -47,7 +47,8 @@ static func stat_multiplier(item: Dictionary, cfg: Dictionary = {}) -> float:
 static func stat(item: Dictionary, key: String, default_value: float = 0.0) -> float:
 	var base := float(item.get(key, default_value))
 	if key in STAT_KEYS:
-		return base * stat_multiplier(item)
+		# FB-022: the item's power-scale knobs (balance.json item_power x the item's own power_scale)
+		return base * stat_multiplier(item) * PowerScale.item(item)
 	return base
 
 
@@ -163,3 +164,66 @@ static func aggregate_passives(items: Array) -> Dictionary:
 					acc[k] = float(acc.get(k, 0.0)) + float(p[k])
 			out[id] = acc
 	return out
+
+
+## FB-022: the uses that earn this item mastery XP, as [event, xp] pairs (in mastery.json "xp" amounts).
+static func xp_sources(item: Dictionary, cfg: Dictionary = {}) -> Array:
+	if cfg.is_empty():
+		cfg = pack()
+	var x: Dictionary = cfg.get("xp", {})
+	var out: Array = []
+	match str(item.get("category", "")):
+		"weapon":
+			out = [["hit", x.get("hit", 1.0)], ["kill", x.get("kill", 5.0)]]
+		"spell":
+			if str(item.get("spell_kind", "")) == "heal":
+				out = [["cast", x.get("cast", 1.5)]]
+			else:
+				out = [["hit", x.get("hit", 1.0)], ["kill", x.get("kill", 5.0)]]
+		"shield":
+			out = [["block", x.get("block", 2.0)]]
+		"armor", "accessory":
+			out = [["hit_taken", x.get("hit_taken", 1.0)], ["worn_kill", x.get("worn_kill", 1.0)]]
+	return out
+
+
+const XP_EVENT_TEXT := {
+	"hit": "land a hit with it", "kill": "finish an enemy with it", "cast": "cast it",
+	"block": "block a blow with it raised", "hit_taken": "take a hit while wearing it", "worn_kill": "win a fight while wearing it",
+}
+
+
+const XP_EVENT_NOUN := {"hit": "hits", "kill": "kills", "cast": "casts", "block": "blocks", "hit_taken": "hits taken", "worn_kill": "fights won"}
+
+
+## FB-022: plain-English instructions for levelling an item: what to do, how much XP each use gives, and how
+## much is still needed for the next level (e.g. "Land hits (+1 xp) or finish enemies (+5 xp) with it. 12 xp to go:
+## about 12 hits or 3 kills. Tougher (higher-level) enemies give more.").
+static func how_to_level(item: Dictionary, cfg: Dictionary = {}) -> String:
+	if not is_masterable(item):
+		return ""
+	if cfg.is_empty():
+		cfg = pack()
+	var lvl := level_of(item)
+	var srcs := xp_sources(item, cfg)
+	if srcs.is_empty():
+		return ""
+	var parts: Array = []
+	for sx in srcs:
+		parts.append("%s (+%s xp)" % [str(XP_EVENT_TEXT.get(str(sx[0]), str(sx[0]))), _num(float(sx[1]))])
+	var text := "To level up: " + " or ".join(parts) + "."
+	if lvl >= max_level(cfg):
+		return "Fully mastered. " + text.replace("To level up: ", "It grew by: ")
+	var left := maxf(0.0, float(xp_to_next(lvl, cfg)) - float(item.get("mastery_xp", 0.0)))
+	var est: Array = []
+	for sx in srcs:
+		var per := float(sx[1])
+		if per > 0.0:
+			est.append("%d %s" % [int(ceil(left / per)), str(XP_EVENT_NOUN.get(str(sx[0]), str(sx[0])))])
+	text += " %s xp to mastery %d (about %s)." % [_num(left), lvl + 1, " or ".join(est)]
+	text += " Higher-level enemies give more."
+	return text
+
+
+static func _num(v: float) -> String:
+	return str(int(v)) if is_equal_approx(v, round(v)) else "%.1f" % v

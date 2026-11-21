@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://yqasr3s6c2yt"
-path="res://.godot/imported/ratings_cleaver.glb-5641fb50e73b260752ae712e8250d24f.scn"
+uid="uid://dlrd23a0dff6j"
+path="res://.godot/imported/ironbark_tonic.glb-3b61f4476b9344235a2b803dd315af27.scn"
 
 [deps]
 
-source_file="res://assets/models/gear/ratings_cleaver.glb"
-dest_files=["res://.godot/imported/ratings_cleaver.glb-5641fb50e73b260752ae712e8250d24f.scn"]
+source_file="res://assets/models/gear/ironbark_tonic.glb"
+dest_files=["res://.godot/imported/ironbark_tonic.glb-3b61f4476b9344235a2b803dd315af27.scn"]
 
 [params]
 

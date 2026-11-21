@@ -253,4 +253,4 @@ Because unique arenas and hazards multiply the fun of unique enemies and abiliti
 - **Crumbling Bridge / Collapsing Tile Arenas:** Boss or elite chambers where specific floor slabs crack and drop after being stepped on, rewarding **Haste**, **Swift Blade**, and **Blink Step**.
 - **Runic Pylon Arenas:** Boss rooms with 3–4 destructible pylons that grant the boss extra `armor`, `fire_res`, or `magicka_regen` until shattered.
 - **Choke-Point Gauntlets:** Narrow pillar halls ideal for **Poison Ground** pools, **Stone Barricades**, and **Summon** frontlines.
-- **Dungeon AI Sponsor Mutator Rooms (DCC Flavor):** Rare marked chambers where the snarky Dungeon AI announces a goofy room-wide modifier (e.g., *"Low Gravity Hour: +100% Knockback!"* or *"Floor Is Literally Lava"*).
+- **Dungeon Whim Rooms:** Rare marked chambers where the bored voice of the dungeon announces a goofy room-wide modifier (e.g., *"Low Gravity Hour: +100% Knockback!"* or *"Floor Is Literally Lava"*).

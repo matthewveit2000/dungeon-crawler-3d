@@ -10,6 +10,19 @@ For detailed domain-specific logs (design, art, architecture, testing), see [`do
 ## [Unreleased]
 
 ### Added
+- **2026-11-21 — FB-022: Own Identity, Swarms & Champions, Power-Scale Knobs, Hotbar, Stacks, Area Maps, Visible DoT (`D-057`):**
+  - **Fixed:** enemy health bars emptied at ~half health (billboarded quads ignore scale); now a shader bar shows the exact ratio. Enemies no longer stair-step: paths are string-pulled into straight lines (`FloorLayout.has_tile_los`, pillar corners registered).
+  - **More, weaker enemies:** 2.5× enemy budget (1,100 on Floor 1), each type ~0.42× health / ~0.55× damage / ~0.45× xp & gold; enemies are created only within 100 m of the player.
+  - **Champion lairs:** titled mini-bosses (7× health, roar, enrage, boss health bar, guaranteed loot + lair chest) in ~1 of 12 combat rooms; Test Mode toggle and `teleport champion`.
+  - **Power-scale knobs:** new `game/data/balance.json` + `PowerScale`; `power_scale` on every enemy, item and floor.
+  - **Hotbar** (keys 1–8, replaces the four fixed loadouts) with HUD strip and inventory assignment.
+  - **Stacks:** `InventoryStacks`; consumables and new ingredients stack; vendor quantity box (−/+/Max); 8 new consumables/ingredients with Blender models & icons; crates/urns drop ingredients.
+  - **Status-effect list** with countdown bars on the HUD; timed potion/ingredient effects (speed, armor, regen, magicka/stamina regen, Queasy).
+  - **Visible damage over time:** fire / blood / poison / frost effects on enemies, coloured tick numbers, status line under the name, DoT-coloured health bar.
+  - **Mastery readability:** every gear item gains a level-1 ability; item cards explain how to level the item and how much is left.
+  - **Safe-room area maps:** entering a safe room (or studying its map board, formerly the quest board) reveals the surrounding 40 tiles plus treasure, champion lairs and landmarks; map/minimap draw these points of interest.
+  - **Re-theme:** every direct *Dungeon Crawler Carl* reference removed from the game, art and living docs — no show, audience, sponsors, Syndicate or achievements. Announcer = the voice of the dungeon; legendary effects Blast Wave / Blood Feast / Grave Robber; Thunderclap Gauntlets, Gravefeast Cleaver (rebuilt in Blender); Goblin Glory-Hound (new candle-hoop goblin model) and Goblin Hollerer; old saves migrate.
+  - Tests: new `game/tests/test_feedback_fb022.gd` (15 tests); updated loot, combat, snapshot, FB-014/015 and integration tests.
 - **2026-11-18 — Repository & Multi-AI Foundation Initialized:**
   - Created public repository `matthewveit2000/dungeon-crawler-3d`.
   - Added universal AI-tool instruction files: [`AGENTS.md`](AGENTS.md), [`CLAUDE.md`](CLAUDE.md), [`.cursorrules`](.cursorrules), and [`.github/copilot-instructions.md`](.github/copilot-instructions.md).

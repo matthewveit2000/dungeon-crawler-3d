@@ -8,7 +8,7 @@ Read this file and the linked documents in `docs/` before taking any action.
 
 ## 1. Project Identity & North Star
 
-- **What we are building:** A completely free, open-source 3D action-RPG dungeon crawler inspired by *Dungeon Crawler Carl*.
+- **What we are building:** A completely free, open-source 3D dark-fantasy action-RPG dungeon crawler: a grim, ancient dungeon full of goofy monsters and darkly funny themes (no TV-show / sponsor framing — `D-057`).
 - **Gameplay North Star:** **The game must feel like Skyrim.** Every major gameplay, camera, pacing, exploration, and combat decision is evaluated against this north star.
 - **Core Loop Rules (Locked In):**
   - **Floor Collapse Timer:** 5 in-game days per floor (~30 real-time minutes per in-game day for now; data-driven/configurable) to compel exploration.

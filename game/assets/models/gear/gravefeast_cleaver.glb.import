@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://dbmlfi3y73ti6"
-path="res://.godot/imported/goblin_streamer.glb-8bf7951e1ef385176f7f2242b8b2065e.scn"
+uid="uid://b6d5xdfqvjlws"
+path="res://.godot/imported/gravefeast_cleaver.glb-7aa1d43700895d319d58855fc1f02675.scn"
 
 [deps]
 
-source_file="res://assets/models/characters/goblin_streamer.glb"
-dest_files=["res://.godot/imported/goblin_streamer.glb-8bf7951e1ef385176f7f2242b8b2065e.scn"]
+source_file="res://assets/models/gear/gravefeast_cleaver.glb"
+dest_files=["res://.godot/imported/gravefeast_cleaver.glb-7aa1d43700895d319d58855fc1f02675.scn"]
 
 [params]
 

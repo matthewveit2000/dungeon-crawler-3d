@@ -12,8 +12,8 @@ const REBINDABLE_ACTIONS := [
 	["right_hand_action", "Right Hand (Attack / Draw Bow)"], ["left_hand_action", "Left Hand (Block / Cast)"],
 	["toggle_camera", "Toggle 1st / 3rd Person"], ["toggle_inventory", "Inventory & Character"],
 	["toggle_map", "Dungeon Map"], ["quick_potion", "Quick Health Potion"],
-	["quick_loadout_1", "Loadout 1 — Sword & Shield"], ["quick_loadout_2", "Loadout 2 — Battleaxe"],
-	["quick_loadout_3", "Loadout 3 — Sword & Spell"], ["quick_loadout_4", "Loadout 4 — Hunting Bow"],
+	["hotbar_1", "Hotbar Slot 1"], ["hotbar_2", "Hotbar Slot 2"], ["hotbar_3", "Hotbar Slot 3"], ["hotbar_4", "Hotbar Slot 4"],
+	["hotbar_5", "Hotbar Slot 5"], ["hotbar_6", "Hotbar Slot 6"], ["hotbar_7", "Hotbar Slot 7"], ["hotbar_8", "Hotbar Slot 8"],
 	["dismiss_hint", "Dismiss Tutorial Hint"], ["toggle_console", "Playtest Console"],
 ]
 

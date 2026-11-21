@@ -45,7 +45,7 @@ func test_floor_entry_snapshot_restores_pre_floor_state_and_drops_failed_attempt
 
 	# Mutate live state as if player picked up mid-floor gear & leveled up, then died / collapsed
 	entry_state["gold"] = 999
-	entry_state["inventory"].append({"id": "sponsored_blade_ratings"})
+	entry_state["inventory"].append({"id": "gravefeast_cleaver"})
 	entry_state["progression"]["level"] = 5
 
 	var restored := sm.restore_floor_entry_snapshot()

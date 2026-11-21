@@ -126,7 +126,7 @@ func _rebuild() -> void:
 	_slider(ac, "accessibility", "ui_scale", "Interface Scale", 0.8, 1.5, 0.05, "%.0f%%", "Makes every menu and HUD element larger or smaller.", 100.0)
 	_option(ac, "accessibility", "colorblind", "Colour-Blind Filter", ["Off", "Protanopia", "Deuteranopia", "Tritanopia"], ["off", "protanopia", "deuteranopia", "tritanopia"],
 		"Re-maps colours so rarity, health and magic hues stay distinguishable.")
-	_toggle(ac, "accessibility", "subtitles", "Announcement Text", "Shows the full text of Dungeon AI broadcasts.")
+	_toggle(ac, "accessibility", "subtitles", "Announcement Text", "Shows the full text of the dungeon's announcements.")
 	_toggle(ac, "accessibility", "reduce_flashing", "Reduce Flashing", "Softens damage flashes and the low-health pulse.")
 
 

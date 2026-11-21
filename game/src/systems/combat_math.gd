@@ -1,7 +1,7 @@
 class_name CombatMath
 extends RefCounted
 ## Tier 2 Pure System: Skyrim-inspired left/right-hand combat, armor mitigation,
-## blocking, power attacks, bow draw scaling, crits, and Sponsored/Mythic triggers.
+## blocking, power attacks, bow draw scaling, crits, and legendary-effect triggers.
 
 
 static func equip_item_in_slots(equipment: Dictionary, item: Dictionary, preferred_hand: String = "") -> Dictionary:
@@ -80,7 +80,7 @@ static func resolve_attack(params: Dictionary, player_cfg: Dictionary, rng: Seed
 	var target_armor := float(params.get("target_armor", 0.0))
 	var target_blocking := bool(params.get("target_blocking", false))
 	var target_block_bonus := float(params.get("target_block_bonus", 0.0))
-	var sponsored_effects: Array = params.get("sponsored_effects", [])
+	var legendary_effects: Array = params.get("legendary_effects", [])
 
 	var raw := (base_damage + bonus_damage) * damage_mult
 	if is_power_attack:
@@ -106,7 +106,7 @@ static func resolve_attack(params: Dictionary, player_cfg: Dictionary, rng: Seed
 		block_stamina_cost = after_armor * float(player_cfg["combat"]["block_stamina_cost_per_damage"])
 
 	var explosive_aoe := false
-	if is_crit and sponsored_effects.has("explosive_crits"):
+	if is_crit and legendary_effects.has("explosive_crits"):
 		explosive_aoe = true
 
 	return {

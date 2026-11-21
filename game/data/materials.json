@@ -109,6 +109,13 @@
       "emission": "#ff9a3a",
       "emission_energy": 4.0
     },
+    "fungus_glow": {
+      "color": "#1d6f78",
+      "roughness": 0.45,
+      "metallic": 0.0,
+      "emission": "#3fe6e0",
+      "emission_energy": 1.4
+    },
     "fur": {
       "tex": "fur",
       "tile_m": 0.5,
@@ -120,6 +127,14 @@
       "roughness": 0.4,
       "emission": "#ff6a1c",
       "emission_energy": 7.0
+    },
+    "glass_amber": {
+      "color": "#7a4a06",
+      "roughness": 0.06,
+      "metallic": 0.0,
+      "alpha": 0.78,
+      "emission": "#ffb21f",
+      "emission_energy": 0.7
     },
     "glass_blue": {
       "color": "#0b2a7a",
@@ -140,6 +155,14 @@
       "roughness": 0.08,
       "metallic": 0.0,
       "alpha": 0.7
+    },
+    "glass_lime": {
+      "color": "#2f8a1a",
+      "roughness": 0.06,
+      "metallic": 0.0,
+      "alpha": 0.8,
+      "emission": "#6dff3a",
+      "emission_energy": 0.8
     },
     "glass_red": {
       "color": "#7a0610",
@@ -182,6 +205,11 @@
       "normal_scale": 1.0,
       "vertex_color": true
     },
+    "keratin": {
+      "color": "#b59a5a",
+      "roughness": 0.5,
+      "metallic": 0.0
+    },
     "leather_brown": {
       "tex": "leather_brown",
       "tile_m": 0.45,
@@ -199,6 +227,11 @@
       "tile_m": 1.0,
       "normal_scale": 0.8,
       "vertex_color": true
+    },
+    "moss": {
+      "color": "#3c5622",
+      "roughness": 0.95,
+      "metallic": 0.0
     },
     "neon_cyan": {
       "color": "#4ff6ff",
@@ -258,6 +291,11 @@
       "vertex_color": true,
       "emission": "#ff4a2a",
       "emission_energy": 3.0
+    },
+    "salve_fat": {
+      "color": "#d8c48a",
+      "roughness": 0.55,
+      "metallic": 0.0
     },
     "screen_glow": {
       "color": "#9fe8ff",

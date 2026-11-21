@@ -269,7 +269,7 @@ func _seq_shield() -> void:
 
 func _seq_dual() -> void:
 	await _begin("dual", 1)
-	var cleaver := DataLoader.get_item_def("sponsored_blade_ratings")
+	var cleaver := DataLoader.get_item_def("gravefeast_cleaver")
 	player.equipment["left_hand"] = LootGenerator.make_base_item_instance(cleaver, "probe_left")
 	player.refresh_hand_visuals()
 	player._equip_raise = 0.0

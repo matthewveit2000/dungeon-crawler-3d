@@ -1,4 +1,4 @@
-"""Batch 3 — Rigged & animated characters (player crawler, draugr, bone archer, goblin streamer,
+"""Batch 3 — Rigged & animated characters (player crawler, draugr, bone archer, goblin,
 Iron Warden boss, safe-room vendor). Each exports one skinned mesh + armature with named clips:
 idle, walk, run, attack, hit, death (+ shoot / slam / roar / talk / block / cast / draw_hold per role).
 
@@ -589,15 +589,25 @@ def build_goblin():
         ft = js["foot_" + side]
         foot = shapes.sphere(0.05, ((ft[0].x + ft[1].x) / 2, (ft[0].y + ft[1].y) / 2 - 0.02, 0.03), seg=12, rings=8, mat="skin_goblin", scale=(0.9, 2.0, 0.7))
         parts.append(tag(foot, "foot_" + side))
+    # FB-022: a pack-frame carrying a pole and an iron hoop of stolen, guttering candles (so everyone can see how
+    # brave the goblin is)
     pole_base = Vector((ch.x, ch.y + 0.12, ch.z + 0.0))
     parts.append(tag(shapes.box((0.16, 0.08, 0.18), tuple(pole_base), mat="leather_dark", bevel=0.015), "chest"))
-    parts.append(tag(shapes.cylinder(0.01, 0.6, tuple(pole_base + Vector((0, 0.03, 0.35))), segments=8, mat="plastic_black"), "chest"))
-    ring = shapes.torus(0.17, 0.018, tuple(pole_base + Vector((0, 0.04, 0.72))), major=40, minor=8, mat="neon_pink", rot=(math.pi / 2, 0, 0))
+    parts.append(tag(shapes.cylinder(0.012, 0.6, tuple(pole_base + Vector((0, 0.03, 0.35))), segments=8, mat="wood_rough"), "chest"))
+    hoop_c = pole_base + Vector((0, 0.04, 0.72))
+    ring = shapes.torus(0.17, 0.012, tuple(hoop_c), major=40, minor=6, mat="iron_dark", rot=(math.pi / 2, 0, 0))
     parts.append(tag(ring, "chest"))
-    ob = skin_parts(parts, js, arm_ob, "goblin_streamer")
+    for k in range(7):
+        a = k / 7 * math.tau + 0.2
+        cp = hoop_c + Vector((math.cos(a) * 0.17, 0.0, math.sin(a) * 0.17))
+        parts.append(tag(shapes.cylinder(0.016, 0.07 - (k % 3) * 0.012, tuple(cp + Vector((0, 0, 0.03))), segments=8, mat="wax"), "chest"))
+        parts.append(tag(shapes.sphere(0.014, tuple(cp + Vector((0, 0, 0.08 - (k % 3) * 0.012))), seg=8, rings=5, mat="flame_glow",
+                                       scale=(0.7, 0.7, 1.4)), "chest"))
+    parts.append(tag(shapes.sphere(0.035, tuple(hoop_c + Vector((0, 0.0, -0.17))), seg=10, rings=6, mat="bone", scale=(1, 0.9, 1.1)), "chest"))
+    ob = skin_parts(parts, js, arm_ob, "goblin")
     grip_socket(arm_ob, js, "r")
     grip_socket(arm_ob, js, "l")
-    socket_on_bone(arm_ob, "chest", "RingLight", pole_base + Vector((0, 0.04, 0.72)))
+    socket_on_bone(arm_ob, "chest", "CandleHoop", hoop_c)
     return arm_ob, ob, js
 
 
@@ -880,7 +890,7 @@ CHARACTERS = {
     "crawler": (build_crawler, {"weapon": "1h", "archetype": "crawler", "weapon_scale": 1.0}, ("block", "cast", "cast_r", "cast_dual", "dual", "draw_hold", "bow_draw", "bow_shoot", "attack_2h")),
     "draugr": (build_draugr, {"weapon": "2h", "archetype": "draugr", "hunch": 8, "weapon_scale": 1.0}, ()),
     "bone_archer": (build_bone_archer, {"weapon": "bow", "archetype": "archer", "hunch": 2}, ("shoot",)),
-    "goblin_streamer": (build_goblin, {"weapon": "1h", "archetype": "goblin", "hunch": 10, "weapon_scale": 0.75}, ()),
+    "goblin": (build_goblin, {"weapon": "1h", "archetype": "goblin", "hunch": 10, "weapon_scale": 0.75}, ()),
     "iron_warden": (build_boss, {"weapon": "2h", "archetype": "boss", "hunch": 3, "weapon_scale": 2.1}, ("roar", "slam")),
     "vendor": (build_vendor, {"weapon": "none", "archetype": "vendor", "hunch": 4}, ("talk",)),
 }

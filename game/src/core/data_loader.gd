@@ -13,13 +13,14 @@ const DATA_FILES := {
 	"tutorials": "res://data/tutorials.json",
 	"setpieces": "res://data/setpieces.json",
 	"mastery": "res://data/mastery.json",
+	"balance": "res://data/balance.json",
 }
 
 var _packs: Dictionary = {}
 var _items_by_id: Dictionary = {}
 var _enemies_by_id: Dictionary = {}
 var _rarities_by_id: Dictionary = {}
-var _sponsored_by_id: Dictionary = {}
+var _legendary_by_id: Dictionary = {}
 var _loaded: bool = false
 
 
@@ -38,7 +39,7 @@ func reload_all() -> void:
 	_items_by_id.clear()
 	_enemies_by_id.clear()
 	_rarities_by_id.clear()
-	_sponsored_by_id.clear()
+	_legendary_by_id.clear()
 
 	for key in DATA_FILES.keys():
 		var path: String = DATA_FILES[key]
@@ -53,8 +54,8 @@ func reload_all() -> void:
 	for rarity in _packs.get("affixes", {}).get("rarities", []):
 		_rarities_by_id[str(rarity["id"])] = rarity
 
-	for eff in _packs.get("affixes", {}).get("sponsored_effects", []):
-		_sponsored_by_id[str(eff["id"])] = eff
+	for eff in _packs.get("affixes", {}).get("legendary_effects", []):
+		_legendary_by_id[str(eff["id"])] = eff
 
 	_loaded = true
 
@@ -104,9 +105,25 @@ func get_mastery_pack() -> Dictionary:
 	return get_pack("mastery")
 
 
+## FB-022: ids renamed when the game dropped its old TV-show theme. Saves made before still load: every lookup and
+## the save-normaliser map an old id to its new one.
+const LEGACY_IDS := {
+	"sponsored_gauntlets_boom": "thunderclap_gauntlets",
+	"sponsored_blade_ratings": "gravefeast_cleaver",
+	"goblin_influencer": "goblin_gloryhound",
+	"goblin_hype_man": "goblin_hollerer",
+	"vampiric_viewers": "blood_feast",
+	"tax_rebate_gold": "grave_robber",
+}
+
+
+static func current_id(id: String) -> String:
+	return str(LEGACY_IDS.get(id, id))
+
+
 func get_item_def(item_id: String) -> Dictionary:
 	ensure_loaded()
-	return _items_by_id.get(item_id, {})
+	return _items_by_id.get(current_id(item_id), {})
 
 
 func get_all_item_defs() -> Array:
@@ -116,7 +133,7 @@ func get_all_item_defs() -> Array:
 
 func get_enemy_def(enemy_id: String) -> Dictionary:
 	ensure_loaded()
-	return _enemies_by_id.get(enemy_id, {})
+	return _enemies_by_id.get(current_id(enemy_id), {})
 
 
 func get_rarity_def(rarity_id: String) -> Dictionary:
@@ -124,9 +141,9 @@ func get_rarity_def(rarity_id: String) -> Dictionary:
 	return _rarities_by_id.get(rarity_id, {})
 
 
-func get_sponsored_effect_def(effect_id: String) -> Dictionary:
+func get_legendary_effect_def(effect_id: String) -> Dictionary:
 	ensure_loaded()
-	return _sponsored_by_id.get(effect_id, {})
+	return _legendary_by_id.get(current_id(effect_id), {})
 
 
 func get_floor_config(floor_number: int) -> Dictionary:

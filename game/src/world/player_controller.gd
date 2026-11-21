@@ -225,6 +225,15 @@ var _regen_hps: float = 0.0
 var _second_wind_cd: float = 0.0
 var _slow_t: float = 0.0
 var _slow_amount: float = 0.0
+var _slow_dur: float = 1.0
+var _ward_dur: float = 1.0
+var _regen_dur: float = 1.0
+## FB-022 timed effects from potions, ingredients and the like: id -> {"id","name","t","duration","kind","params"}.
+## Every numeric param is summed across effects: "speed", "slow", "armor", "hps", "magicka_regen", "stamina_regen".
+var timed_effects: Dictionary = {}
+## FB-022 hotbar: HOTBAR_SIZE slots, each {} or {"kind": "gear", "uid", "id", "hand"} or {"kind": "stack", "id"}
+const HOTBAR_SIZE := 8
+var hotbar: Array = []
 const CROSS_GUARD_HOLD := 0.22
 var _tp_cast_left_t: float = -10.0
 
@@ -338,7 +347,9 @@ func init_starting_loadout() -> void:
 	for iid in player_cfg.get("starting_inventory", []):
 		var item_def := DataLoader.get_item_def(str(iid))
 		if not item_def.is_empty():
-			inventory.append(LootGenerator.make_base_item_instance(item_def, "bag_%s_%d" % [str(iid), inventory.size()]))
+			add_to_inventory(LootGenerator.make_base_item_instance(item_def, "bag_%s_%d" % [str(iid), inventory.size()]))
+	timed_effects.clear()
+	reset_hotbar()
 	recalculate_vitals(true)
 	refresh_hand_visuals()
 
@@ -444,14 +455,14 @@ func get_total_armor() -> float:
 	var base := float(player_cfg["stats"]["base_armor"])
 	var eq_totals := LootGenerator.aggregate_equipment_stats(equipment)
 	var prog_bonuses := progression.get_derived_bonuses() if progression != null else {}
-	return base + float(eq_totals["armor"]) + float(prog_bonuses.get("armor_bonus", 0.0))
+	return base + float(eq_totals["armor"]) + float(prog_bonuses.get("armor_bonus", 0.0)) + effect_sum("armor")
 
 
 func equip_from_inventory(inv_index: int, preferred_hand: String = "") -> bool:
 	if inv_index < 0 or inv_index >= inventory.size():
 		return false
 	var item: Dictionary = inventory[inv_index]
-	if str(item.get("category", "")) == "consumable":
+	if InventoryStacks.is_stackable(item):
 		return use_consumable(inv_index)
 
 	var prev_eq := equipment.duplicate(true)
@@ -470,17 +481,31 @@ func equip_from_inventory(inv_index: int, preferred_hand: String = "") -> bool:
 	return true
 
 
-## Repairs older saves: a ring stored under the old "ring" key (D-046 bug) moves to a real ring slot, and the old
-## "sponsored" rarity becomes "legendary" (FB-014).
+## Repairs older saves: a ring stored under the old "ring" key (D-046 bug) moves to a real ring slot, the retired
+## rarity id becomes "legendary" (FB-014), and items / effects renamed by FB-022 take their new ids and names.
 func normalize_equipment() -> void:
-	# FB-014: the old "sponsored" (Sponsored Mythic) rarity is now "legendary"
 	for it in equipment.values() + inventory:
-		if str((it as Dictionary).get("rarity", "")) == "sponsored":
-			(it as Dictionary)["rarity"] = "legendary"
+		var d := it as Dictionary
+		if str(d.get("rarity", "")) == "sponsored":  # FB-014 retired rarity id (old saves only)
+			d["rarity"] = "legendary"
+		var nid := DataLoader.current_id(str(d.get("id", "")))
+		if nid != str(d.get("id", "")):
+			var def := DataLoader.get_item_def(nid)
+			d["id"] = nid
+			for k in ["name", "description", "model", "icon"]:
+				if def.has(k):
+					d[k] = def[k]
+		for old_k in ["sponsored_effect", "sponsored_label"]:  # FB-022 old field names (old saves only)
+			if d.has(old_k):
+				var new_k: String = str(old_k).replace("sponsored", "legendary")
+				d[new_k] = DataLoader.current_id(str(d[old_k])) if old_k == "sponsored_effect" else str(DataLoader.get_legendary_effect_def(str(d.get("legendary_effect", ""))).get("label", d[old_k]))
+				d.erase(old_k)
 	if equipment.has("ring"):
 		var r: Dictionary = equipment["ring"]
 		equipment.erase("ring")
 		equipment["ring_2" if equipment.has("ring_1") and not equipment.has("ring_2") else "ring_1"] = r
+	# FB-022: loose potions from older saves merge into stacks
+	InventoryStacks.normalize(inventory)
 
 
 ## Moves an equipped item back into the bag (QoL: lets players strip a slot from the inventory screen).
@@ -497,26 +522,200 @@ func unequip_slot(slot: String) -> bool:
 	return true
 
 
+## Puts an item in the bag; consumables and ingredients join their stack (FB-022). Returns the bag entry.
+func add_to_inventory(item: Dictionary, n: int = 0) -> Dictionary:
+	return InventoryStacks.add(inventory, item, n)
+
+
+## Drinks / eats one from the stack at inv_index: restores vitals and starts its timed effect (FB-022).
 func use_consumable(inv_index: int) -> bool:
 	if inv_index < 0 or inv_index >= inventory.size():
 		return false
 	var item: Dictionary = inventory[inv_index]
-	if str(item.get("category", "")) != "consumable":
+	if not InventoryStacks.is_stackable(item):
 		return false
-	health = minf(max_health, health + float(item.get("heal_health", 0.0)))
-	magicka = minf(max_magicka, magicka + float(item.get("heal_magicka", 0.0)))
-	inventory.remove_at(inv_index)
+	health = minf(max_health, health + PowerScale.consumable_value(item, "heal_health"))
+	magicka = minf(max_magicka, magicka + PowerScale.consumable_value(item, "heal_magicka"))
+	stamina = minf(max_stamina, stamina + PowerScale.consumable_value(item, "heal_stamina"))
+	var eff: Dictionary = item.get("effect", {})
+	if not eff.is_empty():
+		apply_timed_effect(eff, PowerScale.item(item))
+	InventoryStacks.take(inventory, inv_index, 1)
 	if EventBus != null:
 		EventBus.sfx_requested.emit("spell_heal")
 	emit_stats()
 	return true
 
 
+## Starts (or refreshes) a timed effect. Numeric params are scaled by `power` (except the duration).
+func apply_timed_effect(eff: Dictionary, power: float = 1.0) -> void:
+	var id := str(eff.get("id", "effect"))
+	var params := {}
+	for k in eff.keys():
+		if k in ["id", "name", "duration", "kind"]:
+			continue
+		params[k] = float(eff[k]) * power if (typeof(eff[k]) == TYPE_FLOAT or typeof(eff[k]) == TYPE_INT) else eff[k]
+	var dur := float(eff.get("duration", 10.0))
+	var cur: Dictionary = timed_effects.get(id, {})
+	timed_effects[id] = {"id": id, "name": str(eff.get("name", id.capitalize())), "kind": str(eff.get("kind", "buff")),
+		"t": maxf(float(cur.get("t", 0.0)), dur), "duration": dur, "params": params}
+	emit_stats()
+
+
+## Sum of one numeric param across every active timed effect (e.g. "speed", "armor").
+func effect_sum(key: String) -> float:
+	var v := 0.0
+	for e in timed_effects.values():
+		v += float(e["params"].get(key, 0.0))
+	return v
+
+
+## FB-022: every temporary effect on the player, for the HUD's status list (buffs first, then debuffs, cooldowns).
+## Each: {"id", "name", "remaining", "duration", "kind": "buff"/"debuff"/"cooldown", "stacks"}
+func active_statuses() -> Array:
+	var out: Array = []
+	for e in timed_effects.values():
+		out.append({"id": e["id"], "name": e["name"], "remaining": float(e["t"]), "duration": float(e["duration"]), "kind": e["kind"], "stacks": 0})
+	if _ward_t > 0.0:
+		out.append({"id": "ward", "name": "Aegis Ward", "remaining": _ward_t, "duration": _ward_dur, "kind": "buff", "stacks": 0})
+	if _regen_t > 0.0:
+		out.append({"id": "renewal", "name": "Renewal", "remaining": _regen_t, "duration": _regen_dur, "kind": "buff", "stacks": 0})
+	if _frenzy_stacks > 0 and _frenzy_t > 0.0:
+		out.append({"id": "frenzy", "name": "Frenzy", "remaining": _frenzy_t, "duration": 2.0, "kind": "buff", "stacks": _frenzy_stacks})
+	if riposte_t > 0.0:
+		out.append({"id": "riposte", "name": "Riposte Ready", "remaining": riposte_t, "duration": maxf(riposte_t, 2.0), "kind": "buff", "stacks": 0})
+	if _slow_t > 0.0:
+		out.append({"id": "slowed", "name": "Slowed", "remaining": _slow_t, "duration": _slow_dur, "kind": "debuff", "stacks": 0})
+	if _second_wind_cd > 0.0:
+		out.append({"id": "second_wind", "name": "Second Wind Recharging", "remaining": _second_wind_cd,
+			"duration": maxf(_second_wind_cd, 60.0), "kind": "cooldown", "stacks": 0})
+	var rank := {"buff": 0, "debuff": 1, "cooldown": 2}
+	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		if a["kind"] != b["kind"]:
+			return int(rank.get(a["kind"], 3)) < int(rank.get(b["kind"], 3))
+		return float(a["remaining"]) < float(b["remaining"]))
+	return out
+
+
 func quick_drink_health_potion() -> bool:
 	for i in range(inventory.size()):
-		if float(inventory[i].get("heal_health", 0.0)) > 0.0:
+		if str(inventory[i].get("category", "")) == "consumable" and float(inventory[i].get("heal_health", 0.0)) > 0.0:
 			return use_consumable(i)
 	return false
+
+
+# --- FB-022 Hotbar -----------------------------------------------------------------------------------------
+## Default favourites: the starting weapons, spells and potions.
+func reset_hotbar() -> void:
+	hotbar.clear()
+	hotbar.resize(HOTBAR_SIZE)
+	for i in range(HOTBAR_SIZE):
+		hotbar[i] = {}
+	var order: Array = []
+	for slot in ["right_hand", "left_hand"]:
+		if equipment.has(slot):
+			order.append(equipment[slot])
+	for it in inventory:
+		if not InventoryStacks.is_stackable(it) and str(it.get("category", "")) in ["weapon", "spell", "shield"]:
+			order.append(it)
+	for it in inventory:
+		if InventoryStacks.is_stackable(it):
+			order.append(it)
+	for it in order:
+		var free := hotbar.find({})
+		if free < 0:
+			break
+		hotbar_assign(free, it)
+
+
+## Puts an item on a hotbar slot (removing it from any other slot). Gear is remembered by its own instance,
+## consumables by kind (the key keeps working while any of that stack is left).
+func hotbar_assign(slot: int, item: Dictionary) -> bool:
+	if slot < 0 or slot >= HOTBAR_SIZE or item.is_empty():
+		return false
+	if hotbar.size() != HOTBAR_SIZE:
+		hotbar.resize(HOTBAR_SIZE)
+		for i in range(HOTBAR_SIZE):
+			if typeof(hotbar[i]) != TYPE_DICTIONARY:
+				hotbar[i] = {}
+	var cat := str(item.get("category", ""))
+	var entry := {}
+	if InventoryStacks.is_stackable(item):
+		entry = {"kind": "stack", "id": str(item.get("id", ""))}
+	elif cat in ["weapon", "spell", "shield"]:
+		var hand := "left_hand" if cat == "shield" or (cat == "spell" and str(item.get("slot", "")) == "left_hand") else "right_hand"
+		entry = {"kind": "gear", "uid": str(item.get("instance_id", "")), "id": str(item.get("id", "")), "hand": hand}
+	else:
+		return false
+	for i in range(HOTBAR_SIZE):
+		if _hotbar_same(hotbar[i], entry):
+			hotbar[i] = {}
+	hotbar[slot] = entry
+	if EventBus != null:
+		EventBus.equipment_changed.emit(equipment)
+	return true
+
+
+func hotbar_clear(slot: int) -> void:
+	if slot >= 0 and slot < hotbar.size():
+		hotbar[slot] = {}
+
+
+func _hotbar_same(a: Variant, b: Dictionary) -> bool:
+	if typeof(a) != TYPE_DICTIONARY or (a as Dictionary).is_empty():
+		return false
+	if str(a.get("kind", "")) != str(b.get("kind", "")):
+		return false
+	return str(a.get("uid", a.get("id", ""))) == str(b.get("uid", b.get("id", "")))
+
+
+## The item a hotbar slot points at right now ({} when it is gone), plus where it is:
+## {"item", "where": "equipped"/"bag", "index" (bag index or slot name), "count"}
+func hotbar_item(slot: int) -> Dictionary:
+	if slot < 0 or slot >= hotbar.size() or typeof(hotbar[slot]) != TYPE_DICTIONARY:
+		return {}
+	var e: Dictionary = hotbar[slot]
+	if e.is_empty():
+		return {}
+	if str(e.get("kind", "")) == "stack":
+		var n := InventoryStacks.total(inventory, str(e["id"]))
+		var idx := InventoryStacks.find(inventory, str(e["id"]))
+		var shown: Dictionary = inventory[idx] if idx >= 0 else DataLoader.get_item_def(str(e["id"]))
+		return {"item": shown, "where": "bag", "index": idx, "count": n}
+	var uid := str(e.get("uid", ""))
+	for s in equipment.keys():
+		if str(equipment[s].get("instance_id", "")) == uid:
+			return {"item": equipment[s], "where": "equipped", "index": s, "count": 1}
+	for i in range(inventory.size()):
+		if str(inventory[i].get("instance_id", "")) == uid:
+			return {"item": inventory[i], "where": "bag", "index": i, "count": 1}
+	return {}
+
+
+## What the HUD draws: one {"item", "count", "equipped"} per slot ({} for an empty / missing slot).
+func hotbar_view() -> Array:
+	var out: Array = []
+	for i in range(HOTBAR_SIZE):
+		var h := hotbar_item(i)
+		out.append({} if h.is_empty() else {"item": h["item"], "count": int(h["count"]), "equipped": str(h["where"]) == "equipped",
+			"stack": typeof(hotbar[i]) == TYPE_DICTIONARY and str(hotbar[i].get("kind", "")) == "stack"})
+	return out
+
+
+## Presses a hotbar key: equips that weapon / spell / shield, or drinks / eats one of that stack.
+func use_hotbar(slot: int) -> bool:
+	var h := hotbar_item(slot)
+	if h.is_empty():
+		return false
+	var e: Dictionary = hotbar[slot]
+	if str(e.get("kind", "")) == "stack":
+		return int(h["count"]) > 0 and use_consumable(int(h["index"]))
+	if str(h["where"]) == "equipped":
+		return true  # already in hand
+	var ok := equip_from_inventory(int(h["index"]), str(e.get("hand", "")))
+	if ok and str(h["item"].get("weapon_type", "")) == "archery" and EventBus != null:
+		EventBus.sfx_requested.emit("bow_draw")
+	return ok
 
 
 func quick_equip_preset(preset_num: int) -> void:
@@ -573,14 +772,15 @@ func step_simulation(delta: float, is_paused: bool, input_override: Dictionary =
 	is_blocking = (left_block or right_block or is_cross_guarding) and stamina > 2.0
 
 	var passives: Dictionary = LootGenerator.aggregate_equipment_stats(equipment).get("passives", {})
-	var speed := float(mov["walk_speed"]) * (1.0 + float(passives.get("fleet", {}).get("speed", 0.0))) * (1.0 - _slow_amount if _slow_t > 0.0 else 1.0)
+	var fx_speed := (1.0 + effect_sum("speed")) * clampf(1.0 - effect_sum("slow"), 0.2, 1.0)
+	var speed := float(mov["walk_speed"]) * (1.0 + float(passives.get("fleet", {}).get("speed", 0.0))) * (1.0 - _slow_amount if _slow_t > 0.0 else 1.0) * fx_speed
 	var is_sprinting := false
 	if is_blocking:
 		speed *= float(mov["block_speed_multiplier"])
 	elif is_bow_drawing:
 		speed *= float(mov["bow_draw_speed_multiplier"])
 	elif wants_sprint and move_vec.length_squared() > 0.05 and stamina > 1.0:
-		speed = float(mov["sprint_speed"]) * (1.0 + float(passives.get("fleet", {}).get("speed", 0.0))) * (1.0 - _slow_amount if _slow_t > 0.0 else 1.0)
+		speed = float(mov["sprint_speed"]) * (1.0 + float(passives.get("fleet", {}).get("speed", 0.0))) * (1.0 - _slow_amount if _slow_t > 0.0 else 1.0) * fx_speed
 		stamina = maxf(0.0, stamina - float(mov["sprint_stamina_per_sec"]) * delta)
 		_stamina_regen_delay = float(stats["regen_delay_after_spend_sec"])
 		is_sprinting = true
@@ -608,11 +808,11 @@ func step_simulation(delta: float, is_paused: bool, input_override: Dictionary =
 	move_and_slide()
 
 	# Passive Skyrim resource regeneration
-	health = minf(max_health, health + (float(stats["health_regen_per_sec"]) + (_regen_hps if _regen_t > 0.0 else 0.0)) * delta)
+	health = minf(max_health, health + (float(stats["health_regen_per_sec"]) + (_regen_hps if _regen_t > 0.0 else 0.0) + effect_sum("hps")) * delta)
 	if _magicka_regen_delay <= 0.0:
-		magicka = minf(max_magicka, magicka + (float(stats["magicka_regen_per_sec"]) + float(passives.get("arcane_flow", {}).get("magicka_regen", 0.0))) * delta)
+		magicka = minf(max_magicka, magicka + (float(stats["magicka_regen_per_sec"]) + float(passives.get("arcane_flow", {}).get("magicka_regen", 0.0)) + effect_sum("magicka_regen")) * delta)
 	if _stamina_regen_delay <= 0.0 and not is_blocking:
-		stamina = minf(max_stamina, stamina + (float(stats["stamina_regen_per_sec"]) + float(passives.get("vigor", {}).get("stamina_regen", 0.0))) * delta)
+		stamina = minf(max_stamina, stamina + (float(stats["stamina_regen_per_sec"]) + float(passives.get("vigor", {}).get("stamina_regen", 0.0)) + effect_sum("stamina_regen")) * delta)
 
 	# Update right-hand hold (Power Attack wind-up or Bow Draw)
 	if is_right_holding:
@@ -1550,14 +1750,16 @@ func emit_stats() -> void:
 		"right_hand_item": equipment.get("right_hand", {}),
 		"left_hand_item": equipment.get("left_hand", {}),
 		"health_potions": _count_health_potions(),
+		"statuses": active_statuses(),
+		"hotbar": hotbar_view(),
 	})
 
 
 func _count_health_potions() -> int:
 	var n := 0
 	for it in inventory:
-		if float(it.get("heal_health", 0.0)) > 0.0:
-			n += 1
+		if str(it.get("category", "")) == "consumable" and float(it.get("heal_health", 0.0)) > 0.0:
+			n += InventoryStacks.count(it)
 	return n
 
 
@@ -1634,7 +1836,7 @@ func _perform_melee_attack(weapon: Dictionary, is_right: bool, is_power: bool) -
 			"crit_chance": float(player_cfg["stats"]["base_crit_chance"]) + float(eq_totals["bonus_crit_chance"])
 				+ float(w_abil.get("keen_edge", {}).get("crit", 0.0)) + _consume_riposte(),
 			"crit_multiplier": float(player_cfg["stats"]["base_crit_multiplier"]),
-			"sponsored_effects": eq_totals["sponsored_effects"],
+			"legendary_effects": eq_totals["legendary_effects"],
 			"skill_name": wtype,
 			"passives": eq_totals.get("passives", {}),
 		})
@@ -1687,7 +1889,7 @@ func _fire_bow(bow: Dictionary, hold_sec: float) -> void:
 				"crit_multiplier": float(player_cfg["stats"]["base_crit_multiplier"]),
 				"from_player": true,
 				"skill_name": "archery",
-				"sponsored_effects": eq_totals["sponsored_effects"],
+				"legendary_effects": eq_totals["legendary_effects"],
 				"abilities": b_abil,
 				"item_uid": str(bow.get("instance_id", "")),
 				"full_draw": ratio >= 1.0,
@@ -1747,9 +1949,11 @@ func _cast_spell(spell: Dictionary, is_right: bool) -> void:
 		if s_abil.has("regen"):
 			_regen_hps = float(s_abil["regen"].get("hps", 3.0))
 			_regen_t = float(s_abil["regen"].get("duration", 6.0))
+			_regen_dur = _regen_t
 		if s_abil.has("ward"):
 			_ward_reduction = float(s_abil["ward"].get("reduction", 0.2))
 			_ward_t = float(s_abil["ward"].get("duration", 5.0))
+			_ward_dur = _ward_t
 		var mcb: Callable = _callbacks.get("item_used", Callable())
 		if mcb.is_valid():
 			mcb.call(spell, "cast")
@@ -1784,7 +1988,7 @@ func _cast_spell(spell: Dictionary, is_right: bool) -> void:
 				"skill_name": skill_name,
 				"splash_radius": float(spell.get("splash_radius", 0.0)),
 				"chain_radius": float(spell.get("chain_radius", 0.0)),
-				"sponsored_effects": eq_totals["sponsored_effects"],
+				"legendary_effects": eq_totals["legendary_effects"],
 				"abilities": s_abil,
 				"item_uid": str(spell.get("instance_id", "")),
 				"pierce": int(s_abil.get("pierce", {}).get("count", 0)),
@@ -1800,6 +2004,10 @@ func _tick_mastery_timers(delta: float) -> void:
 	riposte_t = maxf(0.0, riposte_t - delta)
 	_ward_t = maxf(0.0, _ward_t - delta)
 	_regen_t = maxf(0.0, _regen_t - delta)
+	for id in timed_effects.keys():
+		timed_effects[id]["t"] = float(timed_effects[id]["t"]) - delta
+		if float(timed_effects[id]["t"]) <= 0.0:
+			timed_effects.erase(id)
 	_second_wind_cd = maxf(0.0, _second_wind_cd - delta)
 	_slow_t = maxf(0.0, _slow_t - delta)
 
@@ -1832,6 +2040,7 @@ func blocking_item() -> Dictionary:
 func apply_slow(amount: float, duration: float) -> void:
 	_slow_amount = clampf(maxf(_slow_amount if _slow_t > 0.0 else 0.0, amount), 0.0, 0.8)
 	_slow_t = maxf(_slow_t, duration)
+	_slow_dur = maxf(_slow_t, 0.1)
 
 
 func is_slowed() -> bool:

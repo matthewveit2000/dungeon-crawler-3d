@@ -82,3 +82,5 @@ See [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) and [`docs/DECISION_LOG.md`](..
 
 - Documented in `docs/ARCHITECTURE.md` §6 and `docs/CONTENT_CATALOG.md` §1: all living entities (player, enemies, bosses, summons) will share one extensible Tier 2 `EntityStats` & resistance container (`max_health`, `max_magicka`, `max_stamina`, `armor`, elemental/status resistances, `knockback_res`, `paralysis_res`, `poise`, `mass`, `power_tier`, mobility/speed stats) with shared power-vs-resistance resolution, composable Tier 3 ability primitives (per-missile effects, ground zones, ally summons, movement impulses), and Utility-Scoring AI for spellcasting enemies.
 
+## 2026-11-21 — FB-022 Systems (`D-057`)
+- New `PowerScale` + `data/balance.json`, `InventoryStacks`; player hotbar & timed effects; on-demand enemy creation (`_pending_spawns`); champion promotion; `FloorLayout.pois`, `blocked_corners`, `has_tile_los`; shader health bar; `UiTheme.map_mark()` replaces four copies of the landmark icon table; `DataLoader.LEGACY_IDS` save migration. See `docs/ARCHITECTURE.md` "FB-022 Systems".

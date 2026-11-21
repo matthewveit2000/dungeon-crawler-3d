@@ -13,7 +13,7 @@
 | Tier | Location | Responsibility | Rules |
 |---|---|---|---|
 | **Tier 1 — Core Engine Glue** | `game/src/core/` | Seeded PRNG (`SeededRng`), JSON data loader (`DataLoader`), decoupled signal bus (`EventBus`), `.glb` model loader with graceful fallback + MultiMesh mesh access (`ModelLoader`), shared PBR material binding (`MaterialLibrary`), persistent player settings & key rebinding (`GameSettings` autoload), procedural audio playback (`AudioManager`). | Zero hardcoded gameplay rules or item stats. Graceful fallback if an asset or audio file is missing. |
-| **Tier 2 — Pure Gameplay Rules** | `game/src/systems/` | Deterministic procedural dungeon layout (`DungeonGenerator`), Skyrim left/right-hand & armor/crit math (`CombatMath`), rarity & Sponsored/Mythic rolling (`LootGenerator`), hybrid XP + Skyrim use-to-improve (`ProgressionSystem`), 5-day floor clock (`FloorTimer`), Floor-Entry Snapshot & Save-and-Quit persistence (`SnapshotManager`), Vendor economy (`VendorSystem`), Compass projection (`CompassSystem`), Dungeon AI snark (`DungeonAiDirector`), Audit Console parser (`DebugConsole`). | Pure `RefCounted` logic driven exclusively by Tier 3 JSON dictionaries and injected `SeededRng`. No scene-tree assumptions. |
+| **Tier 2 — Pure Gameplay Rules** | `game/src/systems/` | Deterministic procedural dungeon layout (`DungeonGenerator`), Skyrim left/right-hand & armor/crit math (`CombatMath`), rarity & legendary-effect rolling (`LootGenerator`), hybrid XP + Skyrim use-to-improve (`ProgressionSystem`), 5-day floor clock (`FloorTimer`), Floor-Entry Snapshot & Save-and-Quit persistence (`SnapshotManager`), Vendor economy (`VendorSystem`), Compass projection (`CompassSystem`), Dungeon AI snark (`DungeonAiDirector`), Audit Console parser (`DebugConsole`). | Pure `RefCounted` logic driven exclusively by Tier 3 JSON dictionaries and injected `SeededRng`. No scene-tree assumptions. |
 | **Tier 3 — Pure Data Packs** | `game/data/` | Validated JSON packs (`world.json`, `player.json`, `items.json`, `affixes.json`, `enemies.json`, `dungeon_ai.json`, `progression.json`, `tutorials.json`, `setpieces.json`) plus `materials.json` (shared PBR material definitions read by Blender and Godot). | All tunable numbers, spawn weights, timers, item stats, text and material parameters live here. Validated by `scripts/validate-data.py` and `scripts/validate-assets.py`. |
 | **3D World & UI Presentation** | `game/src/world/`, `game/src/ui/`, `game/src/main.gd` | Batched, lit and dressed Nordic-ruin builder (`DungeonBuilder`; on vast floors (`D-044`) it streams decor per 32 m chunk around the player, draws architecture only within 170 m, and uses infinite floor/ceiling planes + merged wall colliders), Skyrim 1st/3rd-person player (`PlayerController`), rigged animated character wrapper (`CharacterVisual`), enemies & Boss (`EnemyActor`), projectiles (`GameProjectile`), interactables with lid/lever animation (`InteractableObject`), effects (`VfxFactory`), UI design system (`UiTheme`, `ItemInfo`, `MenuScreen`), HUD (`GameHud`), menus (`TitleScreen`, `PauseMenu`, `SettingsPanel`, `InventoryMenu`, `VendorMenu`, `MapMenu`, `DeathScreen`, `DebugOverlay`) and scene coordinator (`GameMain`). | Thin visual/physics adapters delegating all rules and math to Tier 2. |
 
@@ -94,3 +94,29 @@ Because continuously adding **unique spells, enemies, weapons, summons, and aren
 - **Data-Driven Enemy Ability Tiers & Utility AI:** Enemy definitions in `enemies.json` scale their trait/ability parameters by level tier, and spellcasting enemies draw seeded loadouts from a shared spell registry evaluated by a context-aware **Utility-Scoring AI** (checking mana, cooldowns, range, self/ally HP, and target status).
 - See [`docs/CONTENT_CATALOG.md`](CONTENT_CATALOG.md) for the concrete enemies, magic tomes, weapons, and arena mechanics this architecture is designed to support.
 
+
+## FB-022 Systems (`D-057`)
+
+- **`PowerScale`** (`game/src/systems/power_scale.gd`) + **`game/data/balance.json`**: every power multiplier in one place.
+  Enemy stats = base × level scaling × `balance.global.enemy_*` × floor `power_scale` × the type's own `power_scale`
+  (bosses/champions use their own health/damage knobs). Item core stats go through `MasterySystem.stat()`, which
+  multiplies in `item_power` × the item definition's `power_scale` (read live from the definition). Consumable effects use
+  `PowerScale.consumable_value()`.
+- **`InventoryStacks`** (`game/src/systems/inventory_stacks.gd`): consumables and ingredients are one bag entry with a
+  `count`; `add` / `take` / `total` / `find` / `normalize` (merges loose entries from older saves). All bag writes go
+  through `PlayerController.add_to_inventory()` and the vendor's quantity-aware `buy_item` / `sell_item`.
+- **Hotbar:** `PlayerController.hotbar` (8 entries: gear by instance uid + hand, stacks by item id), saved in the session
+  and floor snapshot; `use_hotbar()` equips / consumes; input actions `hotbar_1`…`hotbar_8`.
+- **Timed effects:** `PlayerController.timed_effects` (potion/ingredient `effect` blocks) + existing mastery timers are
+  exposed by `active_statuses()` and sent with `player_stats_changed` to the HUD's status list.
+- **On-demand enemies:** `GameMain._pending_spawns` holds every non-boss spawn; `materialize_nearby_enemies()` creates
+  those within `ENEMY_MATERIALIZE_RADIUS` (100 m) every 0.5 s and after teleports/loads.
+- **Champions:** the generator marks lair spawns (`champion`, `title`) and map POIs; `spawn_enemy(..., opts)` passes
+  `_champion` in the definition and `EnemyActor` promotes it (group `champions`).
+- **Map POIs & area maps:** `FloorLayout.pois` (`treasure` / `champion`, revealed / done) drawn by the map and minimap via
+  `UiTheme.map_mark()`; `GameMain.read_area_map()` reveals tiles, POIs and landmarks around a safe room (`maps_read` saved).
+- **Straight walking:** `FloorLayout.has_tile_los()` sweeps a body-wide band between tile centres, avoiding prop clutter
+  and the pillars registered in `blocked_corners`; `EnemyActor._steer_toward()` binary-searches the farthest path
+  waypoint in straight view.
+- **Health bar:** one billboarded quad with a tiny shader (`ratio`, `lag`, `fill_color` uniforms).
+- **Legacy ids:** `DataLoader.LEGACY_IDS` / `current_id()` map ids renamed by the re-theme so old saves and bestiaries load.

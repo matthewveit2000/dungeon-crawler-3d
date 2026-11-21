@@ -9,6 +9,7 @@ class MapCanvas extends Control:
 	var player_tile_f: Vector2 = Vector2.ZERO
 	var player_yaw: float = 0.0
 	var landmarks: Array = []
+	var pois: Array = []
 	var zoom: float = 1.0
 	var pan: Vector2 = Vector2.ZERO
 	const VIEW_TILES := 70  ## tiles across the shorter side at zoom 1
@@ -89,14 +90,26 @@ class MapCanvas extends Control:
 			var wp: Vector3 = lm["world_pos"]
 			var tp := Vector2(wp.x, wp.z) / layout.tile_size
 			var pos := origin + tp * cell
-			var icons: Dictionary = {"safe_room": "icon_shield", "boss_arena": "icon_skull", "vault": "icon_chest", "stairs": "icon_stairs"}
-			var cols: Dictionary = {"safe_room": Color(0.15, 0.45, 0.38), "boss_arena": Color(0.55, 0.12, 0.08), "vault": Color(0.6, 0.45, 0.1), "stairs": Color(0.15, 0.25, 0.5)}
-			var icon: String = str(icons.get(str(lm.get("id", "")), "icon_diamond"))
-			var col: Color = cols.get(str(lm.get("id", "")), ink)
-			var t := UiTheme.tex(icon)
+			var mk := UiTheme.map_mark(str(lm.get("id", "")))
+			var col: Color = mk[2]
+			var t := UiTheme.tex(str(mk[0]))
 			var s := clampf(cell * 1.4, 18.0, 40.0)
 			if t != null:
 				draw_texture_rect(t, Rect2(pos - Vector2(s, s) * 0.5, Vector2(s, s)), false, col)
+		# FB-022: treasure and champion lairs revealed by safe-room maps (faded once looted / slain)
+		for poi in pois:
+			if not bool(poi.get("revealed", false)):
+				continue
+			var pw: Vector3 = poi["world_pos"]
+			var ppos := origin + Vector2(pw.x, pw.z) / layout.tile_size * cell
+			var pm := UiTheme.map_mark(str(poi["kind"]))
+			var pcol: Color = pm[2]
+			if bool(poi.get("done", false)):
+				pcol.a = 0.3
+			var ptex := UiTheme.tex(str(pm[0]))
+			var ps2 := clampf(cell * 1.1, 14.0, 30.0)
+			if ptex != null:
+				draw_texture_rect(ptex, Rect2(ppos - Vector2(ps2, ps2) * 0.5, Vector2(ps2, ps2)), false, pcol)
 		var pp := origin + player_tile_f * cell
 		var pt := UiTheme.tex("icon_player")
 		var ps := clampf(cell * 1.2, 16.0, 34.0)
@@ -128,6 +141,7 @@ func open_map(layout: DungeonGenerator.FloorLayout, seen: Dictionary, player_pos
 	_canvas.layout = layout
 	_canvas.seen = seen
 	_canvas.landmarks = layout.landmarks if layout != null else []
+	_canvas.pois = layout.pois if layout != null else []
 	_canvas.player_tile_f = Vector2(player_pos.x, player_pos.z) / (layout.tile_size if layout != null else 4.0)
 	_canvas.player_yaw = player_yaw
 	_canvas.pan = Vector2.ZERO
@@ -177,9 +191,11 @@ func _build_ui() -> void:
 	v.add_child(_stats_lbl)
 	v.add_child(UiTheme.divider())
 	v.add_child(UiTheme.label("LEGEND", 15, UiTheme.COL_GOLD, UiTheme.font_ui_bold()))
-	for spec in [["icon_player", "You", Color(0.9, 0.3, 0.2)], ["icon_shield", "Safe Room", Color(0.36, 0.95, 0.78)],
-			["icon_skull", "Boss Gate", Color(1.0, 0.4, 0.3)], ["icon_chest", "Treasure Vault", Color(1.0, 0.82, 0.36)],
-			["icon_stairs", "Hidden Stairwell", Color(0.55, 0.78, 1.0)]]:
+	var legend: Array = [["icon_player", "You", Color(0.9, 0.3, 0.2)]]
+	for k in ["safe_room", "boss_arena", "vault", "stairs", "champion", "treasure"]:
+		var mk := UiTheme.map_mark(k)
+		legend.append([mk[0], mk[3], mk[1]])
+	for spec in legend:
 		var r := HBoxContainer.new()
 		r.add_theme_constant_override("separation", 10)
 		r.add_child(UiTheme.icon_rect(UiTheme.tex(spec[0]), 22, spec[2]))

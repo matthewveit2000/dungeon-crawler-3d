@@ -2,7 +2,7 @@
 # Captures live Player-POV screenshots and a combat motion MP4 of the actual running game (D-028).
 # Default renderer: Vulkan Forward+ (the desktop target). Without a GPU it runs on Mesa lavapipe inside
 # Xvfb (slow but faithful). RENDER=opengl3 captures the Compatibility fallback renderer instead.
-# QA_ONLY=fp,menus limits the capture to selected groups (title, fp, tp, enemies, corridor, safe, boss, menus, motion).
+# QA_ONLY=fp,menus limits the capture to selected groups (title, fp, tp, enemies, corridor, safe, boss, menus, fb022, motion).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

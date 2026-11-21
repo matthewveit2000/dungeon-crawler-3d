@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c30x3d10qnh00"
-path="res://.godot/imported/sponsored_gauntlets.png-53961fced6025a412e628efb62f612a8.ctex"
+uid="uid://bhmarb8w3ekk1"
+path="res://.godot/imported/stamina_potion.png-ea9c6fddcd9d8e6aa8ccc32947d92edc.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/icons/sponsored_gauntlets.png"
-dest_files=["res://.godot/imported/sponsored_gauntlets.png-53961fced6025a412e628efb62f612a8.ctex"]
+source_file="res://assets/icons/stamina_potion.png"
+dest_files=["res://.godot/imported/stamina_potion.png-ea9c6fddcd9d8e6aa8ccc32947d92edc.ctex"]
 
 [params]
 

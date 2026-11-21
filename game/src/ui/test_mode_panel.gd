@@ -91,6 +91,7 @@ func _build_ui() -> void:
 		var nn: int = n
 		_btn(ge, "Count: %d" % nn, func() -> void: _count = nn)
 	_btn(ge, "Kill nearby (25 m)", func() -> void: _game.test_kill_enemies(25.0))
+	_btn(ge, "Toggle: spawn as Champion", func() -> void: _game.test_champions = not _game.test_champions)
 	_section(ge, "Spawn in front of you")
 	for e in DataLoader.get_enemies_pack().get("enemies", []):
 		var eid := str(e["id"])
@@ -150,7 +151,7 @@ func _build_ui() -> void:
 
 	# --- Floor ---
 	var gf := _grid("Floor", 4)
-	for t in ["entrance", "combat", "safe", "boss", "vault", "stairs"]:
+	for t in ["entrance", "combat", "champion", "safe", "boss", "vault", "stairs"]:
 		var tgt: String = t
 		_btn(gf, "Go to %s" % tgt, func() -> void:
 			_game.test_teleport(tgt)

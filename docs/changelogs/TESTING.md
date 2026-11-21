@@ -103,3 +103,7 @@ See [`docs/TESTING_STRATEGY.md`](../TESTING_STRATEGY.md) and [`docs/DECISION_LOG
 ## 2026-11-20 — FB-015 Regression Guards (`D-049`)
 
 - New `game/tests/test_feedback_fb015.gd` (15 tests): all-Common varied loot, unique mastery tracks, mastery levels/stats/unlocks, in-game mastery XP, shock chaining, fire detonation, lunge + cross guard, bow bullet time, bleeding, enemy level ranges/floor bands, level scaling + deterministic levels, enemy traits, bestiary tiers + persistence through floor reset and save/load, Bestiary tab, item-card mastery with hidden abilities.
+
+## 2026-11-21 — FB-022 Regression Guards (`D-057`)
+- `game/tests/test_feedback_fb022.gd`: exact health bar, more/weaker enemies, on-demand creation, champion lairs, no show/sponsor text left in data/UI, legacy-id save migration, straight walking + string-pulled paths, hotbar, level-up text + level-1 abilities, status list, power-scale knobs, stacks + vendor quantities, safe-room area maps, visible damage over time.
+- Updated: loot/combat tests for legendary effects, the integration test's quest board → area map, FB-015 Hollerer id.

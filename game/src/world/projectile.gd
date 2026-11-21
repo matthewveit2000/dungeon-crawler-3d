@@ -11,7 +11,7 @@ var from_player: bool = true
 var skill_name: String = "archery"
 var splash_radius: float = 0.0
 var chain_radius: float = 0.0
-var sponsored_effects: Array = []
+var legendary_effects: Array = []
 ## D-049 mastery: on-hit abilities of the item that fired this, the item's instance id (for mastery XP),
 ## shots that pass through enemies, and seekers that curve toward the nearest enemy
 var abilities: Dictionary = {}
@@ -38,7 +38,7 @@ func setup(params: Dictionary, hit_callback: Callable) -> void:
 	skill_name = str(params.get("skill_name", "archery"))
 	splash_radius = float(params.get("splash_radius", 0.0))
 	chain_radius = float(params.get("chain_radius", 0.0))
-	sponsored_effects = params.get("sponsored_effects", [])
+	legendary_effects = params.get("legendary_effects", [])
 	abilities = params.get("abilities", {})
 	item_uid = str(params.get("item_uid", ""))
 	pierce_left = int(params.get("pierce", 0))

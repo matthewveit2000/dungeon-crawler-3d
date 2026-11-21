@@ -1,5 +1,5 @@
 extends GutTest
-## Automated Tests for Skyrim Left/Right-Hand Combat Math, Blocking, Bows & Sponsored Crits.
+## Automated Tests for Skyrim Left/Right-Hand Combat Math, Blocking, Bows & Legendary Crits.
 
 
 func test_skyrim_left_right_hand_equipping_rules() -> void:
@@ -37,7 +37,7 @@ func test_armor_mitigation_is_asymptotic_and_capped() -> void:
 	assert_almost_eq(CombatMath.compute_armor_mitigation(99999.0, pcfg), 0.8, 0.001)
 
 
-func test_blocking_and_power_attacks_and_sponsored_crits() -> void:
+func test_blocking_and_power_attacks_and_legendary_crits() -> void:
 	var pcfg := DataLoader.get_player()
 	var rng_a := SeededRng.new(55)
 	var rng_b := SeededRng.new(55)
@@ -61,16 +61,16 @@ func test_blocking_and_power_attacks_and_sponsored_crits() -> void:
 	assert_gt(float(blocked["block_stamina_cost"]), 0.0)
 
 	var rng_c := SeededRng.new(55)
-	var sponsored_crit := CombatMath.resolve_attack({
+	var legendary_crit := CombatMath.resolve_attack({
 		"base_damage": 30.0,
 		"is_power_attack": true,
 		"crit_chance": 0.99,
 		"crit_multiplier": 1.65,
-		"sponsored_effects": ["explosive_crits"],
+		"legendary_effects": ["explosive_crits"],
 	}, pcfg, rng_c)
-	assert_true(bool(sponsored_crit["is_crit"]))
-	assert_true(bool(sponsored_crit["trigger_explosive_crits"]))
-	assert_gt(float(sponsored_crit["final_damage"]), 70.0)
+	assert_true(bool(legendary_crit["is_crit"]))
+	assert_true(bool(legendary_crit["trigger_explosive_crits"]))
+	assert_gt(float(legendary_crit["final_damage"]), 70.0)
 
 
 func test_bow_draw_ratio_scales_smoothly() -> void:

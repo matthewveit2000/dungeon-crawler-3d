@@ -77,6 +77,14 @@ func _duel(player_dmg: float, player_hits_per_s: float, player_hp: float, player
 	return {"kill": float(edef["max_health"]) / player_dps, "die": player_hp / enemy_dps}
 
 
+## Damage a player takes beating a pack of `n` enemies one at a time while all of them attack (FB-022: enemies come in
+## 2.5x the numbers but each is much weaker, so difficulty is measured against a typical pack, not a lone enemy).
+func _pack_taken(player_dmg: float, hits_per_s: float, player_armor: float, edef: Dictionary, n: int) -> float:
+	var d := _duel(player_dmg, hits_per_s, 1.0, player_armor, edef)
+	var enemy_dps := 1.0 / float(d["die"])  # per point of player health
+	return enemy_dps * float(d["kill"]) * float(n * (n + 1)) / 2.0
+
+
 func test_floor_starts_very_hard_and_gets_easier_as_the_player_scales() -> void:
 	DataLoader.ensure_loaded()
 	var pcfg := DataLoader.get_player()
@@ -85,14 +93,17 @@ func test_floor_starts_very_hard_and_gets_easier_as_the_player_scales() -> void:
 	var sword := float(DataLoader.get_item_def("iron_longsword")["damage"])
 	var draugr := DataLoader.get_enemy_def("draugr_raider")
 	var boss := DataLoader.get_enemy_def("iron_warden_boss")
-	var fresh := _duel(sword, 1.3, hp, armor, draugr)
-	assert_gt(fresh["kill"], 0.75 * fresh["die"], "fresh: a single draugr is a near-even fight (kill %.1fs vs die %.1fs)" % [fresh["kill"], fresh["die"]])
+	var pair := _pack_taken(sword, 1.3, armor, draugr, 2) / hp
+	assert_gt(pair, 0.55, "fresh: a typical pack of two draugr is a near-even fight (costs %d%% of your health)" % int(pair * 100.0))
+	assert_gt(_pack_taken(sword, 1.3, armor, draugr, 3), hp, "fresh: three at once overwhelm you")
 	var vs_boss := _duel(sword, 1.3, hp, armor, boss)
 	assert_gt(vs_boss["kill"], 3.0 * vs_boss["die"], "fresh: the boss is far out of reach")
 	# Scaled within the floor: +10 levels (5 points into health), rare gear, proficiency and a damage perk
+	var fresh := _duel(sword, 1.3, hp, armor, draugr)
 	var scaled := _duel(sword * 1.45 * 1.37, 1.3, hp + 75.0, armor * 1.45 + 40.0, draugr)
 	assert_gt(fresh["kill"] / scaled["kill"], 1.8, "scaling up kills draugr much faster")
-	assert_gt(scaled["die"] / scaled["kill"], 2.0 * fresh["die"] / fresh["kill"], "and the fight becomes clearly easier")
+	var scaled_pair := _pack_taken(sword * 1.45 * 1.37, 1.3, armor * 1.45 + 40.0, draugr, 2) / (hp + 75.0)
+	assert_lt(scaled_pair, pair * 0.35, "and the same pack becomes clearly easier (%d%% -> %d%% of your health)" % [int(pair * 100.0), int(scaled_pair * 100.0)])
 
 
 # --- Enemy AI ---------------------------------------------------------------------------------------------------

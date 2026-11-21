@@ -4,7 +4,7 @@ extends Node
 ##   - First-person viewmodels: fp_sword_shield, fp_battleaxe, fp_bow, fp_spell_dual
 ##   - Third-person live gameplay: tp_gameplay
 ##   - Every rigged character (all clips with real weapons):
-##       char_crawler, char_draugr, char_bone_archer, char_goblin_streamer, char_iron_warden, char_vendor
+##       char_crawler, char_draugr, char_bone_archer, char_goblin, char_iron_warden, char_vendor
 ##   - World & prop animations: world_props
 ##
 ## Run via ./scripts/record-anim-review.sh [out_dir] [only_csv]
@@ -264,8 +264,8 @@ func _run() -> void:
 	if _want("char_bone_archer"):
 		await _rec_character_reel("char_bone_archer", "bone_archer", "CRYPT BONE ARCHER", ent, 1.82, 1.82,
 			["idle", "idle_combat", "walk", "run", "shoot", "attack", "hit", "death"])
-	if _want("char_goblin_streamer"):
-		await _rec_character_reel("char_goblin_streamer", "goblin_streamer", "SPONSORED GOBLIN STREAMER", ent, 1.62, 1.25,
+	if _want("char_goblin"):
+		await _rec_character_reel("char_goblin", "goblin", "GOBLIN GLORY-HOUND", ent, 1.62, 1.25,
 			["idle", "idle_combat", "walk", "run", "attack", "hit", "death"])
 	if _want("char_iron_warden"):
 		await _rec_character_reel("char_iron_warden", "iron_warden", "THE IRON WARDEN (BOSS)", ent, 3.05, 2.95,
@@ -506,7 +506,7 @@ func _rec_fp_spell_dual(ent: Vector3) -> void:
 		_snap("fp_spell_dual", f); f += 1
 
 	# Dual-wield two weapons (left alternating + right!)
-	var cleaver_def := DataLoader.get_item_def("sponsored_blade_ratings")
+	var cleaver_def := DataLoader.get_item_def("gravefeast_cleaver")
 	if cleaver_def.is_empty():
 		cleaver_def = DataLoader.get_item_def("iron_longsword")
 	var off_w := LootGenerator.make_base_item_instance(cleaver_def, "qa_dual_left")
@@ -718,15 +718,15 @@ func _equip_showcase_weapons(cv: CharacterVisual, kind: String, mode: String = "
 				var b := ModelLoader.instantiate_model("res://assets/models/gear/hunting_bow.glb", Vector3(0.05, 1.4, 0.1))
 				gl.add_child(b)
 				bow_rig = _init_showcase_bow(b, gr)
-		"goblin_streamer":
+		"goblin":
 			if gr != null:
-				var cl := ModelLoader.instantiate_model("res://assets/models/gear/ratings_cleaver.glb", Vector3(0.05, 0.7, 0.05))
+				var cl := ModelLoader.instantiate_model("res://assets/models/gear/gravefeast_cleaver.glb", Vector3(0.05, 0.7, 0.05))
 				cl.scale = Vector3.ONE * 0.75
 				gr.add_child(cl)
-			var ring := cv.model.find_child("RingLight*", true, false) as Node3D
+			var ring := cv.model.find_child("CandleHoop*", true, false) as Node3D
 			if ring != null and ring.get_child_count() == 0:
 				var rl := OmniLight3D.new()
-				rl.light_color = Color(1.0, 0.35, 0.85)
+				rl.light_color = Color(1.0, 0.68, 0.32)
 				rl.light_energy = 1.2
 				rl.omni_range = 3.5
 				ring.add_child(rl)
@@ -811,7 +811,7 @@ func _rec_character_reel(clip_name: String, kind: String, title: String, ent: Ve
 
 	# True stride speed matching char_anims.py (4*stride_half / clip_duration) for 1:1 ground contact!
 	var leg_len := body_height * 0.48
-	var g_mult := 0.88 if kind == "vendor" else (1.08 if kind == "goblin_streamer" else 1.0)
+	var g_mult := 0.88 if kind == "vendor" else (1.08 if kind == "goblin" else 1.0)
 	var walk_mps := (4.0 * 0.30 * leg_len * g_mult) / (32.0 / 30.0)
 	var run_mps := (4.0 * 0.48 * leg_len * g_mult) / (20.0 / 30.0)
 

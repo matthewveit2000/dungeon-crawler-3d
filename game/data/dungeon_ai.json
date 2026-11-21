@@ -1,49 +1,50 @@
 {
+  "_doc": "FB-022: the announcer is the voice of the dungeon itself: ancient, smug, a little bored, and deeply unimpressed by you. Dark and goofy; no show, audience, sponsors or achievements.",
   "events": {
     "floor_enter": [
       {
-        "title": "WELCOME TO FLOOR {floor}",
-        "body": "You have 5 in-game days to find the stairwell before the ceiling becomes your new hat. No previews. Good luck, meatbag."
+        "title": "THE DUNGEON GREETS YOU — FLOOR {floor}",
+        "body": "You have 5 days to find a stairwell before the ceiling becomes your new hat. No peeking at what's below. Good luck, snack."
       },
       {
-        "title": "NEW FLOOR INITIALIZED — FLOOR {floor}",
-        "body": "The galactic broadcast ratings just ticked up 0.4%. Try not to trip over a draugr in the first five minutes."
+        "title": "FLOOR {floor}. OH, IT'S YOU AGAIN.",
+        "body": "The stones remember your footsteps. They were not impressed. Try not to trip over a draugr in the first five minutes."
       }
     ],
     "safe_room_discovered": [
       {
-        "title": "NEW ACHIEVEMENT! COWARD'S SANCTUARY!",
-        "body": "You found a Safe Room! Monsters legally cannot follow you inside due to Syndicate Zoning Ordinance 44-B. Browse the vendor and catch your breath."
+        "title": "A SANCTUARY. HOW DISAPPOINTING.",
+        "body": "Monsters cannot follow you in here — an ancient ward older than spite. Trade with the merchant, read the wall map, catch your breath."
       }
     ],
     "boss_arena_sealed": [
       {
-        "title": "LOCKDOWN ENGAGED — PRIME TIME BRAWL!",
-        "body": "The Iron Gate just slammed shut behind you! Two creatures enter, one crawler gets access to the Treasure Vault."
+        "title": "THE GATE SLAMS SHUT",
+        "body": "Two creatures enter. One of them gets the key to the Treasure Vault. The dungeon has placed a small wager. Not on you."
       }
     ],
     "boss_defeated": [
       {
-        "title": "NEW ACHIEVEMENT! HR COMPLAINT FILED!",
-        "body": "You dismantled the Floor Boss! The Treasure Vault seal has been lifted. Collect your totally-not-rigged loot before the floor collapses."
+        "title": "THE WARDEN FALLS. THE DUNGEON SULKS.",
+        "body": "The Treasure Vault seal has lifted. Collect your loot before the floor collapses and pretend it wasn't luck."
       }
     ],
-    "sponsored_loot": [
+    "legendary_loot": [
       {
-        "title": "SPONSORED DROP! DON'T FORGET TO SMILE!",
-        "body": "A wealthy off-world sponsor noticed your flailing and dropped Mythic gear: {item_name}. Mention them in your obituary!"
+        "title": "SOMETHING OLD AND ANGRY FOUND YOU",
+        "body": "A legendary relic has chosen you: {item_name}. The dungeon would like it back. Eventually. With interest."
       }
     ],
     "floor_collapse": [
       {
-        "title": "FLOOR COLLAPSE! TIME'S UP, CRAWLER!",
-        "body": "Five days elapsed and you're still here. Rewinding you to your Floor-Entry Snapshot. Maybe walk faster next attempt?"
+        "title": "THE FLOOR COLLAPSES! TIME'S UP!",
+        "body": "Five days passed and you're still here. The dungeon rewinds you to the start of the floor. Maybe walk faster next time?"
       }
     ],
     "player_death": [
       {
-        "title": "NEW ACHIEVEMENT! GRAVITY & SHARP OBJECTS!",
-        "body": "You died! Luckily our contract forbids permanent cancellation on this tier. Restoring your Floor-Entry Snapshot..."
+        "title": "YOU DIED. THE DUNGEON GIGGLES.",
+        "body": "Death down here is more of a suggestion. The dark spits you back out at the start of the floor, slightly embarrassed."
       }
     ],
     "level_up": [
@@ -55,13 +56,13 @@
     "time_warning": [
       {
         "title": "COLLAPSE WARNING — {days_left} DAYS REMAINING",
-        "body": "Reminder: the stone ceiling is scheduled to meet the stone floor. Find the hidden stairwell."
+        "body": "Reminder: the stone ceiling is scheduled to meet the stone floor. Find a hidden stairwell."
       }
     ],
     "first_kill": [
       {
-        "title": "NEW ACHIEVEMENT! FIRST BLOOD!",
-        "body": "You successfully applied sharp metal to a hostile resident. Viewership up 12%!"
+        "title": "FIRST BLOOD!",
+        "body": "You applied sharp metal to a hostile resident. The other residents are taking notes."
       }
     ]
   }

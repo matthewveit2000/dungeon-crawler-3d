@@ -144,18 +144,18 @@ def build_longsword():
 
 
 def build_cleaver():
-    """Sponsored: Prime-Time Ratings Cleaver — gilded broad cleaver with neon rating-bar inlay."""
+    """The Gravefeast Cleaver — gilded broad cleaver with a row of glowing blood-runes cut into the blade (FB-022)."""
     parts = []
     outline = [(-0.02, 0.0), (0.075, 0.0), (0.09, 0.2), (0.1, 0.48), (0.08, 0.6), (-0.03, 0.66), (-0.035, 0.12)]
     head = shapes.prism_from_outline(outline, 0.012, mat="steel_blade", bevel=0.003)
     _xf(head, (0, 0, 0.11))
     parts.append(head)
     for i in range(5):
-        parts.append(shapes.box((0.012, 0.016, 0.05 + i * 0.02), (0.02 + i * 0.012, 0, 0.3 + (0.05 + i * 0.02) / 2), mat="neon_pink"))
+        parts.append(shapes.box((0.012, 0.016, 0.03 + (i % 2) * 0.02), (0.02 + i * 0.012, 0, 0.3 + i * 0.045), mat="glow_eye_red", rot=(0, 0.35 * (1 if i % 2 else -1), 0)))
     parts.append(shapes.box((0.12, 0.03, 0.03), (0.02, 0, 0.1), mat="gold_antique", bevel=0.008))
     parts.append(grip_wrap(0.17, 0.016, mat="leather_dark"))
     parts.append(shapes.sphere(0.03, (0, 0, -0.105), seg=16, rings=10, mat="gold_antique"))
-    return finish_item(parts, "ratings_cleaver", 3)
+    return finish_item(parts, "gravefeast_cleaver", 3)
 
 
 def build_battleaxe():
@@ -353,6 +353,110 @@ def build_potion(kind="health"):
     return finish_item(parts, f"{kind}_potion", 12, smooth=60)
 
 
+def build_flask(name, liquid, prof, lvl, cork_glow, glass="glass_clear", tag_seed=2):
+    """FB-022 consumables: a corked glass vessel with a liquid fill, rope collar and a parchment tag."""
+    parts = [shapes.lathe(prof, 24, "Bottle", glass, cap_top=False)]
+    inner = [(r * 0.86, z) for (r, z) in prof if z <= lvl] + [(0.0, lvl)]
+    inner[0] = (0.0, 0.006)
+    parts.append(shapes.lathe(inner, 20, "Liquid", liquid))
+    cork_z = prof[-2][1]
+    parts.append(shapes.cylinder(0.016, 0.035, (0, 0, cork_z + 0.005), segments=12, mat="wood_rough", r_top=0.019))
+    parts.append(shapes.sphere(0.02, (0, 0, cork_z + 0.022), seg=12, rings=6, mat=cork_glow, scale=(1, 1, 0.35)))
+    parts.append(shapes.torus(0.019, 0.003, (0, 0, cork_z - 0.01), mat="rope"))
+    tag = shapes.cloth_panel(0.04, 0.05, cols=2, rows=2, fold_amp=0.002, seed=tag_seed, mat="parchment", thickness=0.0)
+    _xf(tag, (0.03, -0.02, cork_z - 0.02), (0, 0, 0.6))
+    parts.append(tag)
+    return finish_item(parts, name, 12 + tag_seed, smooth=60)
+
+
+def build_stamina_potion():
+    prof = [(0.0, 0.0), (0.045, 0.002), (0.058, 0.03), (0.058, 0.085), (0.04, 0.11), (0.018, 0.13), (0.017, 0.175), (0.021, 0.185), (0.0, 0.185)]
+    return build_flask("stamina_potion", "glass_lime", prof, 0.09, "glass_lime", tag_seed=3)
+
+
+def build_swiftness_draught():
+    # tall, slim, waisted vial: speed in a bottle
+    prof = [(0.0, 0.0), (0.028, 0.002), (0.032, 0.03), (0.022, 0.09), (0.03, 0.15), (0.02, 0.19), (0.012, 0.205), (0.012, 0.24), (0.016, 0.25), (0.0, 0.25)]
+    return build_flask("swiftness_draught", "glass_amber", prof, 0.16, "glow_eye_gold", tag_seed=4)
+
+
+def build_ironbark_tonic():
+    # squat, heavy jug wrapped in bark strips
+    prof = [(0.0, 0.0), (0.05, 0.002), (0.066, 0.025), (0.068, 0.06), (0.055, 0.09), (0.024, 0.11), (0.02, 0.14), (0.024, 0.15), (0.0, 0.15)]
+    ob = build_flask("ironbark_tonic", "bronze", prof, 0.075, "embers", tag_seed=5)
+    bark = []
+    for k in range(5):
+        a = k / 5 * math.tau
+        st = shapes.box((0.012, 0.006, 0.07), (math.cos(a) * 0.066, math.sin(a) * 0.066, 0.045), mat="wood_dark", rot=(0, 0, a))
+        bark.append(st)
+    band = shapes.torus(0.068, 0.004, (0, 0, 0.045), mat="iron_dark")
+    return finish_item([ob] + bark + [band], "ironbark_tonic", 15, smooth=50)
+
+
+def build_troll_fat_salve():
+    # a dented tin of greasy salve with its lid propped against it
+    parts = [shapes.cylinder(0.055, 0.04, (0, 0, 0.02), segments=24, mat="iron_dark", bevel=0.004)]
+    parts.append(shapes.cylinder(0.051, 0.006, (0, 0, 0.042), segments=24, mat="salve_fat"))
+    for k in range(3):
+        parts.append(shapes.sphere(0.014, (math.cos(k * 2.1) * 0.022, math.sin(k * 2.1) * 0.022, 0.046), seg=10, rings=6, mat="salve_fat", scale=(1, 1, 0.45)))
+    lid = shapes.cylinder(0.058, 0.012, (0.0, 0.0, 0.0), segments=24, mat="iron_dark", bevel=0.003)
+    _xf(lid, (0.07, 0.0, 0.035), (0, math.radians(-68), 0))
+    parts.append(lid)
+    label = shapes.cloth_panel(0.06, 0.03, cols=2, rows=2, fold_amp=0.001, seed=6, mat="parchment", thickness=0.0)
+    _xf(label, (0.0, -0.056, 0.02), (math.radians(90), 0, 0))
+    parts.append(label)
+    return finish_item(parts, "troll_fat_salve", 16, smooth=50)
+
+
+def build_glowcap_mushroom():
+    # a little cluster of bioluminescent caps on one root
+    parts = [shapes.sphere(0.03, (0, 0, 0.005), seg=10, rings=6, mat="dirt", scale=(1.3, 1.1, 0.4))]
+    for (x, y, h, r) in [(0.0, 0.0, 0.09, 0.034), (0.026, 0.012, 0.06, 0.024), (-0.022, 0.016, 0.045, 0.018)]:
+        parts.append(shapes.cylinder(r * 0.28, h, (x, y, h * 0.5), segments=10, mat="bone", r_top=r * 0.22))
+        parts.append(shapes.sphere(r, (x, y, h), seg=14, rings=8, mat="fungus_glow", scale=(1, 1, 0.55)))
+        for k in range(4):
+            a = k * 1.7 + x * 40
+            parts.append(shapes.sphere(r * 0.16, (x + math.cos(a) * r * 0.6, y + math.sin(a) * r * 0.6, h + r * 0.38), seg=6, rings=4, mat="glow_eye_blue"))
+    return finish_item(parts, "glowcap_mushroom", 17, smooth=60, weathering=0.2)
+
+
+def build_grave_moss():
+    # a torn clump of moss still clinging to a chip of crypt stone
+    rnd = random.Random(18)
+    parts = [shapes.stone((0.09, 0.06, 0.025), (0, 0, 0.0), seed=4, mat="stone_block")]
+    for k in range(9):
+        a = rnd.uniform(0, math.tau)
+        rr = rnd.uniform(0.0, 0.035)
+        parts.append(shapes.sphere(rnd.uniform(0.014, 0.024), (math.cos(a) * rr, math.sin(a) * rr * 0.7, 0.02 + rnd.uniform(0, 0.01)),
+                                   seg=8, rings=5, mat="moss", scale=(1, 1, 0.6)))
+    return finish_item(parts, "grave_moss", 18, smooth=70, weathering=0.3)
+
+
+def build_bat_wing_jerky():
+    # a dried bat wing on a loop of string: finger bones and leathery membrane
+    parts = []
+    pts = [(0.0, 0.0), (0.09, 0.04), (0.11, -0.005), (0.075, -0.03), (0.04, -0.045), (0.0, -0.02)]
+    wing = shapes.prism_from_outline(pts, 0.004, "Wing", "leather_dark")  # membrane in the XZ plane
+    parts.append(wing)
+    for (x, z) in [(0.09, 0.04), (0.11, -0.005), (0.075, -0.03), (0.04, -0.045)]:
+        parts.append(shapes.tube([(0.0, -0.003, 0.0), (x * 0.5, -0.004, z * 0.5 + 0.006), (x, -0.003, z)], radius=0.0025, mat="bone"))
+    parts.append(shapes.torus(0.012, 0.0015, (-0.012, 0.0, 0.0), mat="rope", rot=(math.radians(90), 0, 0)))
+    return finish_item(parts, "bat_wing_jerky", 19, smooth=40, weathering=0.4)
+
+
+def build_goblin_toenail():
+    # one large, curled, yellowed toenail. A collector's item, apparently.
+    prof = [(0.0, 0.0), (0.03, 0.0), (0.034, 0.004), (0.03, 0.008), (0.0, 0.008)]
+    nail = shapes.lathe(prof, 20, "Nail", "keratin")
+    nail.scale = (1.0, 0.7, 1.0)
+    bm_ob = nail
+    for v in bm_ob.data.vertices:
+        v.co.z += (v.co.x ** 2) * 9.0  # curl the edges up
+    ridge = shapes.torus(0.026, 0.002, (0, 0, 0.009), mat="keratin", scale=(1, 0.7, 1))
+    grime = shapes.sphere(0.008, (0.012, 0.006, 0.01), seg=8, rings=5, mat="dirt", scale=(1, 1, 0.4))
+    return finish_item([nail, ridge, grime], "goblin_toenail", 20, smooth=60, weathering=0.6)
+
+
 # ---------------------------------------------------------------------------
 # Armour pieces (inventory icons / loot visuals)
 # ---------------------------------------------------------------------------
@@ -452,7 +556,7 @@ def build_gauntlet(gold=False):
     parts.append(shapes.sphere(0.045, (0, -0.02, -0.04), seg=16, rings=8, mat=plate, scale=(1.05, 0.4, 1.0)))
     if gold:
         parts.append(shapes.torus(0.03, 0.006, (0, -0.04, -0.04), mat="neon_pink", rot=(math.pi / 2, 0, 0)))
-    return finish_item(parts, "sponsored_gauntlets" if gold else "steel_gauntlets", 15)
+    return finish_item(parts, "thunderclap_gauntlets" if gold else "steel_gauntlets", 15)
 
 
 def build_boots():
@@ -922,7 +1026,7 @@ def build_fp_upper_arm():
 
 GEAR = {
     "iron_sword": build_longsword,
-    "ratings_cleaver": build_cleaver,
+    "gravefeast_cleaver": build_cleaver,
     "battleaxe": build_battleaxe,
     "round_shield": build_round_shield,
     "hunting_bow": build_bow,
@@ -932,10 +1036,18 @@ GEAR = {
     "tome_mend": lambda: build_tome("mend"),
     "health_potion": lambda: build_potion("health"),
     "magicka_potion": lambda: build_potion("magicka"),
+    "stamina_potion": build_stamina_potion,
+    "swiftness_draught": build_swiftness_draught,
+    "ironbark_tonic": build_ironbark_tonic,
+    "troll_fat_salve": build_troll_fat_salve,
+    "glowcap_mushroom": build_glowcap_mushroom,
+    "grave_moss": build_grave_moss,
+    "bat_wing_jerky": build_bat_wing_jerky,
+    "goblin_toenail": build_goblin_toenail,
     "iron_helm": build_helm,
     "leather_cuirass": build_cuirass,
     "steel_gauntlets": lambda: build_gauntlet(False),
-    "sponsored_gauntlets": lambda: build_gauntlet(True),
+    "thunderclap_gauntlets": lambda: build_gauntlet(True),
     "iron_boots": build_boots,
     "silver_ring": build_ring,
     "bone_amulet": build_amulet,
@@ -969,7 +1081,7 @@ GEAR = {
 
 ICON_VIEWS = {
     "iron_sword": dict(yaw=0.0, elev=0.05, roll=math.radians(-45), rot=(0, 0, math.radians(20))),
-    "ratings_cleaver": dict(yaw=0.0, elev=0.05, roll=math.radians(-45), rot=(0, 0, 0)),
+    "gravefeast_cleaver": dict(yaw=0.0, elev=0.05, roll=math.radians(-45), rot=(0, 0, 0)),
     "battleaxe": dict(yaw=0.0, elev=0.05, roll=math.radians(-45), rot=(0, 0, 0)),
     "hunting_bow": dict(yaw=0.0, elev=0.05, roll=math.radians(-45), rot=(0, 0, math.radians(90))),
     "arrow": dict(yaw=0.0, elev=0.05, roll=math.radians(-45), rot=(0, 0, math.radians(90))),
@@ -989,7 +1101,7 @@ ICON_VIEWS = {
     "hide_bracers": dict(yaw=-0.5, elev=0.2, rot=(math.radians(180), 0, 0)),
     "silver_ring": dict(yaw=-0.4, elev=0.5, rot=(math.radians(20), 0, 0)),
     "steel_gauntlets": dict(yaw=-0.5, elev=0.2, rot=(math.radians(180), 0, 0)),
-    "sponsored_gauntlets": dict(yaw=-0.5, elev=0.2, rot=(math.radians(180), 0, 0)),
+    "thunderclap_gauntlets": dict(yaw=-0.5, elev=0.2, rot=(math.radians(180), 0, 0)),
 }
 
 
@@ -1036,7 +1148,7 @@ def main():
             core.link(c)
             c.hide_render = False
             scale = 1.0 if not n.startswith(("silver_ring", "bone_amulet")) else 4.0
-            if n in ("iron_sword", "ratings_cleaver", "battleaxe", "hunting_bow", "arrow"):
+            if n in ("iron_sword", "gravefeast_cleaver", "battleaxe", "hunting_bow", "arrow"):
                 c.rotation_euler = (0, math.radians(90), 0)
             c.scale = (scale, scale, scale)
             bpy.context.view_layer.update()

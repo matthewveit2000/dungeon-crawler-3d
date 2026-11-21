@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://b4tf1sla3qrl7"
-path="res://.godot/imported/sponsored_gauntlets.glb-77b3cb28a2440c80fbe03706b3737012.scn"
+uid="uid://ber2jskakducw"
+path="res://.godot/imported/swiftness_draught.glb-664cdcdd60cf7c5e48c7ec262114df12.scn"
 
 [deps]
 
-source_file="res://assets/models/gear/sponsored_gauntlets.glb"
-dest_files=["res://.godot/imported/sponsored_gauntlets.glb-77b3cb28a2440c80fbe03706b3737012.scn"]
+source_file="res://assets/models/gear/swiftness_draught.glb"
+dest_files=["res://.godot/imported/swiftness_draught.glb-664cdcdd60cf7c5e48c7ec262114df12.scn"]
 
 [params]
 

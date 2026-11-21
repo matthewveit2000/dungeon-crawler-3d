@@ -35,8 +35,14 @@ class FloorLayout:
 	var traps: Array[Vector2i] = []
 	var enemy_spawns: Array[Dictionary] = []
 	var landmarks: Array[Dictionary] = []
+	## FB-022 map points of interest (treasure chests, champion lairs) revealed by safe-room area maps:
+	## {"kind", "tile", "world_pos", "label", "revealed", "done", "chest_index" | "spawn_index"}
+	var pois: Array[Dictionary] = []
 	var nav: AStarGrid2D = null  ## tile-level navigation grid (FB-014 pathfinding), built on first use
 	var nav_weights: Dictionary = {}  ## Vector2i -> extra path cost (tiles cluttered by props), filled by the builder
+	var blocked_corners: Dictionary = {}  ## Vector2i tile-corner (top-left corner of that tile) -> true: a pillar stands there
+	const LOS_HALF_WIDTH := 0.16  ## tiles (~0.65 m): half the band swept by has_tile_los
+	const CORNER_CLEARANCE := 0.3  ## tiles (~1.2 m): pillar half-width + body radius
 
 	## Tile path from a to b around walls and blocked props (empty if unreachable). Built lazily once per floor.
 	func find_path(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
@@ -54,7 +60,8 @@ class FloorLayout:
 		nav = AStarGrid2D.new()
 		nav.region = Rect2i(0, 0, width, height)
 		nav.cell_size = Vector2(1, 1)
-		# 4-way moves only: straight segments between tile centres stay clear of pillars on tile corners
+		# 4-way moves only: straight segments between tile centres stay clear of pillars on tile corners.
+		# FB-022: followers string-pull these paths (has_tile_los) so they still walk in straight lines.
 		nav.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_NEVER
 		nav.default_compute_heuristic = AStarGrid2D.HEURISTIC_MANHATTAN
 		nav.default_estimate_heuristic = AStarGrid2D.HEURISTIC_MANHATTAN
@@ -70,6 +77,44 @@ class FloorLayout:
 		for t in nav_weights:
 			if nav.is_in_boundsv(t) and not nav.is_point_solid(t):
 				nav.set_point_weight_scale(t, float(nav_weights[t]))
+
+	## FB-022: true when a body can walk in a straight line between the centres of tiles a and b. The line is
+	## swept as a band about one body wide: every tile it touches must be open floor without prop clutter, and
+	## it must keep clear of the pillars that stand on tile corners (blocked_corners).
+	func has_tile_los(a: Vector2i, b: Vector2i) -> bool:
+		if nav == null:
+			_build_nav()
+		var pa := Vector2(a) + Vector2(0.5, 0.5)
+		var pb := Vector2(b) + Vector2(0.5, 0.5)
+		var seg := pb - pa
+		var ln := seg.length()
+		if ln < 0.01:
+			return true
+		var dir := seg / ln
+		var side := Vector2(-dir.y, dir.x) * LOS_HALF_WIDTH
+		var n := int(ceil(ln / 0.3))
+		var last := Vector2i(-99999, -99999)
+		for i in range(n + 1):
+			var p := pa + seg * (float(i) / float(n))
+			for off in [Vector2.ZERO, side, -side]:
+				var t := Vector2i(floori(p.x + off.x), floori(p.y + off.y))
+				if t == a or t == last:
+					continue
+				if not _tile_open(t):
+					return false
+			var ct := Vector2i(floori(p.x), floori(p.y))
+			if ct != last:
+				last = ct
+				if not blocked_corners.is_empty():
+					for c in [ct, ct + Vector2i(1, 0), ct + Vector2i(0, 1), ct + Vector2i(1, 1)]:
+						if blocked_corners.has(c) and Geometry2D.get_closest_point_to_segment(Vector2(c), pa, pb).distance_to(Vector2(c)) < CORNER_CLEARANCE:
+							return false
+		return true
+
+	func _tile_open(t: Vector2i) -> bool:
+		if not nav.is_in_boundsv(t) or nav.is_point_solid(t):
+			return false
+		return float(nav_weights.get(t, 1.0)) <= 1.0
 
 	func get_tile(x: int, y: int) -> int:
 		if x < 0 or y < 0 or x >= width or y >= height:
@@ -502,6 +547,54 @@ static func _populate_contents(
 		"is_boss": true,
 	})
 
+	# FB-022 Champion lairs: boss fights are more common. Some combat rooms away from the entrance are guarded by
+	# a promoted, named champion of a regular type (a mini-boss), its escorts and a treasure chest.
+	var ch_cfg: Dictionary = PowerScale.cfg().get("champions", {})
+	var count_k: float = PowerScale.knob("enemy_count")
+	enemy_budget = int(round(float(enemy_budget) * count_k))
+	var lair_ids: Dictionary = {}
+	if not combat_rooms.is_empty() and not regular_enemies.is_empty() and not ch_cfg.is_empty():
+		var ent_c: Vector2i = layout.rooms[layout.entrance_room_id]["center"] if layout.entrance_room_id >= 0 else Vector2i.ZERO
+		var cands: Array = []
+		for r in combat_rooms:
+			var rr: Rect2i = r["rect"]
+			var rc: Vector2i = r["center"]
+			if rr.size.x >= 4 and rr.size.y >= 4 and absi(rc.x - ent_c.x) + absi(rc.y - ent_c.y) > 14:
+				cands.append(r)
+		var want := maxi(int(ch_cfg.get("min_lairs", 6)), combat_rooms.size() / maxi(1, int(ch_cfg.get("lair_every_rooms", 12))))
+		var titles: Array = ch_cfg.get("titles", ["the Champion"])
+		while lair_ids.size() < mini(want, cands.size()):
+			var room: Dictionary = cands[rng.next_int_range("gen", 0, cands.size() - 1)]
+			if lair_ids.has(int(room["id"])):
+				continue
+			lair_ids[int(room["id"])] = true
+			var rect: Rect2i = room["rect"]
+			var picked: Dictionary = rng.pick_weighted("gen", regular_enemies, "spawn_weight")
+			layout.pois.append({"kind": "champion", "tile": room["center"], "world_pos": layout.tile_to_world(room["center"]),
+				"label": "Champion Lair", "revealed": false, "done": false, "spawn_index": layout.enemy_spawns.size()})
+			layout.enemy_spawns.append({
+				"enemy_id": str(picked["id"]),
+				"tile": room["center"],
+				"room_id": int(room["id"]),
+				"is_boss": false,
+				"champion": true,
+				"title": str(titles[rng.next_int_range("gen", 0, titles.size() - 1)]),
+			})
+			for _e in range(int(round(float(ch_cfg.get("escort_count", 3)) * count_k))):
+				var esc: Dictionary = rng.pick_weighted("gen", regular_enemies, "spawn_weight")
+				layout.enemy_spawns.append({
+					"enemy_id": str(esc["id"]),
+					"tile": Vector2i(rng.next_int_range("gen", rect.position.x, rect.end.x - 1), rng.next_int_range("gen", rect.position.y, rect.end.y - 1)),
+					"room_id": int(room["id"]),
+					"is_boss": false,
+				})
+			var lair_chest := Vector2i(rect.end.x - 2, rect.position.y + 1)
+			var taken := false
+			for c in layout.chests:
+				taken = taken or c["tile"] == lair_chest
+			if not taken:
+				layout.chests.append({"tile": lair_chest, "tier": "rare", "room_id": room["id"]})
+
 	# Distribute regular enemies across combat rooms (NEVER in Entrance, Safe Room, or Vault)
 	if not combat_rooms.is_empty() and not regular_enemies.is_empty():
 		for i in range(enemy_budget):
@@ -516,6 +609,14 @@ static func _populate_contents(
 				"room_id": int(room["id"]),
 				"is_boss": false,
 			})
+
+	# FB-022: every chest is a treasure point of interest a safe-room map can reveal
+	for ci in range(layout.chests.size()):
+		var ch: Dictionary = layout.chests[ci]
+		if str(ch.get("tier", "")) == "vault_legendary":
+			continue
+		layout.pois.append({"kind": "treasure", "tile": ch["tile"], "world_pos": layout.tile_to_world(ch["tile"]),
+			"label": "Treasure", "revealed": false, "done": false, "chest_index": ci})
 
 	# Populate Compass Landmarks (discovered as the player approaches — D-016). On vast floors (D-044) the boss
 	# gate and the stairwells are "far-sensed": the compass always hints at the nearest undiscovered one.
@@ -545,6 +646,11 @@ static func generate_test_floor(world_data: Dictionary, enemies_data: Dictionary
 		if bool(sp.get("is_boss", false)):
 			kept.append(sp)
 	layout.enemy_spawns = kept
+	var pois: Array[Dictionary] = []
+	for p in layout.pois:
+		if str(p["kind"]) != "champion":
+			pois.append(p)
+	layout.pois = pois
 	return layout
 
 

@@ -357,6 +357,7 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 					var pil_pos := layout.tile_to_world(pt) + Vector3(-ts * 0.5 if px == rect.position.x + 1 else ts * 0.5, 0, -ts * 0.5 if py == rect.position.y + 1 else ts * 0.5)
 					_batch(KIT + "pillar.glb", pt, Transform3D(Basis.IDENTITY, pil_pos))
 					_add_box_collider(_static_world, pil_pos + Vector3(0.0, wall_h * 0.5, 0.0), Vector3(0.8, wall_h, 0.8))
+					layout.blocked_corners[Vector2i(px if px == rect.position.x + 1 else px + 1, py if py == rect.position.y + 1 else py + 1)] = true
 		elif str(room["role"]) == "boss":
 			# Ring of columns framing the crucible
 			var c := layout.tile_to_world(room["center"])
@@ -989,7 +990,8 @@ func _build_safe_room_interactables(center_w: Vector3, ward_color: Color, intera
 	spawned_setpiece_props += 1
 
 	var qboard := InteractableObject.new()
-	qboard.setup("safe_quest_board", "quest_board", "Read the Syndicate Quest Board", {}, interact_cb, Vector3(2.2, 2.4, 0.9))
+	# FB-022: the board is the safe room's map of the surrounding area (studying it updates the player's map)
+	qboard.setup("safe_area_map", "area_map", "Study the Map of the Surrounding Area", {}, interact_cb, Vector3(2.2, 2.4, 0.9))
 	qboard.position = center_w + Vector3(2.8, 0.0, -2.0)
 	qboard.rotation.y = -0.25
 	qboard.add_child(ModelLoader.instantiate_model(PROPS + "quest_board.glb", Vector3(2.0, 2.3, 0.6)))

@@ -1,7 +1,7 @@
 class_name LootGenerator
 extends RefCounted
-## Tier 2 Pure System: Rolls rarity-scaled gear, prefixes/suffixes, and absurd Sponsored/Mythic
-## effects, plus aggregates Skyrim equipment-slot stats for the player.
+## Tier 2 Pure System: Rolls rarity-scaled gear, prefixes/suffixes, and legendary effects, plus aggregates
+## Skyrim equipment-slot stats for the player.
 
 
 static func make_base_item_instance(item_def: Dictionary, instance_id: String = "") -> Dictionary:
@@ -49,9 +49,9 @@ static func roll_loot(
 			if str(item.get("id", "")) == forced_item_id:
 				candidates.append(item)
 			continue
-		if exclude_consumables and str(item.get("category", "")) == "consumable":
+		if exclude_consumables and InventoryStacks.is_stackable(item):
 			continue
-		# Reserve unique forced-sponsored items for sponsored rolls
+		# Reserve the unique legendary relics for legendary rolls
 		if str(item.get("forced_rarity", "")) == "legendary" and forced_rarity != "legendary":
 			continue
 		if int(item.get("floor_min", 1)) > floor_number:
@@ -81,7 +81,7 @@ static func roll_loot(
 			weighted.append(copy)
 		chosen_rarity = rng.pick_weighted("loot", weighted, "weight")
 
-	# On Sponsored roll, 50% chance to pick a named Sponsored unique if available
+	# On a legendary roll, 50% chance to pick a named legendary relic if available
 	var base_def: Dictionary = {}
 	if str(chosen_rarity["id"]) == "legendary" and forced_item_id.is_empty():
 		var uniques: Array = []
@@ -102,7 +102,7 @@ static func roll_loot(
 
 	var uid := "%s_%d" % [str(base_def["id"]), rng.next_int_range("loot", 10000, 999999)]
 	var inst := make_base_item_instance(base_def, uid)
-	if str(base_def.get("category", "")) == "consumable":
+	if InventoryStacks.is_stackable(base_def):
 		return inst
 
 	var r_id := str(chosen_rarity["id"])
@@ -149,13 +149,13 @@ static func roll_loot(
 		elif pool == suffixes and suffix_label.is_empty():
 			suffix_label = str(picked["label"])
 
-	# Legendary rolls always carry a game-changing sponsored_effect
-	if r_id == "legendary" and str(inst.get("sponsored_effect", "")).is_empty():
-		var effs: Array = affixes_pack.get("sponsored_effects", [])
+	# Legendary rolls always carry a game-changing legendary_effect
+	if r_id == "legendary" and str(inst.get("legendary_effect", "")).is_empty():
+		var effs: Array = affixes_pack.get("legendary_effects", [])
 		if not effs.is_empty():
 			var chosen_eff: Dictionary = rng.pick_array("loot", effs)
-			inst["sponsored_effect"] = str(chosen_eff["id"])
-			inst["sponsored_label"] = str(chosen_eff["label"])
+			inst["legendary_effect"] = str(chosen_eff["id"])
+			inst["legendary_label"] = str(chosen_eff["label"])
 
 	if str(base_def.get("forced_rarity", "")) != "legendary":
 		var base_name := str(base_def["name"])
@@ -164,8 +164,6 @@ static func roll_loot(
 			full_name = "%s %s" % [prefix_label, full_name]
 		if not suffix_label.is_empty():
 			full_name = "%s %s" % [full_name, suffix_label]
-		if r_id == "legendary":
-			full_name = "Sponsored: %s" % full_name
 		inst["name"] = full_name
 
 	inst["value"] = int(round(float(base_def.get("base_value", 25)) * float(chosen_rarity.get("value_multiplier", 1.0)) * floor_mult))
@@ -183,7 +181,7 @@ static func aggregate_equipment_stats(equipment: Dictionary) -> Dictionary:
 		"cooldown_reduction": 0.0,
 		"gold_find_bonus": 0.0,
 		"block_bonus": 0.0,
-		"sponsored_effects": [],
+		"legendary_effects": [],
 	}
 	var worn: Array = []
 	for slot in equipment.keys():
@@ -202,9 +200,9 @@ static func aggregate_equipment_stats(equipment: Dictionary) -> Dictionary:
 		totals["block_bonus"] += float(item.get("block_bonus", 0.0))
 		if not str(slot).ends_with("_hand"):
 			worn.append(item)
-		var se := str(item.get("sponsored_effect", ""))
-		if not se.is_empty() and not totals["sponsored_effects"].has(se):
-			totals["sponsored_effects"].append(se)
+		var se := DataLoader.current_id(str(item.get("legendary_effect", "")))
+		if not se.is_empty() and not totals["legendary_effects"].has(se):
+			totals["legendary_effects"].append(se)
 	# Passive mastery abilities of worn armor & accessories (D-049)
 	var pas := MasterySystem.aggregate_passives(worn)
 	totals["passives"] = pas

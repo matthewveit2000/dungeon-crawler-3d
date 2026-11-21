@@ -23,7 +23,7 @@
     {
       "id": "looting",
       "title": "Interactive World Looting",
-      "body": "Aim at chests, crates, urns, levers, or fallen enemy bodies and press [E] to loot gear and Syndicate Gold.",
+      "body": "Aim at chests, crates, urns, levers, or fallen enemy bodies and press [E] to loot gear and gold.",
       "action_hint": "Press [E] on any container or corpse"
     },
     {
@@ -35,8 +35,8 @@
     {
       "id": "safe_room",
       "title": "Safe Room Sanctuary",
-      "body": "Enemies cannot enter Safe Rooms and immediately flee. Trade gear with the Vendor [E] or claim a bounty advance at the Quest Board [E].",
-      "action_hint": "Speak with the Vendor or Quest Board [E]"
+      "body": "Enemies cannot enter Safe Rooms and immediately flee. Trade with the Vendor [E]. The wall map here has already marked the surrounding area, treasure and champion lairs on your map [M].",
+      "action_hint": "Trade with the Vendor or study the Area Map [E]"
     },
     {
       "id": "boss_arena",

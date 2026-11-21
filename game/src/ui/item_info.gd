@@ -2,11 +2,11 @@ class_name ItemInfo
 extends RefCounted
 ## Item presentation helpers shared by Inventory, Vendor and loot UI: readable stat lines,
 ## comparison deltas against the currently equipped item (green better / red worse), and a
-## full detail card with icon, rarity, affixes, sponsored effect, description and value.
+## full detail card with icon, rarity, affixes, legendary effect, description and value.
 
 const STAT_NAMES := {
 	"damage": "Damage", "armor": "Armor", "block_bonus": "Block", "heal_health": "Restores Health",
-	"heal_magicka": "Restores Magicka", "heal_amount": "Heals", "magicka_cost": "Magicka Cost",
+	"heal_magicka": "Restores Magicka", "heal_stamina": "Restores Stamina", "heal_amount": "Heals", "magicka_cost": "Magicka Cost",
 	"stamina_cost": "Stamina Cost", "bonus_damage": "Bonus Damage", "bonus_health": "Max Health",
 	"bonus_magicka": "Max Magicka", "bonus_stamina": "Max Stamina", "bonus_crit_chance": "Critical Chance",
 	"gold_find_bonus": "Gold Find", "cooldown_reduction": "Attack Speed", "splash_radius": "Blast Radius",
@@ -14,7 +14,7 @@ const STAT_NAMES := {
 }
 const LOWER_IS_BETTER := ["magicka_cost", "stamina_cost"]
 const PERCENT_STATS := ["bonus_crit_chance", "gold_find_bonus", "cooldown_reduction", "block_bonus"]
-const ORDER := ["damage", "armor", "block_bonus", "heal_health", "heal_magicka", "heal_amount", "magicka_cost", "stamina_cost",
+const ORDER := ["damage", "armor", "block_bonus", "heal_health", "heal_magicka", "heal_stamina", "heal_amount", "magicka_cost", "stamina_cost",
 	"bonus_damage", "bonus_health", "bonus_magicka", "bonus_stamina", "bonus_crit_chance", "cooldown_reduction", "gold_find_bonus",
 	"splash_radius", "chain_radius"]
 
@@ -37,14 +37,16 @@ static func type_line(item: Dictionary) -> String:
 		"accessory":
 			return "Accessory  ·  %s" % slot
 		"consumable":
-			return "Consumable"
+			return "Consumable  ·  stacks"
+		"ingredient":
+			return "Ingredient  ·  stacks  ·  edible"
 	return cat.capitalize()
 
 
 static func fmt_stat(key: String, v: float) -> String:
 	if key in PERCENT_STATS:
 		return "%+.0f%%" % (v * 100.0) if absf(v) < 2.0 else "%+.0f%%" % v
-	if key in ["damage", "armor", "heal_health", "heal_magicka", "heal_amount", "magicka_cost", "stamina_cost"]:
+	if key in ["damage", "armor", "heal_health", "heal_magicka", "heal_stamina", "heal_amount", "magicka_cost", "stamina_cost"]:
 		return "%.0f" % v
 	return "%+.0f" % v
 
@@ -53,7 +55,12 @@ static func stat_values(item: Dictionary) -> Dictionary:
 	var out := {}
 	for k in ORDER:
 		if item.has(k) and (item[k] is float or item[k] is int) and absf(float(item[k])) > 0.0001:
-			out[k] = MasterySystem.stat(item, k) if k in MasterySystem.STAT_KEYS else float(item[k])
+			if k in MasterySystem.STAT_KEYS:
+				out[k] = MasterySystem.stat(item, k)
+			elif k in ["heal_health", "heal_magicka", "heal_stamina"]:
+				out[k] = PowerScale.consumable_value(item, k)
+			else:
+				out[k] = float(item[k])
 	return out
 
 
@@ -89,6 +96,12 @@ static func build_mastery(item: Dictionary) -> VBoxContainer:
 	head.add_child(bar)
 	head.add_child(UiTheme.label("%d / %d xp" % [int(xp), need] if lvl < cap else "MASTERED", 14, UiTheme.COL_MUTED, UiTheme.font_ui()))
 	v.add_child(head)
+	# FB-022: say exactly what has to happen to level this item up
+	var how := UiTheme.label(MasterySystem.how_to_level(item), 15, UiTheme.COL_TEXT, UiTheme.font_ui())
+	how.name = "HowToLevel"
+	how.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	how.custom_minimum_size.x = 260
+	v.add_child(how)
 	var shown := {}
 	for e in MasterySystem.track(item):
 		var el := int(e.get("level", 1))
@@ -171,14 +184,25 @@ static func build_card(item: Dictionary, compare: Dictionary = {}, price_text: S
 	if MasterySystem.is_masterable(item):
 		v.add_child(UiTheme.divider())
 		v.add_child(build_mastery(item))
-	var se := str(item.get("sponsored_effect", ""))
+	var se := str(item.get("legendary_effect", ""))
 	if not se.is_empty():
 		var sp := PanelContainer.new()
 		sp.add_theme_stylebox_override("panel", UiTheme.make_panel_style(Color(0.22, 0.14, 0.03, 0.8), Color(1.0, 0.68, 0.18, 0.9), 1, 4, 10, 6))
-		var sl := UiTheme.label("SPONSORED EFFECT  ·  %s" % str(item.get("sponsored_label", se.replace("_", " "))).to_upper(), 15, Color(1.0, 0.78, 0.3), UiTheme.font_ui_bold())
+		var edef := DataLoader.get_legendary_effect_def(se)
+		var sl := UiTheme.label("LEGENDARY EFFECT  ·  %s — %s" % [str(item.get("legendary_label", edef.get("label", se.replace("_", " ")))).to_upper(), str(edef.get("description", ""))], 15, Color(1.0, 0.78, 0.3), UiTheme.font_ui_bold())
 		sl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		sp.add_child(sl)
 		v.add_child(sp)
+	# FB-022: timed effect of a potion / ingredient, and how many are in the stack
+	var eff: Dictionary = item.get("effect", {})
+	if not eff.is_empty():
+		var ec := Color(1.0, 0.45, 0.38) if str(eff.get("kind", "buff")) == "debuff" else UiTheme.COL_CYAN
+		var el := UiTheme.label("%s for %d s — %s" % [str(eff.get("name", "Effect")), int(eff.get("duration", 0)), effect_text(eff, PowerScale.item(item))],
+			16, ec, UiTheme.font_ui_semibold())
+		el.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		v.add_child(el)
+	if InventoryStacks.is_stackable(item) and InventoryStacks.count(item) > 1:
+		v.add_child(UiTheme.label("In your pack: %d" % InventoryStacks.count(item), 15, UiTheme.COL_MUTED, UiTheme.font_ui()))
 	var desc := str(item.get("description", ""))
 	if not desc.is_empty():
 		v.add_child(UiTheme.body("“%s”" % desc, 17, UiTheme.COL_MUTED, true))
@@ -206,7 +230,7 @@ static func matches_filter(item: Dictionary, f: String) -> bool:
 		"magic":
 			return cat == "spell"
 		"consumables":
-			return cat == "consumable"
+			return cat == "consumable" or cat == "ingredient"
 	return true
 
 
@@ -224,3 +248,21 @@ static func sort_items(entries: Array, mode: String) -> void:
 			entries.sort_custom(func(a: Array, b: Array) -> bool: return str(a[1].get("category", "")) < str(b[1].get("category", "")))
 		_:
 			entries.reverse()
+
+
+## FB-022: readable text for a timed effect's numbers (e.g. "+25% movement speed").
+static func effect_text(eff: Dictionary, power: float = 1.0) -> String:
+	var parts: Array = []
+	for k in eff.keys():
+		if k in ["id", "name", "duration", "kind"]:
+			continue
+		var v := float(eff[k]) * power
+		match str(k):
+			"speed": parts.append("+%d%% movement speed" % int(round(v * 100.0)))
+			"slow": parts.append("-%d%% movement speed" % int(round(v * 100.0)))
+			"armor": parts.append("+%d armor" % int(round(v)))
+			"hps": parts.append("+%s health per second" % ("%.0f" % v if is_equal_approx(v, round(v)) else "%.1f" % v))
+			"magicka_regen": parts.append("+%s magicka per second" % ("%.0f" % v if is_equal_approx(v, round(v)) else "%.1f" % v))
+			"stamina_regen": parts.append("+%s stamina per second" % ("%.0f" % v if is_equal_approx(v, round(v)) else "%.1f" % v))
+			_: parts.append("%s %+.1f" % [str(k).capitalize(), v])
+	return ", ".join(parts)

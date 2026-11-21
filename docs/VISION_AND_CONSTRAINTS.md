@@ -9,7 +9,7 @@
 
 > **"I want the game to feel like Skyrim. This is probably the most important and guiding note on how the gameplay should feel."**
 
-Every major design decision—perspective, movement, combat weight, exploration, environmental storytelling, inventory, progression, and pacing—should be measured against whether it evokes the immersive, exploratory, tactile RPG feel of **Skyrim**, fused with the multi-floor dungeon premise inspired by ***Dungeon Crawler Carl***.
+Every major design decision—perspective, movement, combat weight, exploration, environmental storytelling, inventory, progression, and pacing—should be measured against whether it evokes the immersive, exploratory, tactile RPG feel of **Skyrim**, fused with a dark, multi-floor dungeon full of goofy monsters and darkly funny themes (`D-057`: no TV-show, sponsor or Syndicate framing).
 
 ---
 
@@ -38,10 +38,10 @@ Every major design decision—perspective, movement, combat weight, exploration,
 
 From `Dungeon-Crawler-Game-2` and `dungeon-crawler-engine`, the following concepts remain strong candidates to adapt into our 3D Skyrim-style design during upcoming alignment rounds:
 - Multi-floor procedural dungeon descent with distinct floor identities/themes
-- Safe Zones ("Cities") with Vendors and Quest Boards where enemies cannot pursue
+- Safe Zones ("Cities") with Vendors and area maps where enemies cannot pursue
 - Locked Boss Arenas with adjoining Treasure Vaults
 - Deep RPG loot & affix scaling, status effects, and character progression/skill trees
-- *Dungeon Crawler Carl*–inspired dark-world / absurd-payload humor & "sponsored" loot flavor
+- Dark-world / absurd-payload humor and goofy monsters (re-themed by `D-057`)
 - Seeded deterministic runs for reproducible testing and bug reports
 
 ---
@@ -59,6 +59,6 @@ From `Dungeon-Crawler-Game-2` and `dungeon-crawler-engine`, the following concep
 
 1. **Round 1 — Roles & Division of Labor:** Clear boundaries on what the AI can decide/execute autonomously vs. when to ask the user, communication cadence, and approval gates. *(In Progress)*
 2. **Round 2 — Skyrim Feel & Core Gameplay Loop:** Camera (1st/3rd person toggle?), combat mechanics (melee/magic/stealth/bows?), floor reset rules (what is kept vs. lost on floor collapse?), and exploration structure.
-3. **Round 3 — World, Progression & *Dungeon Crawler Carl* Flavor:** Floor themes, safe zones/cities, bosses, loot/affixes, leveling/skills, and tone/humor.
+3. **Round 3 — World, Progression & Dark-Humor Flavor:** Floor themes, safe zones/cities, bosses, loot/affixes, leveling/skills, and tone/humor.
 4. **Round 4 — Tech Stack, Engine & Blender Art Pipeline:** Engine choice (e.g., Godot 4 vs. alternatives), target platforms, 3D visual style, and automated Blender asset/preview workflow.
 5. **Round 5 — Automated Testing, CI & Milestone Roadmap:** What gets tested automatically, how builds/previews are delivered, and the phased execution plan.

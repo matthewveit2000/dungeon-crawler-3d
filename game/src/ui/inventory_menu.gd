@@ -32,6 +32,7 @@ var _filter: String = "all"
 var _sort: String = "newest"
 var _selected_idx: int = -1
 var _selected_slot: String = ""
+var _hover_item: Dictionary = {}  ## FB-022: item under the mouse (press 1-8 to put it on the hotbar)
 var _skills_box: VBoxContainer = null
 var _perks_box: VBoxContainer = null
 var _portrait_vp: SubViewport = null
@@ -446,16 +447,21 @@ func _refresh_bag() -> void:
 		var idx: int = e[0]
 		var item: Dictionary = e[1]
 		var badge := ""
-		if str(item.get("category", "")) == "consumable":
-			badge = "%d" % int(item.get("heal_health", item.get("heal_magicka", 0)))
+		if InventoryStacks.is_stackable(item):
+			badge = "×%d" % InventoryStacks.count(item)  # FB-022 stacks
 		var w := UiTheme.item_slot(item, SLOT_SIZE, badge)
 		w.mouse_filter = Control.MOUSE_FILTER_STOP
 		w.tooltip_text = "%s\n%s  ·  %s" % [str(item.get("name", "")), UiTheme.rarity_name(str(item.get("rarity", "common"))), ItemInfo.type_line(item)]
 		if idx == _selected_idx:
 			w.modulate = Color(1.25, 1.18, 1.0)
 		w.mouse_entered.connect(func() -> void:
+			_hover_item = item
 			if _selected_idx < 0 and _selected_slot.is_empty():
 				_show_detail_for(item)
+		)
+		w.mouse_exited.connect(func() -> void:
+			if _hover_item == item:
+				_hover_item = {}
 		)
 		w.gui_input.connect(func(ev: InputEvent) -> void:
 			if ev is InputEventMouseButton and ev.pressed:
@@ -477,7 +483,7 @@ func _equip(idx: int, hand: String) -> void:
 	if idx < 0 or idx >= _player.inventory.size():
 		return
 	var item: Dictionary = _player.inventory[idx]
-	if str(item.get("category", "")) == "consumable":
+	if InventoryStacks.is_stackable(item):
 		_player.use_consumable(idx)
 	else:
 		if hand in ["left_hand", "right_hand"] and not CombatMath.is_one_handed(item):
@@ -512,13 +518,14 @@ func _refresh_detail() -> void:
 				refresh()
 			)
 			_actions.add_child(ub)
+			_add_hotbar_buttons(it)
 		return
 	if _selected_idx < 0 or _selected_idx >= _player.inventory.size():
 		_detail.add_child(ItemInfo.build_card({}))
 		return
 	var item: Dictionary = _player.inventory[_selected_idx]
 	_show_detail_for(item)
-	var cons := str(item.get("category", "")) == "consumable"
+	var cons := InventoryStacks.is_stackable(item)
 	var idx := _selected_idx
 	if CombatMath.is_one_handed(item) and not cons:
 		# D-046: one-handed blades, shields and spells go in either hand
@@ -529,10 +536,62 @@ func _refresh_detail() -> void:
 			hb.pressed.connect(func() -> void: _equip(idx, hand))
 			_actions.add_child(hb)
 	else:
-		var b := UiTheme.button("Drink" if cons else "Equip", 0, 18)
+		var b := UiTheme.button(("Eat" if str(item.get("category", "")) == "ingredient" else "Drink") if cons else "Equip", 0, 18)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.pressed.connect(func() -> void: _equip(idx, ""))
 		_actions.add_child(b)
+	_add_hotbar_buttons(item)
+
+
+## FB-022: "Hotbar 1 2 3 ..." buttons (and the 1-8 keys over an item) put weapons, spells, shields and stacks on the hotbar.
+func _add_hotbar_buttons(item: Dictionary) -> void:
+	if not _hotbar_ok(item):
+		return
+	var row := HBoxContainer.new()
+	row.name = "HotbarRow"
+	row.add_theme_constant_override("separation", 4)
+	row.add_child(UiTheme.label("Hotbar", 16, UiTheme.COL_MUTED, UiTheme.font_ui_semibold()))
+	for i in range(PlayerController.HOTBAR_SIZE):
+		var slot := i
+		var cur: Dictionary = _player.hotbar_item(i).get("item", {})
+		var on := false
+		if not cur.is_empty():
+			if InventoryStacks.is_stackable(item):
+				on = str(cur.get("id", "")) == str(item.get("id", ""))
+			else:
+				on = str(cur.get("instance_id", "")) == str(item.get("instance_id", ""))
+		var b := UiTheme.button(str(i + 1), 0, 16)
+		b.custom_minimum_size = Vector2(34, 34)
+		b.tooltip_text = "Put %s on hotbar key %d%s" % [str(item.get("name", "")), i + 1, (" (replaces %s)" % str(cur.get("name", ""))) if not cur.is_empty() and not on else ""]
+		if on:
+			b.modulate = Color(1.3, 1.15, 0.6)
+		b.pressed.connect(func() -> void:
+			_player.hotbar_assign(slot, item)
+			refresh())
+		row.add_child(b)
+	_actions.add_child(row)
+
+
+static func _hotbar_ok(item: Dictionary) -> bool:
+	return not item.is_empty() and (InventoryStacks.is_stackable(item) or str(item.get("category", "")) in ["weapon", "spell", "shield"])
+
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if not visible or _player == null or not (event is InputEventKey) or not event.is_pressed() or event.is_echo():
+		return
+	var target := _hover_item
+	if target.is_empty() and _selected_idx >= 0 and _selected_idx < _player.inventory.size():
+		target = _player.inventory[_selected_idx]
+	if target.is_empty() and not _selected_slot.is_empty():
+		target = _player.equipment.get(_selected_slot, {})
+	if not _hotbar_ok(target):
+		return
+	for i in range(PlayerController.HOTBAR_SIZE):
+		if event.is_action_pressed("hotbar_%d" % (i + 1)):
+			_player.hotbar_assign(i, target)
+			refresh()
+			get_viewport().set_input_as_handled()
+			return
 
 
 func _refresh_summary() -> void:

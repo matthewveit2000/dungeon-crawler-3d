@@ -58,6 +58,10 @@ func _enemy(prefix: String) -> EnemyActor:
 	for c in game.enemies_root.get_children():
 		if c is EnemyActor and str((c as EnemyActor).enemy_id).begins_with(prefix):
 			return c
+	# FB-022: enemies are only created near the player, so stage one if none of this kind is around
+	var ids := {"draugr": "draugr_raider", "bone_archer": "bone_archer", "goblin": "goblin_gloryhound"}
+	if ids.has(prefix):
+		return game.spawn_enemy(str(ids[prefix]), game.player.global_position + Vector3(0, 0, -40), -1)
 	return null
 
 
@@ -196,7 +200,7 @@ func _run() -> void:
 		await _shot("11_boss_arena.png", 22)
 
 	if _want("menus"):
-		game.run_console_command("spawn_loot sponsored")
+		game.run_console_command("spawn_loot legendary")
 		game.run_console_command("spawn_loot rare")
 		game.run_console_command("spawn_loot epic")
 		game.run_console_command("spawn_loot uncommon")
@@ -229,6 +233,9 @@ func _run() -> void:
 		game.death_screen._t = 4.0
 		await _shot("18_death_screen.png", 4)
 		game.death_screen.visible = false
+
+	if _want("fb022"):
+		await _fb022_shots(ent)
 
 	if _want("motion"):
 		game.close_all_menus()
@@ -390,3 +397,76 @@ func _record_clips(ent: Vector3) -> void:
 			game.player.step_simulation(dt, false, {})
 			await _clip_frame("boss", f)
 	print("[visual-qa] Captured clip: boss")
+
+
+## FB-022 (D-057) shots: hotbar + status list, visible damage over time, a champion, stack quantities, area map.
+func _fb022_shots(ent: Vector3) -> void:
+	game.close_all_menus()
+	game.hud.clear_transient_messages()
+	game.hud.update_boss_bar(false)
+	var p := game.player
+	p.quick_equip_preset(1)
+	game.test_give_item("swiftness_draught")
+	game.test_give_item("ironbark_tonic")
+	p.use_consumable(InventoryStacks.find(p.inventory, "swiftness_draught"))
+	p.use_consumable(InventoryStacks.find(p.inventory, "ironbark_tonic"))
+	p.apply_slow(0.3, 6.0)
+	_look(ent + Vector3(0.0, 1.62, 3.4), ent + Vector3(0.0, 1.4, -6.0))
+	_step(4)
+	await _shot("19_hud_hotbar_status.png", 6)
+	# damage over time on a draugr in front of the player
+	var e := game.spawn_enemy("draugr_raider", ent + Vector3(0.0, 0.05, -0.6), -1)
+	e.state = EnemyActor.AiState.DORMANT
+	e.rotation.y = 0.0
+	e.take_damage(e.max_health * 0.35)
+	e.apply_status("burn", {"dps": 3.0, "duration": 6.0})
+	e.apply_status("poison", {"dps": 2.0, "duration": 6.0, "stacks": 2})
+	e.apply_status("bleed", {"dps": 2.0, "duration": 6.0})
+	for _i in range(40):
+		e.step_ai(1.0 / 30.0, false)
+		e._update_health_bar(1.0 / 30.0, 3.0)
+		await _wait(1)
+	await _shot("20_dot_enemy.png", 2)
+	e.queue_free()
+	# a champion
+	game.hud.clear_transient_messages()
+	var c := game.spawn_enemy("draugr_raider", ent + Vector3(0.6, 0.05, -1.6), -1, "", {}, 0, {"champion": {"title": "the Gravy-Stained"}})
+	c.state = EnemyActor.AiState.CHASE
+	c.rotation.y = 0.2
+	c.visual.play_state("idle_combat", 0.0)
+	c.take_damage(c.max_health * 0.2)
+	c._update_health_bar(0.1, 4.0)
+	game._update_hud_navigation()
+	await _shot("21_champion.png", 14)
+	c.queue_free()
+	game.hud.update_boss_bar(false)
+	# stacks: vendor quantity box and inventory stack card
+	for _i in range(4):
+		game.test_give_item("grave_moss")
+	game.open_exclusive_menu("vendor")
+	game.vendor_menu._sel_side = "bag"
+	game.vendor_menu._sel_idx = InventoryStacks.find(p.inventory, "health_potion")
+	game.vendor_menu.refresh()
+	game.vendor_menu.set_quantity(2)
+	await _shot("22_vendor_quantity.png", 6)
+	game.open_exclusive_menu("inventory")
+	game.inventory_menu._selected_idx = InventoryStacks.find(p.inventory, "grave_moss")
+	game.inventory_menu.refresh()
+	await _shot("23_inventory_stack_hotbar.png", 8)
+	game.inventory_menu._selected_idx = 0
+	for i in range(p.inventory.size()):
+		if str(p.inventory[i].get("id", "")) == "hunting_bow":
+			game.inventory_menu._selected_idx = i
+	game.inventory_menu.refresh()
+	await _shot("24_item_how_to_level.png", 8)
+	game.close_all_menus()
+	# safe room area map on the player's map
+	var lay := game.current_layout
+	var sid: int = lay.safe_room_ids[0]
+	p.global_position = lay.tile_to_world(lay.rooms[sid]["center"]) + Vector3(0, 0.3, 0)
+	game.map_seen.clear()
+	game.read_area_map(sid)
+	game.open_exclusive_menu("map")
+	await _shot("25_area_map.png", 8)
+	game.close_all_menus()
+	p.global_position = ent + Vector3(0, 0.3, 0)

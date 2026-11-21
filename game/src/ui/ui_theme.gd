@@ -447,3 +447,19 @@ static func make_section_header(title_text: String, font_size: int = 18) -> VBox
 	box.add_child(heading(title_text, font_size))
 	box.add_child(divider())
 	return box
+
+
+## Map / minimap / compass look of a landmark or point of interest (FB-022: one shared table instead of four copies).
+const MAP_MARKS := {
+	"safe_room": ["icon_shield", Color(0.36, 0.95, 0.78), Color(0.15, 0.45, 0.38), "Safe Room"],
+	"boss_arena": ["icon_skull", Color(1.0, 0.38, 0.3), Color(0.55, 0.12, 0.08), "Boss Gate"],
+	"vault": ["icon_chest", Color(1.0, 0.82, 0.36), Color(0.6, 0.45, 0.1), "Treasure Vault"],
+	"stairs": ["icon_stairs", Color(0.55, 0.78, 1.0), Color(0.15, 0.25, 0.5), "Hidden Stairwell"],
+	"champion": ["icon_sword", Color(1.0, 0.62, 0.2), Color(0.62, 0.3, 0.04), "Champion Lair"],
+	"treasure": ["icon_coin", Color(1.0, 0.86, 0.4), Color(0.55, 0.42, 0.08), "Treasure"],
+}
+
+
+## [icon texture name, bright colour (HUD), ink colour (parchment map), legend label]
+static func map_mark(kind: String) -> Array:
+	return MAP_MARKS.get(kind, ["icon_diamond", Color(0.8, 0.78, 0.72), COL_TEXT, kind.capitalize()])

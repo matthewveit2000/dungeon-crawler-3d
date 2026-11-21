@@ -92,3 +92,9 @@ Every screenshot and the 40-frame combat clip from the full Forward+ capture wer
 
 - 21 new gear models + icons in `build_gear.py`: hand axe, flanged mace, seax, broadsword, war hammer, Dane axe, yew longbow, bone short bow, iron kite shield, buckler, frost/venom/void/blood tomes, chain hauberk, wolf-pelt hood, hide bracers, fur boots, ember ring, gold signet, wolf-tooth amulet. `build_bow` and `build_tome` are now parametric.
 - Enemy variants reuse the rigs with a per-type colour wash (`CharacterVisual.set_tint`), scale, shield and weapon so no two types look alike.
+
+## 2026-11-21 — FB-022: New Consumables, Re-Themed Goblin & Relics (`D-057`)
+- New gear models + icons (`art/blender/build_gear.py`): stamina potion, swiftness draught, ironbark tonic, troll-fat salve, glowcap mushroom, grave moss, bat-wing jerky, goblin toenail. New materials: `glass_amber`, `glass_lime`, `moss`, `fungus_glow`, `salve_fat`, `keratin`.
+- `goblin_streamer` → `goblin`: the neon ring-light pole is now a pack-frame with an iron hoop of stolen candles (`CandleHoop` socket, warm light).
+- `ratings_cleaver` → `gravefeast_cleaver` (glowing blood-runes instead of neon rating bars); `sponsored_gauntlets` → `thunderclap_gauntlets`. Old files removed; `batch2`/`batch3` previews re-rendered.
+- Enemy health bar is a single shader-drawn billboard; damage-over-time body effects (fire, blood drips, poison haze, frost aura); HUD hotbar strip and status list.

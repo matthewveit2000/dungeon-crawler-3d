@@ -1,0 +1,48 @@
+{
+  "_doc": "FB-022 power-scale knobs. Every number here is a multiplier where 1.0 = the tuned default. Turn a knob up to make that part of the game stronger, down to make it weaker. Three layers multiply together: (1) the global knobs below, (2) each floor's own power_scale in world.json (enemies on that floor), (3) every single enemy and item's own power_scale in enemies.json / items.json. Changes apply on the next floor load; item knobs apply live, even to gear already in the bag.",
+  "global": {
+    "enemy_health": 1.0,
+    "enemy_damage": 1.0,
+    "enemy_count": 1.0,
+    "enemy_xp": 1.0,
+    "enemy_gold": 1.0,
+    "boss_health": 1.0,
+    "boss_damage": 1.0,
+    "champion_health": 1.0,
+    "champion_damage": 1.0,
+    "item_power": 1.0,
+    "consumable_power": 1.0,
+    "vendor_prices": 1.0
+  },
+  "champions": {
+    "_doc": "FB-022: boss fights are more common. Champion lairs are combat rooms guarded by a promoted, named version of a regular enemy: a mini-boss with its own health bar, a roar, an enrage phase, and a guaranteed treasure drop. lair_every_rooms = one lair per this many combat rooms.",
+    "lair_every_rooms": 12,
+    "min_lairs": 6,
+    "health_mult": 7.0,
+    "damage_mult": 1.7,
+    "armor_add": 6.0,
+    "level_add": 2,
+    "size_mult": 1.35,
+    "xp_mult": 6.0,
+    "gold_mult": 5.0,
+    "enrage_hp_threshold": 0.4,
+    "escort_count": 3,
+    "tint": "#ffb02e",
+    "titles": [
+      "the Unwashed",
+      "Who Bites",
+      "the Moderately Feared",
+      "Ankle-Gnawer",
+      "the Very Large",
+      "of the Unpaid Debts",
+      "the Twice-Buried",
+      "Who Hums Ominously",
+      "the Smelly",
+      "Bone-Collector",
+      "the Overconfident",
+      "the Gravy-Stained",
+      "Who Was Promised a Promotion",
+      "the Pointlessly Spiky"
+    ]
+  }
+}

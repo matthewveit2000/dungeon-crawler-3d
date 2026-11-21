@@ -1,6 +1,6 @@
 class_name DungeonAiDirector
 extends RefCounted
-## Tier 2 Pure System: Snarky Dungeon Crawler Carl–style Dungeon AI announcer (D-023).
+## Tier 2 Pure System: the voice of the dungeon — a smug, darkly goofy announcer (D-023, re-themed by FB-022).
 ## Pulls deterministic lines from game/data/dungeon_ai.json and formats event popups.
 
 var _events: Dictionary = {}

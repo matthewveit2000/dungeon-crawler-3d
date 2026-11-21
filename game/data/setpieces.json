@@ -18,7 +18,7 @@
       ]
     },
     "safe_room": {
-      "name": "Syndicate Safe Room Sanctuary",
+      "name": "Warded Safe Room Sanctuary",
       "theme_light_color": "#ffbe73",
       "ward_accent_color": "#45e6b8",
       "light_energy": 2.8,
@@ -50,7 +50,7 @@
       ]
     },
     "vault": {
-      "name": "Gilded Sponsor Vault",
+      "name": "Gilded Grave-Lord's Vault",
       "theme_light_color": "#ffd26b",
       "light_energy": 3.2,
       "props": [

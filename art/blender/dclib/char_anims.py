@@ -318,7 +318,7 @@ def _build_idle(m: RigMetrics, style: dict):
             _place_hand_free(m, "l", l_w, Vector((m.sh_x + 0.24 * s, 0.16 * s, m.sh_z - 0.32 * s)),
                              Vector((-0.65, -0.55, -0.45)), Vector((0.0, -0.6, 0.8)))
         elif is_goblin:
-            # Crouched jittery goblin streamer holding ratings cleaver low-right with bouncy wrist
+            # Crouched jittery goblin holding its cleaver low-right with bouncy wrist
             bnc = math.sin(ang * 2.0) * 0.018 * s
             r_pos = Vector((-m.sh_x - 0.06 * s, -0.24 * s, m.hip_z - 0.04 * s + bnc))
             _place_grip_arm(m, "r", r_pos, Vector((-0.25, -0.78, 0.56)), Vector((0.08, -0.62, -0.78)),

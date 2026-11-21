@@ -18,6 +18,7 @@ REQUIRED_FILES = [
     "progression.json",
     "tutorials.json",
     "setpieces.json",
+    "balance.json",
 ]
 
 
@@ -65,7 +66,7 @@ def main() -> int:
     items_pack = packs["items.json"]
     affixes_pack = packs["affixes.json"]
     valid_slots = set(items_pack.get("slots", [])) | {"consumable"}
-    sponsored_ids = {e["id"] for e in affixes_pack.get("sponsored_effects", [])}
+    legendary_ids = {e["id"] for e in affixes_pack.get("legendary_effects", [])}
     rarity_ids = {r["id"] for r in affixes_pack.get("rarities", [])}
 
     item_ids: set[str] = set()
@@ -76,8 +77,8 @@ def main() -> int:
         item_ids.add(iid)
         if item.get("slot") not in valid_slots:
             errors.append(f"items.json: item '{iid}' has invalid slot '{item.get('slot')}'")
-        if "sponsored_effect" in item and item["sponsored_effect"] not in sponsored_ids:
-            errors.append(f"items.json: item '{iid}' references unknown sponsored_effect '{item['sponsored_effect']}'")
+        if "legendary_effect" in item and item["legendary_effect"] not in legendary_ids:
+            errors.append(f"items.json: item '{iid}' references unknown legendary_effect '{item['legendary_effect']}'")
         if "forced_rarity" in item and item["forced_rarity"] not in rarity_ids:
             errors.append(f"items.json: item '{iid}' references unknown forced_rarity '{item['forced_rarity']}'")
 
@@ -130,7 +131,7 @@ def main() -> int:
         "safe_room_discovered",
         "boss_arena_sealed",
         "boss_defeated",
-        "sponsored_loot",
+        "legendary_loot",
         "floor_collapse",
         "player_death",
         "level_up",
@@ -165,6 +166,25 @@ def main() -> int:
     for req_sp in ["entrance", "safe_room", "boss_arena", "vault", "stairs"]:
         if req_sp not in setpieces or not setpieces[req_sp].get("props"):
             errors.append(f"setpieces.json: D-029 requires handcrafted setpiece props for '{req_sp}'")
+
+    # 9. FB-022 power-scale knobs (D-057): global knobs, and a power_scale on every enemy, item and floor
+    bal = packs["balance.json"]
+    for knob in ["enemy_health", "enemy_damage", "enemy_count", "enemy_xp", "enemy_gold", "boss_health", "boss_damage",
+                 "champion_health", "champion_damage", "item_power", "consumable_power", "vendor_prices"]:
+        v = bal.get("global", {}).get(knob)
+        if not isinstance(v, (int, float)) or v <= 0:
+            errors.append(f"balance.json: global knob '{knob}' must be a positive number")
+    for enemy in enemies_pack.get("enemies", []):
+        if not isinstance(enemy.get("power_scale"), (int, float)) or enemy["power_scale"] <= 0:
+            errors.append(f"enemies.json: enemy '{enemy.get('id')}' needs a positive power_scale")
+    for item in items_pack.get("items", []):
+        if not isinstance(item.get("power_scale"), (int, float)) or item["power_scale"] <= 0:
+            errors.append(f"items.json: item '{item.get('id')}' needs a positive power_scale")
+        if item.get("category") not in ("consumable", "ingredient") and not any(m.get("level") == 1 for m in item.get("mastery", [])):
+            errors.append(f"items.json: gear '{item.get('id')}' needs a level-1 mastery ability (D-057)")
+    for floor in world.get("floors", []):
+        if not isinstance(floor.get("power_scale"), (int, float)) or floor["power_scale"] <= 0:
+            errors.append(f"world.json: floor {floor.get('floor_number')} needs a positive power_scale")
 
     if errors:
         for e in errors:

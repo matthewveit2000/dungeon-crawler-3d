@@ -38,17 +38,22 @@ var map_seen: Dictionary = {}
 var _last_player_tile: Vector2i = Vector2i(-999, -999)
 
 var boss_actor: EnemyActor = null
-## D-049: crawler knowledge of every enemy type met (saved with the session, never rolled back by a floor reset)
+## D-049: the player's knowledge of every enemy type met (saved with the session, never rolled back by a floor reset)
 var bestiary: Bestiary = Bestiary.new()
 ## D-049 Hunter's Focus: enemies and their projectiles run at this speed while a mastered bow is fully drawn
 var world_time_scale: float = 1.0
 var _bestiary_scan_t: float = 0.0
 var boss_defeated_this_floor: bool = false
 var player_in_safe_room: bool = false
-var quest_bounty_claimed: bool = false
+## FB-022: safe rooms whose area map the player has already read this floor (room ids)
+var maps_read: Dictionary = {}
 var _trap_damage_cooldown: float = 0.0
 var _spawn_anchor_pos: Vector3 = Vector3.ZERO
 const ENEMY_ACTIVE_RADIUS := 70.0
+const ENEMY_MATERIALIZE_RADIUS := 100.0
+## FB-022: floor spawns not created yet (far from the player): [{"idx", "sp", "pos"}]
+var _pending_spawns: Array = []
+var _materialize_t: float = 0.0
 var _initialized: bool = false
 
 # --- Test Mode (D-047) -------------------------------------------------------------------------------
@@ -60,6 +65,7 @@ var test_panel: TestModePanel = null
 var test_ai_frozen: bool = false
 var test_clock_paused: bool = false
 var test_infinite_resources: bool = false
+var test_champions: bool = false  ## FB-022: Test Mode spawns enemies as champions (mini-bosses)
 var test_vast_floor: bool = false  ## Test Mode on a real vast floor instead of the compact test floor
 
 
@@ -205,7 +211,7 @@ func enter_floor(target_floor: int, capture_snapshot: bool = true) -> void:
 	floor_number = target_floor
 	boss_defeated_this_floor = false
 	player_in_safe_room = false
-	quest_bounty_claimed = false
+	maps_read.clear()
 	ai_director.reset_floor_flags()
 	floor_timer.reset()
 	# D-039: every attempt at a floor replays from the same random state (combat rolls, AI, banners).
@@ -213,7 +219,7 @@ func enter_floor(target_floor: int, capture_snapshot: bool = true) -> void:
 	map_seen.clear()
 	_last_player_tile = Vector2i(-999, -999)
 	if hud != null:
-		hud.clear_transient_messages()  # stale broadcasts from the previous floor / attempt don't linger
+		hud.clear_transient_messages()  # stale announcements from the previous floor / attempt don't linger
 
 	if capture_snapshot:
 		snapshot_mgr.capture_floor_entry_snapshot(_build_snapshot_payload())
@@ -280,6 +286,10 @@ func reset_floor_to_snapshot(reason: String) -> void:
 		for item in snap.get("inventory", []):
 			player.inventory.append(item.duplicate(true))
 		player.normalize_equipment()
+		player.hotbar = (snap.get("hotbar", []) as Array).duplicate(true)
+		if player.hotbar.size() != PlayerController.HOTBAR_SIZE:
+			player.reset_hotbar()
+		player.timed_effects.clear()
 		progression.from_dict(snap.get("progression", {}))
 		player.refresh_hand_visuals()
 
@@ -312,11 +322,13 @@ func save_current_session() -> bool:
 		"gold": player.gold,
 		"equipment": player.equipment.duplicate(true),
 		"inventory": player.inventory.duplicate(true),
+		"hotbar": player.hotbar.duplicate(true),
 		"progression": progression.to_dict(),
 		"timer": floor_timer.to_dict(),
 		"tutorials": tutorial_sys.to_dict() if tutorial_sys != null else {},
 		"boss_defeated": boss_defeated_this_floor,
 		"map_seen": _map_seen_to_array(),
+		"maps_read": maps_read.keys(),
 		"bestiary": bestiary.to_dict(),
 	}
 	return snapshot_mgr.save_session_to_file(session, save_path)
@@ -341,6 +353,9 @@ func load_saved_session() -> bool:
 	for item in session.get("inventory", []):
 		player.inventory.append(item.duplicate(true))
 	player.normalize_equipment()
+	player.hotbar = (session.get("hotbar", []) as Array).duplicate(true)
+	if player.hotbar.size() != PlayerController.HOTBAR_SIZE:
+		player.reset_hotbar()
 	progression.from_dict(session.get("progression", {}))
 	bestiary.from_dict(session.get("bestiary", {}))
 	if tutorial_sys != null and session.has("tutorials"):
@@ -355,6 +370,7 @@ func load_saved_session() -> bool:
 	player.rotation.y = float(session.get("player_yaw", 0.0))
 	player.pitch_rad = float(session.get("player_pitch", 0.0))
 	player.head_pivot.rotation.x = player.pitch_rad
+	materialize_nearby_enemies()
 	player.recalculate_vitals(false)
 	player.health = clampf(float(session.get("health", player.max_health)), 1.0, player.max_health)
 	player.magicka = clampf(float(session.get("magicka", player.max_magicka)), 0.0, player.max_magicka)
@@ -363,6 +379,8 @@ func load_saved_session() -> bool:
 	for code in session.get("map_seen", []):
 		var ci := int(code)
 		map_seen[Vector2i(ci % 1000, ci / 1000)] = true
+	for sid in session.get("maps_read", []):
+		read_area_map(int(sid), false)
 	if bool(session.get("boss_defeated", false)):
 		boss_defeated_this_floor = true
 		dungeon_builder.unlock_boss_and_vault()
@@ -503,21 +521,19 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("left_hand_action"):
 		player.handle_hand_press("left_hand")
 		_complete_tutorial("combat_hands")
-	elif event.is_action_pressed("quick_loadout_1"):
-		player.quick_equip_preset(1)
-		_complete_tutorial("combat_hands")
-	elif event.is_action_pressed("quick_loadout_2"):
-		player.quick_equip_preset(2)
-		_complete_tutorial("combat_hands")
-	elif event.is_action_pressed("quick_loadout_3"):
-		player.quick_equip_preset(3)
-		_complete_tutorial("combat_hands")
-	elif event.is_action_pressed("quick_loadout_4"):
-		player.quick_equip_preset(4)
-		_complete_tutorial("combat_hands")
-		_trigger_tutorial("archery_aim")
 	elif event.is_action_pressed("quick_potion"):
 		player.quick_drink_health_potion()
+	else:
+		# FB-022 hotbar: keys 1-8 equip a favourite weapon / spell / shield or use one of a stack
+		for i in range(PlayerController.HOTBAR_SIZE):
+			if event.is_action_pressed("hotbar_%d" % (i + 1)):
+				if player.use_hotbar(i):
+					_complete_tutorial("combat_hands")
+					if str(player.equipment.get("right_hand", {}).get("weapon_type", "")) == "archery":
+						_trigger_tutorial("archery_aim")
+				if hud != null:
+					hud.flash_hotbar_slot(i)
+				break
 
 
 func _physics_process(delta: float) -> void:
@@ -547,6 +563,10 @@ func step_simulation(delta: float, input_override: Dictionary = {}) -> void:
 		player.magicka = player.max_magicka
 	# 2. Step Player & Enemy AI
 	player.step_simulation(delta, is_menu_paused, input_override)
+	_materialize_t -= delta
+	if _materialize_t <= 0.0:
+		_materialize_t = 0.5
+		materialize_nearby_enemies()
 	world_time_scale = player.bullet_time_scale()
 	GameProjectile.world_time_scale = world_time_scale
 	var enemy_delta := delta * world_time_scale
@@ -611,7 +631,7 @@ func run_console_command(command_line: String) -> String:
 			var amt := int(args[0]) if not args.is_empty() else 100
 			player.gold += amt
 			player.emit_stats()
-			return "Added %d Syndicate Gold (total: %d)." % [amt, player.gold],
+			return "Added %d gold (total: %d)." % [amt, player.gold],
 		"add_xp": func(args: Array[String]) -> String:
 			var amt := float(args[0]) if not args.is_empty() else 120.0
 			var lvls := progression.add_xp(amt)
@@ -639,6 +659,9 @@ func _check_zone_triggers(delta: float) -> void:
 		player_in_safe_room = true
 		if EventBus != null:
 			EventBus.safe_room_entered.emit()
+		var sid := safe_room_at(player.global_position)
+		if sid >= 0 and not maps_read.has(sid):
+			read_area_map(sid)
 		_announce_ai("safe_room_discovered", {}, "info", true)
 		_trigger_tutorial("safe_room")
 	elif not in_safe and player_in_safe_room:
@@ -710,7 +733,7 @@ func _on_player_melee_swing(swing: Dictionary) -> void:
 			"is_power_attack": is_power,
 			"crit_chance": float(swing["crit_chance"]),
 			"crit_multiplier": float(swing["crit_multiplier"]),
-			"sponsored_effects": swing["sponsored_effects"],
+			"legendary_effects": swing["legendary_effects"],
 			"abilities": abil,
 			"item": swing.get("item", {}),
 			"melee": true,
@@ -773,7 +796,7 @@ func _on_projectile_hit(proj: GameProjectile, body: Node3D, hit_pos: Vector3) ->
 			"base_damage": proj.damage,
 			"crit_chance": proj.crit_chance,
 			"crit_multiplier": proj.crit_multiplier,
-			"sponsored_effects": proj.sponsored_effects,
+			"legendary_effects": proj.legendary_effects,
 			"abilities": abil,
 			"item": item,
 		}
@@ -871,9 +894,9 @@ func _apply_player_hit_to_enemy(enemy: EnemyActor, params: Dictionary, skill_nam
 		if EventBus != null:
 			EventBus.level_up_occurred.emit(int(lvl))
 
-	# Sponsored Explosive Crits shockwave!
+	# Legendary Blast Wave on critical hits
 	if bool(res["trigger_explosive_crits"]):
-		var eff := DataLoader.get_sponsored_effect_def("explosive_crits")
+		var eff := DataLoader.get_legendary_effect_def("explosive_crits")
 		var aoe_r := float(eff.get("aoe_radius", 3.5))
 		var aoe_d := float(eff.get("bonus_aoe_damage", 14.0))
 		for other in enemies_root.get_children():
@@ -911,17 +934,45 @@ func _spawn_hit_feedback(pos: Vector3, dmg: float, crit: bool) -> void:
 	tw.chain().tween_callback(lbl.queue_free)
 
 
+## FB-022: damage-over-time ticks pop up in the colour of their status (burn orange, bleed red, poison green).
+func _on_enemy_dot_tick(enemy: EnemyActor, amount: float, kind: String) -> void:
+	if not is_inside_tree() or enemy == null or not is_instance_valid(enemy) or not enemy.is_inside_tree():
+		return
+	if GameSettings != null and not bool(GameSettings.get_value("gameplay", "show_damage_numbers")):
+		return
+	var lbl := Label3D.new()
+	lbl.name = "DotNumber_" + kind
+	lbl.text = "%d" % maxi(1, int(round(amount)))
+	lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	lbl.no_depth_test = true
+	lbl.font_size = 40
+	lbl.pixel_size = 0.004
+	lbl.outline_size = 10
+	lbl.modulate = EnemyActor.STATUS_COLORS.get(kind, Color.WHITE)
+	lbl.outline_modulate = Color(0.05, 0.02, 0.0, 0.9)
+	if UiTheme.font_heading() != null:
+		lbl.font = UiTheme.font_heading()
+	projectiles_root.add_child(lbl)
+	var side := rng.next_float_range("ai", -0.45, 0.45)
+	lbl.global_position = enemy.global_position + Vector3(side, enemy._height * 0.8, 0.0)
+	var tw := lbl.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(lbl, "global_position", lbl.global_position + Vector3(0, 0.7, 0), 0.8).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(lbl, "modulate:a", 0.0, 0.8).set_delay(0.3)
+	tw.chain().tween_callback(lbl.queue_free)
+
+
 func _on_enemy_died(enemy: EnemyActor) -> void:
 	# The boss's gates are opened FIRST, so nothing later in this handler (loot, corpse, VFX) can leave the
 	# player sealed in the arena or locked out of the vault
 	if enemy.is_boss:
 		_on_boss_defeated()
 	var eq_totals := LootGenerator.aggregate_equipment_stats(player.equipment)
-	var sponsored: Array = eq_totals["sponsored_effects"]
+	var legendary: Array = eq_totals["legendary_effects"]
 
-	if sponsored.has("vampiric_viewers"):
-		player.health = minf(player.max_health, player.health + float(DataLoader.get_sponsored_effect_def("vampiric_viewers").get("heal_on_kill", 12.0)))
-	var bonus_gold := int(DataLoader.get_sponsored_effect_def("tax_rebate_gold").get("bonus_gold_on_kill", 15)) if sponsored.has("tax_rebate_gold") else 0
+	if legendary.has("blood_feast"):
+		player.health = minf(player.max_health, player.health + float(DataLoader.get_legendary_effect_def("blood_feast").get("heal_on_kill", 12.0)))
+	var bonus_gold := int(DataLoader.get_legendary_effect_def("grave_robber").get("bonus_gold_on_kill", 15)) if legendary.has("grave_robber") else 0
 
 	var loot_rng := _loot_rng_for(str(enemy.get_meta("spawn_key", enemy.enemy_id)))
 	var gold_roll := loot_rng.next_int_range("loot", enemy.gold_min, enemy.gold_max)
@@ -974,6 +1025,13 @@ func _on_enemy_died(enemy: EnemyActor) -> void:
 
 	_announce_ai("first_kill", {}, "info", true)
 
+	if enemy.is_champion:
+		_mark_poi_done("spawn_index", int(enemy.get_meta("spawn_index", -1)))
+		if EventBus != null:
+			EventBus.dungeon_ai_announcement.emit("CHAMPION SLAIN — %s" % enemy.display_name.to_upper(),
+				"Its lair's treasure is yours. Search the body, too.", "warning")
+			EventBus.sfx_requested.emit("level_up")
+
 	if enemy.is_boss:
 		_complete_tutorial("boss_arena")
 		if EventBus != null:
@@ -989,6 +1047,8 @@ func _on_enemy_died(enemy: EnemyActor) -> void:
 func _on_interactable_triggered(inter: InteractableObject, _actor: Node3D) -> bool:
 	match inter.kind:
 		"chest":
+			if inter.interact_id.begins_with("chest_"):
+				_mark_poi_done("chest_index", int(inter.interact_id.trim_prefix("chest_")))
 			var tier := str(inter.payload.get("tier", "standard"))
 			var forced := "legendary" if tier == "vault_legendary" else ("rare" if tier == "rare" else "")
 			var chest_rng := _loot_rng_for(inter.interact_id)
@@ -1007,6 +1067,19 @@ func _on_interactable_triggered(inter: InteractableObject, _actor: Node3D) -> bo
 			if cont_rng.next_float("loot") < 0.35:
 				potion = LootGenerator.make_base_item_instance(DataLoader.get_item_def("health_potion"), "pot_%d" % cont_rng.next_int_range("loot", 1000, 99999))
 			_grant_loot(potion, gold_gain)
+			# FB-022: crates and urns hold ingredients, often a few of a kind (they stack in the bag)
+			if cont_rng.next_float("loot") < 0.5:
+				var ingr: Array = []
+				for d in DataLoader.get_items_pack().get("items", []):
+					if str(d.get("category", "")) == "ingredient":
+						var dd: Dictionary = d.duplicate()
+						dd["_w"] = float(d.get("drop_weight", 5.0))
+						ingr.append(dd)
+				if not ingr.is_empty():
+					var pick: Dictionary = cont_rng.pick_weighted("loot", ingr, "_w")
+					var found := LootGenerator.make_base_item_instance(DataLoader.get_item_def(str(pick["id"])), "ingr_%d" % cont_rng.next_int_range("loot", 1000, 99999))
+					found["count"] = cont_rng.next_int_range("loot", 1, 3)
+					_grant_loot(found, 0)
 			_complete_tutorial("looting")
 			if EventBus != null: EventBus.sfx_requested.emit("chest_open")
 			return true
@@ -1026,18 +1099,13 @@ func _on_interactable_triggered(inter: InteractableObject, _actor: Node3D) -> bo
 		"vendor":
 			open_exclusive_menu("vendor")
 			return true
-		"quest_board":
+		"area_map":
+			# FB-022: study the safe room's wall map, then look at it on your own map
 			_complete_tutorial("safe_room")
-			if not quest_bounty_claimed:
-				quest_bounty_claimed = true
-				player.gold += 35
-				player.emit_stats()
-				if EventBus != null:
-					EventBus.dungeon_ai_announcement.emit(
-						"SYNDICATE BOUNTY ACCEPTED (+35g ADVANCE)",
-						"Locate the hidden Stairwell before Day 5 ends — or risk the sealed Boss Arena for Mythic Vault loot.",
-						"info"
-					)
+			var sid := safe_room_at(inter.global_position)
+			if sid >= 0:
+				read_area_map(sid)
+			open_exclusive_menu("map")
 			return true
 		"stairs":
 			# D-008: Descend directly with zero preview of the next floor!
@@ -1051,34 +1119,75 @@ func _grant_loot(item: Dictionary, gold_gain: int) -> void:
 	if gold_gain > 0:
 		player.gold += gold_gain
 	if not item.is_empty():
-		player.inventory.append(item)
+		player.add_to_inventory(item)
 		if EventBus != null:
 			EventBus.item_acquired.emit(item)
 		if str(item.get("rarity", "")) == "legendary":
-			_announce_ai("sponsored_loot", {"item_name": str(item.get("name", "Mythic Gear"))}, "warning")
+			_announce_ai("legendary_loot", {"item_name": str(item.get("name", "Legendary Relic"))}, "warning")
 	player.emit_stats()
 
 
 func _spawn_floor_enemies(enemies_pack: Dictionary) -> void:
 	boss_actor = null
+	_pending_spawns.clear()
 	var scaling: Dictionary = enemies_pack.get("floor_scaling", {})
 	for spawn_idx in current_layout.enemy_spawns.size():
 		var sp: Dictionary = current_layout.enemy_spawns[spawn_idx]
 		var edef := DataLoader.get_enemy_def(str(sp["enemy_id"]))
 		if edef.is_empty():
 			continue
-		var y_off := 0.45 if bool(edef.get("is_boss", false)) else 0.1
-		var enemy := spawn_enemy(str(sp["enemy_id"]), current_layout.tile_to_world(sp["tile"]) + Vector3(0.0, y_off, 0.0),
-			int(sp["room_id"]), "enemy_%d_%s" % [spawn_idx, str(sp["enemy_id"])], scaling)
-		if enemy != null and enemy.is_boss:
-			boss_actor = enemy
+		var is_b := bool(edef.get("is_boss", false))
+		var rec := {"idx": spawn_idx, "sp": sp, "pos": current_layout.tile_to_world(sp["tile"]) + Vector3(0.0, 0.45 if is_b else 0.1, 0.0)}
+		if is_b:
+			var enemy := _spawn_from_record(rec, scaling)
+			if enemy != null:
+				boss_actor = enemy
+		else:
+			_pending_spawns.append(rec)
+	materialize_nearby_enemies()
+
+
+## FB-022: with thousands of (weaker) enemies per floor, each one is only created once the player comes within
+## ENEMY_MATERIALIZE_RADIUS of its spawn point. Spawns are seeded per index, so who appears where never changes.
+func materialize_nearby_enemies() -> int:
+	if player == null or _pending_spawns.is_empty():
+		return 0
+	var ppos := player.global_position
+	var r2 := ENEMY_MATERIALIZE_RADIUS * ENEMY_MATERIALIZE_RADIUS
+	var keep: Array = []
+	var made := 0
+	var scaling: Dictionary = DataLoader.get_enemies_pack().get("floor_scaling", {})
+	for rec in _pending_spawns:
+		var pos: Vector3 = rec["pos"]
+		if Vector2(pos.x - ppos.x, pos.z - ppos.z).length_squared() <= r2:
+			_spawn_from_record(rec, scaling)
+			made += 1
+		else:
+			keep.append(rec)
+	_pending_spawns = keep
+	return made
+
+
+func _spawn_from_record(rec: Dictionary, scaling: Dictionary) -> EnemyActor:
+	var sp: Dictionary = rec["sp"]
+	var opts := {}
+	if bool(sp.get("champion", false)):
+		opts["champion"] = {"title": str(sp.get("title", "the Champion"))}
+	var enemy := spawn_enemy(str(sp["enemy_id"]), rec["pos"], int(sp["room_id"]),
+		"enemy_%d_%s" % [int(rec["idx"]), str(sp["enemy_id"])], scaling, 0, opts)
+	if enemy != null:
+		enemy.set_meta("spawn_index", int(rec["idx"]))
+	return enemy
 
 
 ## Creates one enemy (floor spawns and Test Mode). Returns null for an unknown enemy id.
-func spawn_enemy(enemy_id: String, wpos: Vector3, room_id: int = -1, spawn_key: String = "", scaling: Dictionary = {}, level_override: int = 0) -> EnemyActor:
+func spawn_enemy(enemy_id: String, wpos: Vector3, room_id: int = -1, spawn_key: String = "", scaling: Dictionary = {}, level_override: int = 0, opts: Dictionary = {}) -> EnemyActor:
 	var edef := DataLoader.get_enemy_def(enemy_id)
 	if edef.is_empty():
 		return null
+	if opts.has("champion"):
+		edef = edef.duplicate()
+		edef["_champion"] = opts["champion"]
 	if scaling.is_empty():
 		scaling = DataLoader.get_enemies_pack().get("floor_scaling", {})
 	var enemy := EnemyActor.new()
@@ -1105,6 +1214,7 @@ func spawn_enemy(enemy_id: String, wpos: Vector3, room_id: int = -1, spawn_key: 
 				"shooter": e,
 			}),
 		"died": _on_enemy_died,
+		"dot_tick": _on_enemy_dot_tick,
 	}, lvl)
 	return enemy
 
@@ -1326,7 +1436,85 @@ func _update_hud_navigation() -> void:
 		var bname := boss_actor.display_name + (" [ENRAGED]" if boss_actor.enraged else "")
 		hud.update_boss_bar(true, bname, boss_actor.current_health, boss_actor.max_health)
 	else:
-		hud.update_boss_bar(false)
+		# FB-022: an engaged champion gets the big health bar too
+		var champ := engaged_champion()
+		if champ != null:
+			hud.update_boss_bar(true, champ.display_name + (" [ENRAGED]" if champ.enraged else ""), champ.current_health, champ.max_health, "champion")
+		else:
+			hud.update_boss_bar(false)
+
+
+## Safe room containing this world position (-1 if none).
+func safe_room_at(wpos: Vector3) -> int:
+	if current_layout == null:
+		return -1
+	var t := current_layout.world_to_tile(wpos)
+	for sid in current_layout.safe_room_ids:
+		var rr: Rect2i = current_layout.rooms[sid]["rect"]
+		if rr.grow(1).has_point(t):
+			return sid
+	return -1
+
+
+## FB-022: a safe room's wall map — inks every walkable tile within the reveal radius onto the player's map and
+## reveals the treasure, champion lairs and landmarks inside it. Returns {"tiles", "treasure", "champions", "landmarks"}.
+func read_area_map(safe_room_id: int, announce: bool = true) -> Dictionary:
+	var out := {"tiles": 0, "treasure": 0, "champions": 0, "landmarks": 0}
+	if current_layout == null or safe_room_id < 0 or safe_room_id >= current_layout.rooms.size():
+		return out
+	maps_read[safe_room_id] = true
+	var c: Vector2i = current_layout.rooms[safe_room_id]["center"]
+	var r := int(DataLoader.get_world().get("safe_room_map", {}).get("reveal_radius_tiles", 40))
+	for y in range(maxi(0, c.y - r), mini(current_layout.height, c.y + r + 1)):
+		for x in range(maxi(0, c.x - r), mini(current_layout.width, c.x + r + 1)):
+			if (x - c.x) * (x - c.x) + (y - c.y) * (y - c.y) > r * r:
+				continue
+			if current_layout.is_walkable(x, y):
+				var t := Vector2i(x, y)
+				if not map_seen.has(t):
+					map_seen[t] = true
+					out["tiles"] += 1
+	for p in current_layout.pois:
+		var pt: Vector2i = p["tile"]
+		if (pt - c).length_squared() <= r * r and not bool(p["revealed"]):
+			p["revealed"] = true
+			out["champions" if str(p["kind"]) == "champion" else "treasure"] += 1
+	for lm in current_layout.landmarks:
+		var lt := current_layout.world_to_tile(lm["world_pos"])
+		if (lt - c).length_squared() <= r * r and not bool(lm.get("discovered", false)):
+			lm["discovered"] = true
+			out["landmarks"] += 1
+	if announce and EventBus != null:
+		EventBus.dungeon_ai_announcement.emit("AREA MAP STUDIED",
+			"Your map now shows the surrounding area: %d treasure, %d champion lair%s and %d landmark%s marked. Press M to look." % [
+				out["treasure"], out["champions"], "" if out["champions"] == 1 else "s", out["landmarks"], "" if out["landmarks"] == 1 else "s"], "info")
+	return out
+
+
+## FB-022: crosses a point of interest off the map (looted chest, slain champion).
+func _mark_poi_done(key: String, value: int) -> void:
+	if current_layout == null or value < 0:
+		return
+	for p in current_layout.pois:
+		if int(p.get(key, -1)) == value:
+			p["done"] = true
+
+
+## The nearest champion currently fighting the player (within 30 m), or null.
+func engaged_champion() -> EnemyActor:
+	if not is_inside_tree():
+		return null
+	var best: EnemyActor = null
+	var bd := 30.0
+	for n in get_tree().get_nodes_in_group("champions"):
+		var e := n as EnemyActor
+		if e == null or e.is_queued_for_deletion() or e.state not in [EnemyActor.AiState.CHASE, EnemyActor.AiState.ATTACK]:
+			continue
+		var d := e.global_position.distance_to(player.global_position)
+		if d < bd:
+			bd = d
+			best = e
+	return best
 
 
 func _announce_ai(event_key: String, vars: Dictionary, severity: String = "info", once_only: bool = false) -> void:
@@ -1352,6 +1540,7 @@ func _build_snapshot_payload() -> Dictionary:
 		"gold": player.gold,
 		"equipment": player.equipment.duplicate(true),
 		"inventory": player.inventory.duplicate(true),
+		"hotbar": player.hotbar.duplicate(true),
 		"progression": progression.to_dict(),
 	}
 
@@ -1378,10 +1567,23 @@ func _cmd_teleport(args: Array[String]) -> String:
 				if str(r["role"]) == "combat":
 					room_id = int(r["id"])
 					break
+		"champion":
+			# FB-022: the doorway of the nearest champion lair
+			var best := 1e9
+			for p in current_layout.pois:
+				if str(p["kind"]) == "champion" and not bool(p["done"]):
+					var d := (p["world_pos"] as Vector3).distance_to(player.global_position)
+					if d < best:
+						best = d
+						room_id = int(current_layout.enemy_spawns[int(p["spawn_index"])]["room_id"])
 	if room_id < 0:
-		return "Unknown target '%s'. Options: entrance, combat, safe, boss, vault, stairs." % target
+		return "Unknown target '%s'. Options: entrance, combat, champion, safe, boss, vault, stairs." % target
 	var tile: Vector2i = current_layout.rooms[room_id]["center"]
+	if target == "champion":
+		var rr: Rect2i = current_layout.rooms[room_id]["rect"]
+		tile = Vector2i(rr.position.x, rr.end.y - 1)
 	player.global_position = current_layout.tile_to_world(tile) + Vector3(0.0, 0.3, 0.0)
+	materialize_nearby_enemies()
 	_update_hud_navigation()
 	return "Teleported to %s (%s)." % [target, str(tile)]
 
@@ -1431,7 +1633,8 @@ func test_spawn_enemy(enemy_id: String, count: int = 1) -> Array:
 	var out: Array = []
 	for i in range(count):
 		var side := (float(i) - float(count - 1) * 0.5) * 1.8
-		var e := spawn_enemy(enemy_id, test_front_point(4.5, side), -1)
+		var opts := {"champion": {"title": "the Test Subject"}} if test_champions else {}
+		var e := spawn_enemy(enemy_id, test_front_point(4.5, side), -1, "", {}, 0, opts)
 		if e != null:
 			if e.is_boss:
 				boss_actor = e
@@ -1462,14 +1665,14 @@ func test_give_item(item_id: String, rarity: String = "common") -> Dictionary:
 	if def.is_empty():
 		return {}
 	var item: Dictionary
-	if str(def.get("category", "")) == "consumable":
+	if InventoryStacks.is_stackable(def):
 		item = LootGenerator.make_base_item_instance(def, "test_%s_%d" % [item_id, player.inventory.size()])
 	else:
 		item = LootGenerator.roll_loot(DataLoader.get_items_pack(), DataLoader.get_affixes_pack(), floor_number,
 			SeededRng.new(player.inventory.size() + 1), rarity, false, item_id)
 	if item.is_empty():
 		return {}
-	player.inventory.append(item)
+	item = player.add_to_inventory(item)
 	player.emit_stats()
 	return item
 

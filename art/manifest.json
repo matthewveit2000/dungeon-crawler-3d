@@ -111,25 +111,28 @@
     },
     {
       "batch": "characters",
-      "name": "goblin_streamer",
-      "path": "game/assets/models/characters/goblin_streamer.glb",
+      "name": "goblin",
+      "path": "game/assets/models/characters/goblin.glb",
       "dimensions_xyz_m": [
         0.783,
-        0.425,
-        1.745
+        0.438,
+        1.796
       ],
-      "triangles": 9808,
-      "bytes": 821816,
+      "triangles": 10392,
+      "bytes": 894352,
       "materials": [
+        "bone",
         "cloth_burlap",
+        "flame_glow",
         "glow_eye_gold",
+        "iron_dark",
         "leather_brown",
         "leather_dark",
-        "neon_pink",
-        "plastic_black",
         "pupil_black",
         "skin_goblin",
-        "teeth"
+        "teeth",
+        "wax",
+        "wood_rough"
       ],
       "animations": [
         "attack",
@@ -221,6 +224,23 @@
         "iron_dark",
         "steel_blade",
         "wood_beam"
+      ]
+    },
+    {
+      "batch": "gear",
+      "name": "bat_wing_jerky",
+      "path": "game/assets/models/gear/bat_wing_jerky.glb",
+      "dimensions_xyz_m": [
+        0.136,
+        0.009,
+        0.089
+      ],
+      "triangles": 1220,
+      "bytes": 75796,
+      "materials": [
+        "bone",
+        "leather_dark",
+        "rope"
       ]
     },
     {
@@ -487,6 +507,40 @@
     },
     {
       "batch": "gear",
+      "name": "glowcap_mushroom",
+      "path": "game/assets/models/gear/glowcap_mushroom.glb",
+      "dimensions_xyz_m": [
+        0.089,
+        0.07,
+        0.116
+      ],
+      "triangles": 1228,
+      "bytes": 79488,
+      "materials": [
+        "bone",
+        "dirt",
+        "fungus_glow",
+        "glow_eye_blue"
+      ]
+    },
+    {
+      "batch": "gear",
+      "name": "goblin_toenail",
+      "path": "game/assets/models/gear/goblin_toenail.glb",
+      "dimensions_xyz_m": [
+        0.068,
+        0.048,
+        0.016
+      ],
+      "triangles": 824,
+      "bytes": 43740,
+      "materials": [
+        "dirt",
+        "keratin"
+      ]
+    },
+    {
+      "batch": "gear",
       "name": "gold_signet",
       "path": "game/assets/models/gear/gold_signet.glb",
       "dimensions_xyz_m": [
@@ -499,6 +553,40 @@
       "materials": [
         "gold_antique",
         "void_black"
+      ]
+    },
+    {
+      "batch": "gear",
+      "name": "grave_moss",
+      "path": "game/assets/models/gear/grave_moss.glb",
+      "dimensions_xyz_m": [
+        0.1,
+        0.076,
+        0.061
+      ],
+      "triangles": 876,
+      "bytes": 49320,
+      "materials": [
+        "moss",
+        "stone_block"
+      ]
+    },
+    {
+      "batch": "gear",
+      "name": "gravefeast_cleaver",
+      "path": "game/assets/models/gear/gravefeast_cleaver.glb",
+      "dimensions_xyz_m": [
+        0.14,
+        0.06,
+        0.904
+      ],
+      "triangles": 1908,
+      "bytes": 95272,
+      "materials": [
+        "glow_eye_red",
+        "gold_antique",
+        "leather_dark",
+        "steel_blade"
       ]
     },
     {
@@ -631,6 +719,28 @@
     },
     {
       "batch": "gear",
+      "name": "ironbark_tonic",
+      "path": "game/assets/models/gear/ironbark_tonic.glb",
+      "dimensions_xyz_m": [
+        0.144,
+        0.144,
+        0.179
+      ],
+      "triangles": 1968,
+      "bytes": 114476,
+      "materials": [
+        "bronze",
+        "embers",
+        "glass_clear",
+        "iron_dark",
+        "parchment",
+        "rope",
+        "wood_dark",
+        "wood_rough"
+      ]
+    },
+    {
+      "batch": "gear",
       "name": "kite_shield",
       "path": "game/assets/models/gear/kite_shield.glb",
       "dimensions_xyz_m": [
@@ -683,24 +793,6 @@
         "parchment",
         "rope",
         "wood_rough"
-      ]
-    },
-    {
-      "batch": "gear",
-      "name": "ratings_cleaver",
-      "path": "game/assets/models/gear/ratings_cleaver.glb",
-      "dimensions_xyz_m": [
-        0.14,
-        0.06,
-        0.904
-      ],
-      "triangles": 1908,
-      "bytes": 95256,
-      "materials": [
-        "gold_antique",
-        "leather_dark",
-        "neon_pink",
-        "steel_blade"
       ]
     },
     {
@@ -759,19 +851,21 @@
     },
     {
       "batch": "gear",
-      "name": "sponsored_gauntlets",
-      "path": "game/assets/models/gear/sponsored_gauntlets.glb",
+      "name": "stamina_potion",
+      "path": "game/assets/models/gear/stamina_potion.glb",
       "dimensions_xyz_m": [
-        0.133,
-        0.124,
-        0.312
+        0.116,
+        0.116,
+        0.214
       ],
-      "triangles": 2594,
-      "bytes": 158308,
+      "triangles": 1268,
+      "bytes": 73728,
       "materials": [
-        "gold_antique",
-        "leather_dark",
-        "neon_pink"
+        "glass_clear",
+        "glass_lime",
+        "parchment",
+        "rope",
+        "wood_rough"
       ]
     },
     {
@@ -788,6 +882,43 @@
       "materials": [
         "leather_dark",
         "steel_armor"
+      ]
+    },
+    {
+      "batch": "gear",
+      "name": "swiftness_draught",
+      "path": "game/assets/models/gear/swiftness_draught.glb",
+      "dimensions_xyz_m": [
+        0.079,
+        0.065,
+        0.279
+      ],
+      "triangles": 1356,
+      "bytes": 75872,
+      "materials": [
+        "glass_amber",
+        "glass_clear",
+        "glow_eye_gold",
+        "parchment",
+        "rope",
+        "wood_rough"
+      ]
+    },
+    {
+      "batch": "gear",
+      "name": "thunderclap_gauntlets",
+      "path": "game/assets/models/gear/thunderclap_gauntlets.glb",
+      "dimensions_xyz_m": [
+        0.133,
+        0.124,
+        0.312
+      ],
+      "triangles": 2594,
+      "bytes": 158312,
+      "materials": [
+        "gold_antique",
+        "leather_dark",
+        "neon_pink"
       ]
     },
     {
@@ -920,6 +1051,23 @@
         "neon_pink",
         "parchment",
         "void_black"
+      ]
+    },
+    {
+      "batch": "gear",
+      "name": "troll_fat_salve",
+      "path": "game/assets/models/gear/troll_fat_salve.glb",
+      "dimensions_xyz_m": [
+        0.151,
+        0.116,
+        0.11
+      ],
+      "triangles": 968,
+      "bytes": 55820,
+      "materials": [
+        "iron_dark",
+        "parchment",
+        "salve_fat"
       ]
     },
     {

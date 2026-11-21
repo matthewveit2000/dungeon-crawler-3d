@@ -33,7 +33,7 @@
 When the User steps in at a playable milestone, an in-game **Debug / Audit Console** (stripped or gated in release builds) provides instant one-command shortcuts so the User never has to grind for 2 hours to test a feature:
 - Teleport to Entrance, Safe Room, Boss Arena, or Hidden Staircase
 - Advance the 5-day floor clock or trigger instant Floor Collapse
-- Spawn specific enemies, chests, or Sponsored/Mythic loot
+- Spawn specific enemies, chests, or legendary loot
 - Toggle God Mode, 1st/3rd person, or jump directly to a specific seed
 
 ## Test Mode & User-Feedback Regression Guards (`D-045`, `D-047`)

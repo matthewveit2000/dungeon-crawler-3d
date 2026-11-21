@@ -59,7 +59,7 @@ func show_reset(reason: String, floor_num: int) -> void:
 	match reason:
 		"death":
 			_title.text = "YOU HAVE FALLEN"
-			_sub.text = "The broadcast cuts to a sponsor message"
+			_sub.text = "The dark spits you back out at the start of the floor"
 		"collapse":
 			_title.text = "THE FLOOR COLLAPSED"
 			_sub.text = "Five days have passed on Floor %d" % floor_num

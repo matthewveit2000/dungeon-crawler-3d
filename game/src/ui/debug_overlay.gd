@@ -67,11 +67,11 @@ func _build_ui() -> void:
 	_output.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_output.scroll_following = true
 	_output.add_theme_color_override("default_color", UiTheme.COL_TEXT)
-	_output.append_text("Ready. Try: teleport safe | teleport boss | kill_boss | advance_days 5.1 | spawn_loot sponsored\n")
+	_output.append_text("Ready. Try: teleport safe | teleport boss | kill_boss | advance_days 5.1 | spawn_loot legendary\n")
 	v.add_child(_output)
 
 	_input = LineEdit.new()
-	_input.placeholder_text = "Enter command (e.g. teleport boss, spawn_loot sponsored, advance_days 4.9)..."
+	_input.placeholder_text = "Enter command (e.g. teleport boss, spawn_loot legendary, advance_days 4.9)..."
 	_input.text_submitted.connect(func(cmd: String) -> void:
 		if cmd.strip_edges().is_empty():
 			return
