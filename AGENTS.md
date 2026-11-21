@@ -82,12 +82,13 @@ Because this repository must be seamlessly usable by **any AI tool** across sess
 3. `docs/ROLES_AND_GOVERNANCE.md`
 4. `docs/VISION_AND_CONSTRAINTS.md`
 5. `docs/GAME_DESIGN.md`
-6. `docs/CONTENT_CATALOG.md` (planned & brainstormed enemies, magic tomes, items, arenas, unified entity stats)
-7. `docs/ARCHITECTURE.md`
-8. `docs/ART_PIPELINE.md`
-9. `docs/TESTING_STRATEGY.md`
-10. `docs/PLAYTEST_GUIDE.md`
-11. `docs/ROADMAP.md`
-12. `docs/DECISION_LOG.md`
-13. `docs/ALIGNMENT_LOG.md`
-14. `CHANGELOG.md` and `docs/changelogs/`
+6. `docs/IDEAS_BACKLOG.md` (Future Ideas Vault — capture raw User "word-vomit" ideas here with `IDEA-###` per `D-053`; do not implement until asked)
+7. `docs/CONTENT_CATALOG.md` (planned & brainstormed enemies, magic tomes, items, abilities, themes, companions, arenas, unified entity stats)
+8. `docs/ARCHITECTURE.md`
+9. `docs/ART_PIPELINE.md`
+10. `docs/TESTING_STRATEGY.md`
+11. `docs/PLAYTEST_GUIDE.md`
+12. `docs/ROADMAP.md`
+13. `docs/DECISION_LOG.md`
+14. `docs/ALIGNMENT_LOG.md`
+15. `CHANGELOG.md` and `docs/changelogs/`

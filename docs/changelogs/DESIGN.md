@@ -88,3 +88,9 @@ Detailed record of gameplay systems, rules, tuning, and DCC flavor implemented f
   - **Planned weapons:** `Swift Blade` (1H forward-launch sword: longer lunge & faster cooldown with mastery) and `Titanbreaker Greataxe` (2H knockback axe: further knockback & overcomes higher enemy knockback resistance).
   - Added brainstormed bonus enemies, tomes, gear, and arena/hazard mechanics for iteration.
 
+## 2026-11-20 — FB-019: Future Ideas Vault & Expanded Design Backlog (`D-053`, `D-054`) — design only
+
+- Created [`docs/IDEAS_BACKLOG.md`](../IDEAS_BACKLOG.md) (`IDEA-001`–`IDEA-013`) as a low-friction Future Ideas Vault for capturing raw User brainstorm dumps without implementing them prematurely.
+- Fleshed out `FB-019` future ideas in `docs/CONTENT_CATALOG.md`: Slow spell, Glue Floor spell, Temporary Wall spell, One-Way Spell/Arrow Front Shield spell, Effect Bows, Scaling Shield Bash, Glock, Variety of Bombs + Crafting System (bombs & potions), Active Ability System (Enrage, Radial Fling, Brief Invulnerability), Floor Themes, Unified Rarity & Scarcity System (driving spawn/drop rates & high unique prices), and Wacky Mounts & Companions (e.g., flying bat that smacks enemies).
+
+
