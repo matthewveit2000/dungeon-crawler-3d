@@ -24,3 +24,5 @@
 | 2026-11-20 | `d6f6529` (PR #14) | Chest/shield holes, enemy pathfinding, RPG rarities, edge-forward blades, 3P dual-wield/bow/spells, inventory fit | FB-014, `D-048` | `git revert -m 1 d6f6529` |
 | 2026-11-20 | `295f1c7` (PR #15) | Discovery & Mastery: varied all-Common loot, item mastery abilities, unique leveled enemies, Bestiary | FB-015, FB-016, `D-049` | `git revert -m 1 295f1c7` |
 | 2026-11-20 | `17892bf` | Workflow switched to direct commits on `main`; this work log added | FB-017, `D-050` | `git revert 17892bf` |
+| 2026-11-20 | `a5e5e94` | Living Content Catalog (`docs/CONTENT_CATALOG.md`), unified entity stats & extensibility architecture, ability-scaling enemies, planned tomes/weapons (docs only) | FB-018, `D-051`, `D-052` | `git revert a5e5e94` |
+
