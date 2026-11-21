@@ -143,5 +143,10 @@ distinct request as its own line with its status (`Done`, `Partial`, `Open`, `Pr
   4. First-class `FloorTheme` & `RarityTable` data packs (`rarities.json`, `themes.json`, `abilities.json`) + modular folder-capable `DataLoader`, driving `DungeonBuilder` and `LootGenerator`/`DungeonGenerator`/`TestModePanel` with 100% identical runtime output.
 - Guard: Full 5-layer `./scripts/run-tests.sh` green (**20 scripts, 116/116 tests, 135,916 assertions** — all 109 existing tests unchanged + 7 new tests in `game/tests/test_architecture_refactor_d055.gd`) + live Player-POV Visual QA (`01`–`06`, `09_corridor`) & tri-view `./scripts/fp-pose-probe.sh` motion inspection (`D-028`).
 
+### FB-021 — "Note that I always want you to give me the command to sync my local folder with github after an edit. If a branch is used I want the command to sync to the branch"
+- **Standing rule: Always include the exact local GitHub sync command after every edit** (for `main`, or for the specific branch if a branch is used). — `Done` — `D-056`
+- Guard: `AGENTS.md` §2 & §3, `docs/ROLES_AND_GOVERNANCE.md` §6, `docs/DECISION_LOG.md` (`D-056`).
+
+
 
 

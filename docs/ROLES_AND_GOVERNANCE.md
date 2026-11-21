@@ -67,7 +67,7 @@ The AI **MUST stop and get explicit User approval** before proceeding on any of 
   - **Notes for backtracking:** small, self-contained commits with descriptive messages; `CHANGELOG.md` + domain changelogs updated in the same commit; a `docs/WORK_LOG.md` entry per change with the commit SHA(s), what changed and how to undo it (`git revert <sha>`, or `git revert -m 1 <merge-sha>` for the older PR merges).
   - The full automated test suite runs locally before every push and CI must stay green on `main`; a red `main` is fixed immediately.
   - `main`'s history is never rewritten (no force-push, rebase or amend of pushed commits).
-  - Each round still ends with a plain-English summary, screenshots/videos where relevant, and the User's update commands.
+  - **Always provide local sync command (`D-056`):** Each round after an edit ends with a plain-English summary, screenshots/videos where relevant, and the exact copy-paste git command to sync the User's local folder with GitHub (`main`, or the specific branch if a branch is used).
 
 ---
 
