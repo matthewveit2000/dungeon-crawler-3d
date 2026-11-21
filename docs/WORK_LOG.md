@@ -25,4 +25,6 @@
 | 2026-11-20 | `295f1c7` (PR #15) | Discovery & Mastery: varied all-Common loot, item mastery abilities, unique leveled enemies, Bestiary | FB-015, FB-016, `D-049` | `git revert -m 1 295f1c7` |
 | 2026-11-20 | `17892bf` | Workflow switched to direct commits on `main`; this work log added | FB-017, `D-050` | `git revert 17892bf` |
 | 2026-11-20 | `a5e5e94` | Living Content Catalog (`docs/CONTENT_CATALOG.md`), unified entity stats & extensibility architecture, ability-scaling enemies, planned tomes/weapons (docs only) | FB-018, `D-051`, `D-052` | `git revert a5e5e94` |
+| 2026-11-20 | `3c35061` | Future Ideas Vault (`docs/IDEAS_BACKLOG.md`) & FB-019 ideas fleshed out in `CONTENT_CATALOG.md` (docs only) | FB-019, `D-053`, `D-054` | `git revert 3c35061` |
+
 
