@@ -169,6 +169,10 @@ func test_melee_combat_kills_enemy_grants_xp_skyrim_skill_use_and_corpse_loot() 
 			target = child as EnemyActor
 			break
 	assert_not_null(target, "Must have a regular enemy to fight")
+	# FB-025: rooms hold up to 7 enemies, so the rest of the pack would swarm the player; this test is about one duel
+	for other in game.enemies_root.get_children():
+		if other != target:
+			other.queue_free()
 
 	# Position player 1.5m in front of enemy facing directly at it (-Z forward)
 	var enemy_pos := target.global_position
