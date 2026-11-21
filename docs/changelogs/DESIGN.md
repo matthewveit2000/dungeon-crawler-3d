@@ -78,3 +78,13 @@ Detailed record of gameplay systems, rules, tuning, and DCC flavor implemented f
 - All world loot Common for now; 38 distinct items with per-item drop weights and their own mastery tracks (levels 1–10, +7% core stats per level, item-specific abilities from `mastery.json`).
 - 11 enemy types with unique traits and per-type level ranges; floors cover level bands (1–4, 4–7, …) so deeper floors introduce new enemies; stats scale with level.
 - Bestiary with tiered knowledge (sighted → slain → studied after 5 kills).
+
+## 2026-11-20 — FB-018: Ability-Scaling Enemies & Living Content Catalog (`D-051`, `D-052`) — design only
+
+- Created [`docs/CONTENT_CATALOG.md`](../CONTENT_CATALOG.md) and updated `docs/GAME_DESIGN.md` (§6.2–6.3):
+  - **Enemies upgrade unique abilities with level:** higher-level spawns unlock stronger ability tiers (not just HP/damage).
+  - **Planned enemies:** Flying Exploder (`Cinder Wisp / Blight Drone`), Death Splitter (`Mire Ooze / Marrow Splitter`), Adaptive Random-Spell Caster (`Runebound Arcanist` with Utility-Scoring AI), Tanky Frontliner (`Obsidian Juggernaut`), and Rock-Throwing Kiter (`Crag Goblin Skirmisher`).
+  - **Planned magic tomes:** `Tome of Seeking Missiles` (more missiles + distinct per-missile abilities), `Tomes of Summoning` family (higher summon levels + quantities), `Tome of Venomous Ground` (poison pool), `Tome of Haste`, and `Tome of Paralysis` (longer duration + overcomes higher enemy power/resistance).
+  - **Planned weapons:** `Swift Blade` (1H forward-launch sword: longer lunge & faster cooldown with mastery) and `Titanbreaker Greataxe` (2H knockback axe: further knockback & overcomes higher enemy knockback resistance).
+  - Added brainstormed bonus enemies, tomes, gear, and arena/hazard mechanics for iteration.
+

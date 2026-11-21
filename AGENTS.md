@@ -19,6 +19,7 @@ Read this file and the linked documents in `docs/` before taking any action.
   - **Core Gimmick — The Power-Scaling Race (`D-038`):** Each floor ramps up in difficulty; the central challenge is whether the player can level up and gear up enough to survive the end of every floor without falling behind. Players can always reset their progress to the start of any floor they have reached.
   - **Blades Face Away From the Player (`D-048`, standing User rule):** In first person every blade (sword, axe, dual-wield, cleaver) is seen edge-on at rest and while sprinting, its cutting edge pointing away from the eye — never the flat of a blade turned sideways. Guarded by `test_blades_face_away_from_the_player_at_rest`.
   - **Discovery & Mastery (`D-049`):** The game must feel like constant discovery. Loot is a large variety of distinct items (all **Common** for now; higher rarities come later as truly different, more powerful items — never bigger numbers on the same item). Every gear item has its own **mastery track**: it levels with use, grows stronger and unlocks item-specific abilities (shown as "???" until discovered). Every enemy type is unique, has its own **level range**, and floors introduce new types; the **Bestiary** records what the player has learned. New content should extend these lists, not replace them.
+  - **Maximum Flexibility & Unified Entity Stats (`D-051`, `D-052`):** Continuously building unique spells, enemies, weapons, summons, and arenas is a core pillar of the game. Keep systems maximally modular and data-driven, and give all living entities a shared, extensible stat & resistance sheet (`knockback_res`, `poison_res`, `fire_res`, `paralysis_res`, `mana`/`magicka`, `stamina`, `armor`, `power_tier`, etc.) so abilities resolve cleanly without hardcoded exceptions. Enemies also upgrade their unique abilities as they level up. Planned & brainstormed content lives in [`docs/CONTENT_CATALOG.md`](docs/CONTENT_CATALOG.md).
 - **Build Philosophy:**
   - Leverage existing **free, open-source** engines and libraries rather than building engine plumbing from scratch, while preserving maximum flexibility and freedom.
   - **100% original in-house art** created by us using **Blender** and other free, open-source tools. No third-party asset packs.
@@ -81,11 +82,12 @@ Because this repository must be seamlessly usable by **any AI tool** across sess
 3. `docs/ROLES_AND_GOVERNANCE.md`
 4. `docs/VISION_AND_CONSTRAINTS.md`
 5. `docs/GAME_DESIGN.md`
-6. `docs/ARCHITECTURE.md`
-7. `docs/ART_PIPELINE.md`
-8. `docs/TESTING_STRATEGY.md`
-9. `docs/PLAYTEST_GUIDE.md`
-10. `docs/ROADMAP.md`
-11. `docs/DECISION_LOG.md`
-12. `docs/ALIGNMENT_LOG.md`
-13. `CHANGELOG.md` and `docs/changelogs/`
+6. `docs/CONTENT_CATALOG.md` (planned & brainstormed enemies, magic tomes, items, arenas, unified entity stats)
+7. `docs/ARCHITECTURE.md`
+8. `docs/ART_PIPELINE.md`
+9. `docs/TESTING_STRATEGY.md`
+10. `docs/PLAYTEST_GUIDE.md`
+11. `docs/ROADMAP.md`
+12. `docs/DECISION_LOG.md`
+13. `docs/ALIGNMENT_LOG.md`
+14. `CHANGELOG.md` and `docs/changelogs/`

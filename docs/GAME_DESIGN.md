@@ -110,7 +110,7 @@ does something you have not seen, an enemy you have never fought.
 - **Data-driven.** The ability library (≈45 mechanics with parameters) lives in `game/data/mastery.json`; each item's
   track lives with the item in `items.json`. Adding a new item = picking a unique path through the library.
 
-### 6.2 Unique Enemies, Levels & the Bestiary (`D-049`)
+### 6.2 Unique Enemies, Levels & the Bestiary (`D-049`, `D-052`)
 
 - **Every enemy type is unique**: its own look (rig, scale, colour wash, weapon), behaviour and **trait** — the Draugr
   Shieldwarden blocks frontal hits, Frostbound Draugr slow you, the Bone Hexer throws slowing hexes, the Goblin
@@ -120,10 +120,30 @@ does something you have not seen, an enemy you have never fought.
   floor covers a level band (floor 1 = 1–4, floor 2 = 4–7, …); a type only spawns where its range overlaps the band,
   and each spawn rolls a level inside the overlap (deterministically, same seed = same levels, `D-039`). Stats scale
   with level and the level is shown over the enemy's head. Deeper floors therefore keep **introducing new creatures**.
+- **Abilities upgrade as enemies level up (`D-052`).** Higher-level enemies do not just gain larger HP and damage
+  numbers — their unique abilities evolve at level breakpoints (e.g., spellcasters roll more and stronger spells,
+  splitters split more times or deeper, flying exploders gain wider blasts or hazard pools, tanks gain stronger guard
+  stances, skirmishers gain multi-throws or slowing rocks).
 - **Bestiary** (Character menu → Bestiary): every creature has a page, unknown ones are "???" silhouettes. Knowledge
   fills in as you hunt: **sighted** (name, look, lore) → **slain** (stats per level seen, abilities) → **studied** after
   5 kills (weakness, full level range). The Bestiary is crawler knowledge: it is saved and never rolled back by a floor
   reset.
+
+### 6.3 Unified Entity Stats & Living Content Catalog (`D-051`, `D-052`)
+
+- **Built for constant creative expansion (`D-051`):** A core identity of the game is continuously building unique
+  spells, enemies, weapons, summons, and arenas. Every living entity (player, enemy, boss, or player-summoned ally)
+  shares one extensible **Entity Stat & Resistance Sheet** — covering vitals/resources (`max_health`, `max_magicka`/mana,
+  `max_stamina`), defense (`armor`, `evasion_chance`), elemental/status resistances (`fire_res`, `frost_res`,
+  `shock_res`, `poison_res`, `bleed_res`, `arcane_res`, `paralysis_res`, `stun_res`, `slow_res`), physics/control
+  (`knockback_res`, `poise`, `mass`, `power_tier`), and mobility/offense (`move_speed`, `attack_speed`, `cast_speed`).
+- **Clean ability scaling:** Abilities like **Paralyze** or **Knockback** resolve directly against target resistance
+  and `power_tier`, so leveling up an item naturally lets it affect stronger, heavier, and more resistant foes without
+  hardcoded per-enemy exceptions.
+- **Living Content Catalog:** See [`docs/CONTENT_CATALOG.md`](CONTENT_CATALOG.md) for the full planned & brainstormed
+  roster of enemies (Flying Exploder, Death Splitter, Adaptive Random-Spell Caster, Tanky Juggernaut, Rock-Throwing
+  Goblin Skirmisher), Magic Tomes (Seeking Missiles, Summoning Tomes, Poison Ground, Haste, Paralyze), Weapons (Swift
+  Blade, Knockback 2H Axe), and arena/hazard concepts.
 
 ---
 

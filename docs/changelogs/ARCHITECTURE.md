@@ -77,3 +77,8 @@ See [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) and [`docs/DECISION_LOG.md`](..
 - New pure systems: `MasterySystem` (item XP, levels, ability tracks, passive aggregation), `EnemyLevels` (floor bands, level rolls, level scaling), `Bestiary` (tiered knowledge, save/load).
 - New data pack `game/data/mastery.json` (DataLoader `get_mastery_pack`); `items.json` gains `mastery` tracks and `drop_weight`; `enemies.json` gains `level_min/level_max`, `traits`, `lore`, `weakness`, `level_scaling`, `floor_level_band`.
 - `GameMain`: `grant_item_xp`, `chain_lightning`, `_enemy_hit_player` (blocks, shield/armor mastery, enemy traits), bestiary sightings/kills, `world_time_scale` (Hunter's Focus); `EnemyActor`: levels, traits, status effects, knockback; `GameProjectile`: pierce, homing, per-item abilities, world time scale.
+
+## 2026-11-20 — Extensibility & Unified Entity Stat Sheet Architecture (`D-051`) — design only
+
+- Documented in `docs/ARCHITECTURE.md` §6 and `docs/CONTENT_CATALOG.md` §1: all living entities (player, enemies, bosses, summons) will share one extensible Tier 2 `EntityStats` & resistance container (`max_health`, `max_magicka`, `max_stamina`, `armor`, elemental/status resistances, `knockback_res`, `paralysis_res`, `poise`, `mass`, `power_tier`, mobility/speed stats) with shared power-vs-resistance resolution, composable Tier 3 ability primitives (per-missile effects, ground zones, ally summons, movement impulses), and Utility-Scoring AI for spellcasting enemies.
+

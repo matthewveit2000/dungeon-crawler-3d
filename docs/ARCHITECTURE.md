@@ -81,3 +81,16 @@ Run `./scripts/run-tests.sh` (identical to GitHub Actions CI in `.github/workflo
 3. Blender `.glb` bounds, transforms & studio PNG previews (`scripts/validate-assets.py`)
 4. Headless `res://scenes/main.tscn` 20-frame boot smoke check with zero script errors
 5. Full GUT unit + 100-seed procedural dungeon + headless 3D gameplay integration suite + settings/material/UI/animation presentation suite
+
+---
+
+## 6. Extensibility & Composable Entity Architecture (`D-051`)
+
+Because continuously adding **unique spells, enemies, weapons, summons, and arenas** is a core pillar of the game, all future gameplay systems must follow a **data-driven, component/modifier-based design** rather than hardcoding behavior per enemy or item ID:
+
+- **Unified Entity Stat Sheet (Tier 2 `EntityStats`):** Player, enemies, bosses, and player-summoned allies share one stat container supporting base values, level curves, equipment bonuses, and timed/stackable modifiers (buffs/debuffs). Covers vitals & resources (`max_health`, `max_magicka`, `max_stamina` + regen), defense (`armor`, `evasion_chance`), elemental/status resistances (`fire_res`, `frost_res`, `shock_res`, `poison_res`, `bleed_res`, `arcane_res`, `paralysis_res`, `stun_res`, `slow_res`), physics/control (`knockback_res`, `poise`, `mass`, `power_tier`), and mobility/offense (`move_speed`, `attack_speed`, `cast_speed`, `ability_power`).
+- **Resistance & Power-Tier Resolution:** Damage types, knockback impulses, and crowd control (paralysis, stun, slow) resolve through shared Tier 2 helpers comparing ability power (`knockback_power`, `control_power`) against target resistance (`knockback_res`, `paralysis_res`, `power_tier`) — zero hardcoded `if enemy.id == ...` checks.
+- **Composable Ability & Effect Primitives:** New spells and weapon powers should assemble reusable building blocks in Tier 3 JSON (`projectiles` with per-missile effect overrides, `ground_zones` for poison/fire hazards, `summon_spawners` reusing `EnemyActor` with an `ally` faction, `movement_impulses` for dashes/launches like Swift Blade, and `status_effects` modifying `EntityStats`).
+- **Data-Driven Enemy Ability Tiers & Utility AI:** Enemy definitions in `enemies.json` scale their trait/ability parameters by level tier, and spellcasting enemies draw seeded loadouts from a shared spell registry evaluated by a context-aware **Utility-Scoring AI** (checking mana, cooldowns, range, self/ally HP, and target status).
+- See [`docs/CONTENT_CATALOG.md`](CONTENT_CATALOG.md) for the concrete enemies, magic tomes, weapons, and arena mechanics this architecture is designed to support.
+
