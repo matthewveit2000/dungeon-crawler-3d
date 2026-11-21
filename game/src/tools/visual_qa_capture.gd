@@ -234,9 +234,6 @@ func _run() -> void:
 		await _shot("18_death_screen.png", 4)
 		game.death_screen.visible = false
 
-	if _want("fb022"):
-		await _fb022_shots(ent)
-
 	if _want("motion"):
 		game.close_all_menus()
 		game.hud.clear_transient_messages()
@@ -267,6 +264,10 @@ func _run() -> void:
 			var fimg: Image = get_viewport().get_texture().get_image()
 			fimg.save_png(out_dir.path_join("frames/frame_%03d.png" % f))
 		print("[visual-qa] Captured 40 sequential motion frames.")
+
+	# FB-022 shots run after the motion clip: they stage and free their own enemies
+	if _want("fb022"):
+		await _fb022_shots(ent)
 
 	if _want("clips"):
 		await _record_clips(ent)
@@ -428,8 +429,11 @@ func _fb022_shots(ent: Vector3) -> void:
 		await _wait(1)
 	await _shot("20_dot_enemy.png", 2)
 	e.queue_free()
-	# a champion
+	# a champion (put the boss woken for shot 11 back to sleep so its bar doesn't take over the HUD)
 	game.hud.clear_transient_messages()
+	if game.boss_actor != null and is_instance_valid(game.boss_actor):
+		game.boss_actor.state = EnemyActor.AiState.DORMANT
+	game.dungeon_builder.unlock_boss_and_vault()
 	var c := game.spawn_enemy("draugr_raider", ent + Vector3(0.6, 0.05, -1.6), -1, "", {}, 0, {"champion": {"title": "the Gravy-Stained"}})
 	c.state = EnemyActor.AiState.CHASE
 	c.rotation.y = 0.2

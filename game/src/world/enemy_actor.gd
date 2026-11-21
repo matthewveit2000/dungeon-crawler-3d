@@ -693,8 +693,14 @@ func _make_status_fx(kind: String) -> Node3D:
 	var n: Node3D = null
 	match kind:
 		"burn":
-			n = VfxFactory.make_fire(0.38, false)
-			n.position = Vector3(0.0, h * 0.45, 0.0)
+			# flames licking up the front of the body (outside the mesh, so they read from the player's view)
+			n = Node3D.new()
+			for off in [Vector3(0.0, h * 0.5, body_radius * 0.75), Vector3(body_radius * 0.6, h * 0.28, body_radius * 0.4),
+					Vector3(-body_radius * 0.6, h * 0.7, body_radius * 0.35)]:
+				var f := VfxFactory.make_fire(0.6, false)
+				f.position = off
+				n.add_child(f)
+			n.add_child(VfxFactory.make_glow(STATUS_COLORS["burn"], 0.9, 1.6))
 		"bleed":
 			n = _drip_particles(Color(0.7, 0.02, 0.02), h)
 		"poison":
