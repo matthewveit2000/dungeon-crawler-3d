@@ -175,3 +175,11 @@ distinct request as its own line with its status (`Done`, `Partial`, `Open`, `Pr
 
 ### FB-024 — "Note that you should always give me commands broken out by line item in the same code block so that I can just copy and paste the entire thing into the command line"
 - **Standing rule:** every set of commands for the User goes in ONE code block, one command per line, so the whole block can be pasted into the terminal at once (PowerShell-friendly: no `&&`). — `Done` — `D-059` — Guard: `AGENTS.md` §2, `docs/ROLES_AND_GOVERNANCE.md` §6
+
+
+### FB-025 — Compass & enemy-density feedback
+> "The indicators pointing towards saferooms need to tell you the distance to the saferoom. All other rooms like boss rooms, stairs etc, should not default show on your compass. Only after revealed at the saferoom. Only safe rooms within some distance should show up with indicators on your compass (revealed rooms should always show up). I want each room normal to have between 0 and 7 enemies with an average of 4"
+- Safe-room compass markers show the distance in metres. — `Done` — `D-060` — Guard: `HUD CompassStrip` (visual) + marker `distance` in `test_compass_hides_stairs_and_boss_until_revealed_and_only_senses_nearby_safe_rooms`
+- Boss gate, stairwells and vault are hidden on the compass until revealed (safe-room map or walking up to them); the old always-on "far sense" is removed. — `Done` — `D-060` — Guard: same test
+- Unrevealed safe rooms show only within 120 m (`compass.safe_room_sense_meters`); revealed landmarks always show at any distance. — `Done` — `D-060` — Guard: same test
+- Normal combat rooms hold 0–7 enemies averaging 4 (`world.json` `enemies_per_room_mean`, scaled by the `enemy_count` knob; replaces the per-floor `enemy_budget`). — `Done` — `D-060` — Guard: `test_normal_rooms_hold_zero_to_seven_enemies_averaging_four`

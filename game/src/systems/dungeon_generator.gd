@@ -499,7 +499,6 @@ static func _populate_contents(
 ) -> void:
 	var floor_cfg := _get_floor_cfg(world_data, floor_number)
 	var theme := FloorTheme.resolve(floor_cfg)
-	var enemy_budget := int(floor_cfg.get("enemy_budget", 14))
 	var regular_enemies: Array = []
 	for e in enemies_data.get("enemies", []):
 		# D-049 / D-055: eligible by floor level band, FloorTheme tags, and RarityTable spawn weight
@@ -555,7 +554,6 @@ static func _populate_contents(
 	# a promoted, named champion of a regular type (a mini-boss), its escorts and a treasure chest.
 	var ch_cfg: Dictionary = PowerScale.cfg().get("champions", {})
 	var count_k: float = PowerScale.knob("enemy_count")
-	enemy_budget = int(round(float(enemy_budget) * count_k))
 	var lair_ids: Dictionary = {}
 	if not combat_rooms.is_empty() and not regular_enemies.is_empty() and not ch_cfg.is_empty():
 		var ent_c: Vector2i = layout.rooms[layout.entrance_room_id]["center"] if layout.entrance_room_id >= 0 else Vector2i.ZERO
@@ -601,18 +599,28 @@ static func _populate_contents(
 
 	# Distribute regular enemies across combat rooms (NEVER in Entrance, Safe Room, or Vault)
 	if not combat_rooms.is_empty() and not regular_enemies.is_empty():
-		for i in range(enemy_budget):
-			var room: Dictionary = combat_rooms[i % combat_rooms.size()]
+		# FB-025: every normal combat room holds 0-7 enemies, averaging `enemies_per_room_mean` (default 4):
+		# seven coin flips at p = mean / 7 (a binomial), so the count is always within 0..7.
+		var mean_k: float = float(world_data.get("enemies_per_room_mean", 4.0)) * count_k
+		var p_each := clampf(mean_k / 7.0, 0.0, 1.0)
+		for room in combat_rooms:
+			if lair_ids.has(int(room["id"])):
+				continue
 			var rect: Rect2i = room["rect"]
-			var sx := rng.next_int_range("gen", rect.position.x, rect.end.x - 1)
-			var sy := rng.next_int_range("gen", rect.position.y, rect.end.y - 1)
-			var picked: Dictionary = rng.pick_weighted("gen", regular_enemies, "spawn_weight")
-			layout.enemy_spawns.append({
-				"enemy_id": str(picked["id"]),
-				"tile": Vector2i(sx, sy),
-				"room_id": int(room["id"]),
-				"is_boss": false,
-			})
+			var n_room := 0
+			for _k in range(7):
+				if rng.next_float("gen") < p_each:
+					n_room += 1
+			for _e in range(n_room):
+				var sx := rng.next_int_range("gen", rect.position.x, rect.end.x - 1)
+				var sy := rng.next_int_range("gen", rect.position.y, rect.end.y - 1)
+				var picked: Dictionary = rng.pick_weighted("gen", regular_enemies, "spawn_weight")
+				layout.enemy_spawns.append({
+					"enemy_id": str(picked["id"]),
+					"tile": Vector2i(sx, sy),
+					"room_id": int(room["id"]),
+					"is_boss": false,
+				})
 
 	# FB-022: every chest is a treasure point of interest a safe-room map can reveal
 	for ci in range(layout.chests.size()):
@@ -629,12 +637,12 @@ static func _populate_contents(
 		layout.landmarks.append({"id": "safe_room", "label": "Safe Room", "icon": "S",
 			"world_pos": layout.tile_to_world(layout.rooms[sid]["center"]), "discovered": false, "far_sense": false})
 	layout.landmarks.append({"id": "boss_arena", "label": "Boss Gate", "icon": "B",
-		"world_pos": layout.tile_to_world(layout.boss_gate_tile), "discovered": false, "far_sense": true})
+		"world_pos": layout.tile_to_world(layout.boss_gate_tile), "discovered": false, "far_sense": false})
 	layout.landmarks.append({"id": "vault", "label": "Treasure Vault", "icon": "V",
 		"world_pos": layout.tile_to_world(layout.rooms[layout.vault_room_id]["center"]), "discovered": false, "far_sense": false})
 	for sid in layout.stairs_room_ids:
 		layout.landmarks.append({"id": "stairs", "label": "Stairwell", "icon": "D",
-			"world_pos": layout.tile_to_world(layout.rooms[sid]["center"]), "discovered": false, "far_sense": true})
+			"world_pos": layout.tile_to_world(layout.rooms[sid]["center"]), "discovered": false, "far_sense": false})
 
 
 ## Test Mode (D-047): a compact floor holding one of every room type (entrance, combat halls, safe room, boss arena +

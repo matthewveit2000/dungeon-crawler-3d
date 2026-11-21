@@ -55,14 +55,21 @@ class CompassStrip extends Control:
 			var x := cx + nx * (w * 0.46)
 			var id := str(m.get("id", ""))
 			var disc := bool(m.get("discovered", false))
-			var mk := UiTheme.map_mark(id if disc else "")
+			var mk := UiTheme.map_mark(id if (disc or id == "safe_room") else "")
 			var col: Color = mk[1]
 			var t := UiTheme.tex(str(mk[0]))
 			var s := 22.0
 			var dist := float(m.get("distance", 30.0))
-			col.a = clampf(1.15 - dist / 70.0, 0.45, 1.0) * clampf((1.0 - absf(nx)) * 3.0, 0.0, 1.0)
+			col.a = clampf(1.15 - dist / 140.0, 0.55, 1.0) * clampf((1.0 - absf(nx)) * 3.0, 0.0, 1.0)
 			if t != null:
 				draw_texture_rect(t, Rect2(x - s * 0.5, h * 0.5 - s * 0.5, s, s), false, col)
+			# FB-025: safe-room markers say how far away the safe room is
+			if id == "safe_room":
+				var dtxt := "%d m" % int(round(dist))
+				var dtw := font_s.get_string_size(dtxt, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
+				var dcol := Color(0.62, 0.95, 0.82, col.a)
+				draw_string(font_s, Vector2(x - dtw * 0.5 + 1, h * 0.5 + s * 0.5 + 12), dtxt, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0, 0, 0, col.a * 0.8))
+				draw_string(font_s, Vector2(x - dtw * 0.5, h * 0.5 + s * 0.5 + 11), dtxt, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, dcol)
 		# centre notch
 		var gold := Color(0.98, 0.84, 0.48, 0.95)
 		draw_colored_polygon(PackedVector2Array([Vector2(cx, h - 2), Vector2(cx - 6, h + 6), Vector2(cx + 6, h + 6)]), gold)

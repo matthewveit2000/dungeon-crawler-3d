@@ -10,6 +10,7 @@ For detailed domain-specific logs (design, art, architecture, testing), see [`do
 ## [Unreleased]
 
 ### Added
+- **2026-11-21 — FB-025: Compass & Enemy Density (`D-060`):** safe-room compass markers show distance; only safe rooms within 120 m hint themselves; boss gate / stairs / vault appear only once revealed (safe-room map); normal combat rooms hold 0–7 enemies averaging 4 (`enemies_per_room_mean`). Tests updated/added in `test_vast_floors.gd`.
 - **2026-11-21 — Communication: Commands in One Paste-Ready Block (`D-059`, `FB-024`):** command sequences for the User come in a single code block, one per line.
 - **2026-11-21 — Workflow: Always Merge to `main` Automatically (`D-058`, `FB-023`):** reaffirms `D-050` — branch-started sessions merge finished, tested work into `main` without asking; branches only on request. FB-022 work merged into `main`.
 - **2026-11-21 — FB-022: Own Identity, Swarms & Champions, Power-Scale Knobs, Hotbar, Stacks, Area Maps, Visible DoT (`D-057`):**

@@ -61,18 +61,54 @@ func test_landmarks_are_sparse_but_all_reachable() -> void:
 		assert_eq(openings, 2, "seed %d: boss arena opens only to its gate and the vault gate" % s)
 
 
-func test_compass_always_hints_the_nearest_stairwell_and_boss_gate() -> void:
+func test_compass_hides_stairs_and_boss_until_revealed_and_only_senses_nearby_safe_rooms() -> void:
+	# FB-025: guard
 	var lay := _gen(20261118)
-	var ent := lay.tile_to_world(lay.rooms[lay.entrance_room_id]["center"])
 	var cfg: Dictionary = DataLoader.get_world()["compass"]
-	var hinted := {}
+	var sense := float(cfg["safe_room_sense_meters"])
+	var ent := lay.tile_to_world(lay.rooms[lay.entrance_room_id]["center"])
 	for yaw_i in range(8):
 		var a := float(yaw_i) / 8.0 * TAU
 		for m in CompassSystem.compute_visible_markers(lay.landmarks, ent, Vector3(sin(a), 0, -cos(a)), cfg):
 			if not bool(m["discovered"]):
-				hinted[str(m["id"])] = int(hinted.get(str(m["id"]), 0)) + 1
-	assert_true(hinted.has("stairs"), "a stairwell is hinted from the far-off entrance")
-	assert_true(hinted.has("boss_arena"), "the boss gate is hinted from the far-off entrance")
+				assert_eq(str(m["id"]), "safe_room", "only safe rooms hint themselves before being revealed")
+				assert_lte(float(m["distance"]), sense + 0.2, "unrevealed safe rooms only show within the sense range")
+	# Revealed landmarks always show, at any distance
+	for lm in lay.landmarks:
+		if str(lm["id"]) in ["stairs", "boss_arena"]:
+			lm["discovered"] = true
+	var seen := {}
+	for yaw_i in range(16):
+		var a2 := float(yaw_i) / 16.0 * TAU
+		for m in CompassSystem.compute_visible_markers(lay.landmarks, ent, Vector3(sin(a2), 0, -cos(a2)), cfg):
+			seen[str(m["id"])] = true
+	assert_true(seen.has("stairs") and seen.has("boss_arena"), "revealed stairs and boss gate show from far away")
+
+
+func test_normal_rooms_hold_zero_to_seven_enemies_averaging_four() -> void:
+	# FB-025: guard
+	for s in [20261118, 11, 22]:
+		var lay := _gen(s)
+		var per_room := {}
+		for sp in lay.enemy_spawns:
+			if bool(sp.get("is_boss", false)) or bool(sp.get("champion", false)):
+				continue
+			per_room[int(sp["room_id"])] = int(per_room.get(int(sp["room_id"]), 0)) + 1
+		var rooms := 0
+		var total := 0
+		var lair_rooms := {}
+		for p in lay.pois:
+			if str(p["kind"]) == "champion":
+				lair_rooms[int(lay.enemy_spawns[int(p["spawn_index"])]["room_id"])] = true
+		for r in lay.rooms:
+			if str(r.get("role", "")) != "combat" or lair_rooms.has(int(r["id"])):
+				continue
+			rooms += 1
+			var n := int(per_room.get(int(r["id"]), 0))
+			assert_lte(n, 7, "seed %d: at most 7 enemies in a normal room" % s)
+			total += n
+		assert_gt(rooms, 100)
+		assert_almost_eq(float(total) / float(rooms), 4.0, 0.35, "seed %d: ~4 enemies per normal room" % s)
 
 
 func test_only_decor_near_the_player_is_live() -> void:

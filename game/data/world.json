@@ -34,7 +34,9 @@
       0.25
     ]
   },
+  "enemies_per_room_mean": 4.0,
   "compass": {
+    "safe_room_sense_meters": 120.0,
     "discovery_radius_meters": 28.0,
     "visible_radius_meters": 64.0,
     "fov_degrees": 110.0
@@ -53,7 +55,6 @@
       "torch_color": "#ff9e4a",
       "safe_zone_color": "#6ce5c4",
       "boss_color": "#e04838",
-      "enemy_budget": 1100,
       "boss_id": "iron_warden_boss",
       "power_scale": 1.0
     },
@@ -67,7 +68,6 @@
       "torch_color": "#ff6a2b",
       "safe_zone_color": "#6ce5c4",
       "boss_color": "#ff3824",
-      "enemy_budget": 1325,
       "boss_id": "iron_warden_boss",
       "power_scale": 1.0
     }

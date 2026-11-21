@@ -23,31 +23,23 @@ static func compute_visible_markers(
 	player_forward: Vector3,
 	compass_cfg: Dictionary
 ) -> Array[Dictionary]:
-	var visible_radius := float(compass_cfg.get("visible_radius_meters", 64.0))
 	var half_fov := deg_to_rad(float(compass_cfg.get("fov_degrees", 110.0)) * 0.5)
 	var fwd := Vector2(player_forward.x, player_forward.z).normalized()
 	if fwd.length_squared() < 0.001:
 		fwd = Vector2(0.0, -1.0)
 	var right := Vector2(-fwd.y, fwd.x)
 
-	# Far sense (D-044): for each far-sensed landmark kind (stairwells, boss gate) the NEAREST undiscovered one is
-	# hinted on the compass at any distance, so sparse landmarks on vast floors can always be found.
-	var far_pick: Dictionary = {}
-	for lm in landmarks:
-		if bool(lm.get("far_sense", false)) and not bool(lm.get("discovered", false)):
-			var fp: Vector3 = lm["world_pos"]
-			var fd := Vector2(fp.x - player_pos.x, fp.z - player_pos.z).length()
-			var kind := str(lm["id"])
-			if not far_pick.has(kind) or fd < float(far_pick[kind][0]):
-				far_pick[kind] = [fd, lm]
+	# FB-025: only safe rooms within `safe_room_sense_meters` hint themselves (as "?"); every other landmark (boss
+	# gate, stairwells, vault) stays hidden until it has been revealed (a safe-room map or walking up to it).
+	# Revealed landmarks always show, at any distance.
+	var sense_radius := float(compass_cfg.get("safe_room_sense_meters", 120.0))
 	var markers: Array[Dictionary] = []
 	for lm in landmarks:
 		var pos: Vector3 = lm["world_pos"]
 		var delta := Vector2(pos.x - player_pos.x, pos.z - player_pos.z)
 		var dist := delta.length()
 		var is_disc := bool(lm.get("discovered", false))
-		var sensed: bool = far_pick.has(str(lm["id"])) and far_pick[str(lm["id"])][1] == lm
-		if not is_disc and dist > visible_radius and not sensed:
+		if not is_disc and not (str(lm["id"]) == "safe_room" and dist <= sense_radius):
 			continue
 		var dir := delta.normalized() if dist > 0.01 else fwd
 		var angle := atan2(dir.dot(right), dir.dot(fwd))
