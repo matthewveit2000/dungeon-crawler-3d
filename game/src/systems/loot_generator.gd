@@ -1,147 +1,117 @@
 class_name LootGenerator
 extends RefCounted
-## Tier 2 Pure System: Rolls rarity-scaled gear, prefixes/suffixes, and legendary effects, plus aggregates
-## Skyrim equipment-slot stats for the player.
+## Tier 2 Pure System: Inherent-Rarity Loot Rolling & No-Duplicate Gear Pool (D-049, D-060).
+## Every item has one fixed inherent rarity and fixed base stats (no random affixes or floor_mult).
+## Non-stackable items are pulled from the loot pool while owned; exhausted rarity pools step downward
+## (never upward) and fall back to stackable consumables/ingredients when no eligible gear remains.
 
 
 static func make_base_item_instance(item_def: Dictionary, instance_id: String = "") -> Dictionary:
 	var inst := item_def.duplicate(true)
 	inst["instance_id"] = instance_id if not instance_id.is_empty() else str(item_def["id"])
-	inst["rarity"] = str(item_def.get("forced_rarity", "common"))
-	inst["affixes"] = []
-	inst["value"] = int(item_def.get("base_value", 20))
+	var r_id := str(item_def.get("rarity", "common"))
+	var r_def := RarityTable.get_rarity({}, r_id)
+	inst["rarity"] = r_id
+	inst["rarity_label"] = str(r_def.get("label", r_id.capitalize()))
+	inst["rarity_color"] = str(r_def.get("color", "#d8dce3"))
+	inst["value"] = RarityTable.compute_item_value(item_def)
 	if MasterySystem.is_masterable(inst):
 		inst["mastery_level"] = 1
 		inst["mastery_xp"] = 0.0
 	return inst
 
 
-## Rarities the world may drop right now (D-049: Common only until higher-rarity loot is designed).
-static func enabled_rarities(affixes_pack: Dictionary) -> Array:
-	return RarityTable.enabled_rarities(affixes_pack)
-
-
-## The rarity a world drop actually rolls at: a requested tier that is not enabled yet falls back to the best
-## enabled one (so vaults and bosses still work, just Common for now).
-static func world_rarity(affixes_pack: Dictionary, requested: String) -> String:
-	return RarityTable.world_rarity(affixes_pack, requested)
+## Returns {item_id: true} for every non-stackable item currently equipped or in the player's bag.
+static func collect_owned_non_stackable_ids(equipment: Dictionary, inventory: Array) -> Dictionary:
+	var owned: Dictionary = {}
+	for item in equipment.values():
+		if typeof(item) == TYPE_DICTIONARY and not (item as Dictionary).is_empty() and not InventoryStacks.is_stackable(item):
+			owned[str(item.get("id", ""))] = true
+	for item in inventory:
+		if typeof(item) == TYPE_DICTIONARY and not (item as Dictionary).is_empty() and not InventoryStacks.is_stackable(item):
+			owned[str(item.get("id", ""))] = true
+	owned.erase("")
+	return owned
 
 
 static func roll_loot(
 	items_pack: Dictionary,
-	affixes_pack: Dictionary,
+	rarities_pack: Dictionary,
 	floor_number: int,
 	rng: SeededRng,
 	forced_rarity: String = "",
 	exclude_consumables: bool = false,
-	forced_item_id: String = ""
+	forced_item_id: String = "",
+	source_profile: String = "",
+	excluded_ids: Dictionary = {}
 ) -> Dictionary:
-	var candidates: Array = []
-	for item in items_pack.get("items", []):
-		if not forced_item_id.is_empty():
-			if str(item.get("id", "")) == forced_item_id:
-				candidates.append(item)
-			continue
-		if exclude_consumables and InventoryStacks.is_stackable(item):
-			continue
-		# Reserve the unique legendary relics for legendary rolls
-		if str(item.get("forced_rarity", "")) == "legendary" and forced_rarity != "legendary":
-			continue
-		if int(item.get("floor_min", 1)) > floor_number:
-			continue
-		candidates.append(item)
-	if candidates.is_empty():
+	var all_items: Array = items_pack.get("items", [])
+	if all_items.is_empty():
 		return {}
 
-	var chosen_rarity: Dictionary = RarityTable.pick_rarity(affixes_pack, floor_number, rng, forced_rarity)
+	if not forced_item_id.is_empty():
+		for item in all_items:
+			if str(item.get("id", "")) == forced_item_id:
+				var uid := "%s_%d" % [forced_item_id, rng.next_int_range("loot", 10000, 999999)]
+				return make_base_item_instance(item, uid)
+		return {}
 
-	# On a legendary roll, 50% chance to pick a named legendary relic if available
-	var base_def: Dictionary = {}
-	if str(chosen_rarity["id"]) == "legendary" and forced_item_id.is_empty():
-		var uniques: Array = []
-		for item in items_pack.get("items", []):
-			if str(item.get("forced_rarity", "")) == "legendary":
-				uniques.append(item)
-		if not uniques.is_empty() and rng.next_float("loot") < 0.5:
-			base_def = rng.pick_array("loot", uniques)
-	if base_def.is_empty():
-		# D-049: every item has its own drop weight, so some finds are everyday and some are rare discoveries
-		var wc: Array = []
-		for c in candidates:
-			var cc: Dictionary = c.duplicate()
-			cc["_w"] = RarityTable.effective_item_drop_weight(c, affixes_pack)
-			wc.append(cc)
-		var pick: Dictionary = rng.pick_weighted("loot", wc, "_w")
-		base_def = DataLoader.get_item_def(str(pick["id"])) if not DataLoader.get_item_def(str(pick["id"])).is_empty() else pick
+	var rar_pack := rarities_pack if not rarities_pack.is_empty() else (DataLoader.get_rarities_pack() if DataLoader != null else {})
+	var by_rarity: Dictionary = {}
+	var stackables_by_rarity: Dictionary = {}
 
-	var uid := "%s_%d" % [str(base_def["id"]), rng.next_int_range("loot", 10000, 999999)]
-	var inst := make_base_item_instance(base_def, uid)
-	if InventoryStacks.is_stackable(base_def):
-		return inst
-
-	var r_id := str(chosen_rarity["id"])
-	var stat_mult := float(chosen_rarity["stat_multiplier"])
-	var floor_mult := 1.0 + float(maxi(0, floor_number - 1)) * 0.14
-	var total_mult := stat_mult * floor_mult
-
-	inst["rarity"] = r_id
-	inst["rarity_label"] = str(chosen_rarity["label"])
-	inst["rarity_color"] = str(chosen_rarity["color"])
-	if inst.has("damage"):
-		inst["damage"] = snappedf(float(inst["damage"]) * total_mult, 0.1)
-	if inst.has("armor"):
-		inst["armor"] = snappedf(float(inst["armor"]) * total_mult, 0.1)
-	if inst.has("heal_amount"):
-		inst["heal_amount"] = snappedf(float(inst["heal_amount"]) * total_mult, 0.1)
-
-	var affix_budget := int(chosen_rarity.get("affix_count", 0))
-	var cat := str(base_def.get("category", ""))
-	var used_affix_ids: Dictionary = {}
-	var prefix_label := ""
-	var suffix_label := ""
-
-	var prefixes := _filter_affixes(affixes_pack.get("prefixes", []), cat)
-	var suffixes := _filter_affixes(affixes_pack.get("suffixes", []), cat)
-
-	for slot_idx in range(affix_budget):
-		var pool := prefixes if (slot_idx % 2 == 0 and not prefixes.is_empty()) else suffixes
-		if pool.is_empty():
-			pool = prefixes if not prefixes.is_empty() else suffixes
-		if pool.is_empty():
-			break
-		var picked: Dictionary = rng.pick_array("loot", pool)
-		var aid := str(picked["id"])
-		if used_affix_ids.has(aid):
+	for item in all_items:
+		var iid := str(item.get("id", ""))
+		var r := str(item.get("rarity", "common"))
+		if InventoryStacks.is_stackable(item):
+			if not stackables_by_rarity.has(r):
+				stackables_by_rarity[r] = []
+			(stackables_by_rarity[r] as Array).append(item)
+			if exclude_consumables:
+				continue
+		elif excluded_ids.has(iid):
+			# D-060: Owned non-stackables are pulled from the pool
 			continue
-		used_affix_ids[aid] = true
-		var val := snappedf(rng.next_float_range("loot", float(picked["min"]), float(picked["max"])) * floor_mult, 0.01)
-		var stat_key := str(picked["stat"])
-		inst[stat_key] = float(inst.get(stat_key, 0.0)) + val
-		inst["affixes"].append({"id": aid, "label": str(picked["label"]), "stat": stat_key, "value": val})
-		if slot_idx == 0 and pool == prefixes and prefix_label.is_empty():
-			prefix_label = str(picked["label"])
-		elif pool == suffixes and suffix_label.is_empty():
-			suffix_label = str(picked["label"])
+		if not by_rarity.has(r):
+			by_rarity[r] = []
+		(by_rarity[r] as Array).append(item)
 
-	# Legendary rolls always carry a game-changing legendary_effect
-	if r_id == "legendary" and str(inst.get("legendary_effect", "")).is_empty():
-		var effs: Array = affixes_pack.get("legendary_effects", [])
-		if not effs.is_empty():
-			var chosen_eff: Dictionary = rng.pick_array("loot", effs)
-			inst["legendary_effect"] = str(chosen_eff["id"])
-			inst["legendary_label"] = str(chosen_eff["label"])
+	var order := RarityTable.rarity_order(rar_pack)
+	var chosen_rarity: Dictionary = RarityTable.pick_rarity(rar_pack, floor_number, rng, forced_rarity, source_profile, [], "loot")
+	var target_r := str(chosen_rarity.get("id", "common"))
+	var target_idx := order.find(target_r)
+	if target_idx < 0:
+		target_idx = 0
 
-	if str(base_def.get("forced_rarity", "")) != "legendary":
-		var base_name := str(base_def["name"])
-		var full_name := base_name
-		if not prefix_label.is_empty():
-			full_name = "%s %s" % [prefix_label, full_name]
-		if not suffix_label.is_empty():
-			full_name = "%s %s" % [full_name, suffix_label]
-		inst["name"] = full_name
+	# Try target rarity; if empty (all items of that tier already owned), step downward — never upward.
+	var picked_pool: Array = []
+	for idx in range(target_idx, -1, -1):
+		var r_id := str(order[idx])
+		var cand: Array = by_rarity.get(r_id, [])
+		if not cand.is_empty():
+			picked_pool = cand
+			break
 
-	inst["value"] = RarityTable.compute_item_value(float(base_def.get("base_value", 25)), chosen_rarity, floor_mult)
-	return inst
+	# If no unowned non-stackables exist at target_r or below, fall back to a stackable consumable/ingredient.
+	if picked_pool.is_empty():
+		for idx in range(target_idx, -1, -1):
+			var r_id := str(order[idx])
+			var sc: Array = stackables_by_rarity.get(r_id, [])
+			if not sc.is_empty():
+				picked_pool = sc
+				break
+	if picked_pool.is_empty():
+		for r_id in order:
+			var sc: Array = stackables_by_rarity.get(str(r_id), [])
+			if not sc.is_empty():
+				picked_pool = sc
+				break
+	if picked_pool.is_empty():
+		return {}
+
+	var base_def: Dictionary = rng.pick_array("loot", picked_pool)
+	var uid2 := "%s_%d" % [str(base_def["id"]), rng.next_int_range("loot", 10000, 999999)]
+	return make_base_item_instance(base_def, uid2)
 
 
 static func aggregate_equipment_stats(equipment: Dictionary) -> Dictionary:
@@ -186,12 +156,3 @@ static func aggregate_equipment_stats(equipment: Dictionary) -> Dictionary:
 	totals["cooldown_reduction"] = minf(0.45, float(totals["cooldown_reduction"]) + float(pas.get("quickness", {}).get("cooldown", 0.0)))
 	totals["gold_find_bonus"] += float(pas.get("treasure", {}).get("gold", 0.0))
 	return totals
-
-
-static func _filter_affixes(pool: Array, category: String) -> Array:
-	var out: Array = []
-	for a in pool:
-		var applies: Array = a.get("applies_to", [])
-		if applies.has(category):
-			out.append(a)
-	return out

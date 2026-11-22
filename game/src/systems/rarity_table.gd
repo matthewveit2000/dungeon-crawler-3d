@@ -1,12 +1,14 @@
 class_name RarityTable
 extends RefCounted
-## Tier 2 Pure System: Unified Rarity & Scarcity Table (D-048, D-049, D-055 / IDEA-011).
-## Centralizes rarity definitions, drop/spawn weight resolution, floor scaling, and value multipliers
-## across LootGenerator, VendorSystem, and future enemy/item scarcity pools.
+## Tier 2 Pure System: Unified Inherent Rarity & Scarcity Table (D-048, D-055, D-060).
+## Single source of truth for all procedurally generated things: items, enemies, rooms,
+## chest tiers, traps, architecture variants, and dressing props.
+## Drives spawn weights, deeper-floor rarity scaling, mastery ceilings, ability caps, and enemy rewards.
+
+const DEFAULT_ORDER := ["common", "uncommon", "rare", "epic", "legendary"]
 
 
-## Returns the list of rarity definitions from either a dedicated rarities pack or a legacy affixes pack.
-static func rarities_from(pack: Dictionary) -> Array:
+static func rarities_from(pack: Dictionary = {}) -> Array:
 	var arr: Array = pack.get("rarities", [])
 	if not arr.is_empty():
 		return arr
@@ -15,26 +17,17 @@ static func rarities_from(pack: Dictionary) -> Array:
 	return []
 
 
-## Rarities currently enabled for world drops (D-049: Common only until higher-rarity uniques are rolled out).
-static func enabled_rarities(pack: Dictionary) -> Array:
-	var en: Array = pack.get("loot_rarities_enabled", [])
-	if en.is_empty() and DataLoader != null and pack.get("rarities", []).is_empty():
-		en = DataLoader.get_rarities_pack().get("loot_rarities_enabled", [])
-	if en.is_empty():
-		for r in rarities_from(pack):
-			en.append(str(r["id"]))
-	return en
+static func rarity_order(pack: Dictionary = {}) -> Array:
+	var ord: Array = pack.get("rarity_order", [])
+	if not ord.is_empty():
+		return ord
+	if DataLoader != null:
+		ord = DataLoader.get_rarities_pack().get("rarity_order", [])
+		if not ord.is_empty():
+			return ord
+	return DEFAULT_ORDER
 
 
-## Resolves a requested rarity against enabled world rarities (falls back to the highest enabled tier).
-static func world_rarity(pack: Dictionary, requested: String) -> String:
-	var en := enabled_rarities(pack)
-	if requested.is_empty() or en.has(requested):
-		return requested
-	return str(en[-1]) if not en.is_empty() else "common"
-
-
-## Looks up a single rarity definition by id.
 static func get_rarity(pack: Dictionary, rarity_id: String) -> Dictionary:
 	for r in rarities_from(pack):
 		if str(r.get("id", "")) == rarity_id:
@@ -42,61 +35,160 @@ static func get_rarity(pack: Dictionary, rarity_id: String) -> Dictionary:
 	return {}
 
 
-## Picks a rarity definition deterministically (exact same weighting & RNG stream as LootGenerator).
-static func pick_rarity(pack: Dictionary, floor_number: int, rng: SeededRng, forced_rarity: String = "") -> Dictionary:
+static func rarity_rank(rarity_id: String, pack: Dictionary = {}) -> int:
+	var rdef := get_rarity(pack, rarity_id)
+	if not rdef.is_empty() and rdef.has("rank"):
+		return int(rdef["rank"])
+	var idx := rarity_order(pack).find(rarity_id)
+	return idx if idx >= 0 else 0
+
+
+## Weight of a rarity tier on `floor_number` under an optional `source_profile` (from rarities.json).
+## Deeper floors boost higher rarities via `floor_weight_growth`.
+static func rarity_weight_for_floor(rdef: Dictionary, floor_number: int, source_profile: Dictionary = {}, pack: Dictionary = {}) -> float:
+	if rdef.is_empty():
+		return 0.0
+	var rank := int(rdef.get("rank", rarity_rank(str(rdef.get("id", "common")), pack)))
+	var min_r := str(source_profile.get("min_rarity", ""))
+	if not min_r.is_empty() and rank < rarity_rank(min_r, pack):
+		return 0.0
+	var base_w := float(rdef.get("weight", 1.0))
+	var growth := float(rdef.get("floor_weight_growth", 0.0))
+	var w := base_w * (1.0 + growth * float(maxi(0, floor_number - 1)))
+	var boost := float(source_profile.get("rarity_boost", 1.0))
+	if boost > 1.0 and rank > 0:
+		w *= pow(boost, float(rank))
+	return maxf(0.0, w)
+
+
+static func source_profile(pack: Dictionary, source_name: String) -> Dictionary:
+	if source_name.is_empty():
+		return {}
+	var p := pack
+	if p.is_empty() and DataLoader != null:
+		p = DataLoader.get_rarities_pack()
+	return (p.get("source_profiles", {}) as Dictionary).get(source_name, {})
+
+
+## Picks a rarity definition deterministically for `floor_number`, optionally filtered to `allowed_rarities`
+## or boosted by `source_name` ("standard", "rare", "vault_legendary", "champion", "boss", "vendor", ...).
+static func pick_rarity(
+	pack: Dictionary,
+	floor_number: int,
+	rng: SeededRng,
+	forced_rarity: String = "",
+	source_name: String = "",
+	allowed_rarities: Array = [],
+	stream: String = "loot"
+) -> Dictionary:
 	var rarities := rarities_from(pack)
 	if not forced_rarity.is_empty():
 		for r in rarities:
 			if str(r["id"]) == forced_rarity:
 				return r
+	var prof := source_profile(pack, source_name)
 	var weighted: Array = []
-	var en := enabled_rarities(pack)
 	for r in rarities:
-		if not en.has(str(r["id"])):
+		var rid := str(r["id"])
+		if not allowed_rarities.is_empty() and not allowed_rarities.has(rid):
+			continue
+		var w := rarity_weight_for_floor(r, floor_number, prof, pack)
+		if w <= 0.0:
 			continue
 		var copy: Dictionary = r.duplicate()
-		var mult := float(r.get("stat_multiplier", 1.0))
-		if mult > 1.0:
-			copy["weight"] = float(copy["weight"]) * (1.0 + float(maxi(0, floor_number - 1)) * 0.25)
+		copy["weight"] = w
 		weighted.append(copy)
 	if weighted.is_empty():
+		# Fallback ignoring source min_rarity if allowed_rarities excluded everything above it
+		for r in rarities:
+			var rid := str(r["id"])
+			if not allowed_rarities.is_empty() and not allowed_rarities.has(rid):
+				continue
+			var copy: Dictionary = r.duplicate()
+			copy["weight"] = rarity_weight_for_floor(r, floor_number, {}, pack)
+			weighted.append(copy)
+	if weighted.is_empty():
+		return rarities[0] if not rarities.is_empty() else {}
+	return rng.pick_weighted(stream, weighted, "weight")
+
+
+## Picks an entry from `entries` (each having a `"rarity"` field) by first rolling a rarity tier from
+## `rarities.json` (across rarities present in `entries`) and then picking uniformly inside that tier.
+## This ensures tier odds match `rarities.json` regardless of how many items/enemies/rooms sit in each tier.
+static func pick_entry_by_rarity(
+	entries: Array,
+	floor_number: int,
+	rng: SeededRng,
+	stream: String = "gen",
+	pack: Dictionary = {},
+	source_name: String = ""
+) -> Dictionary:
+	if entries.is_empty():
 		return {}
-	return rng.pick_weighted("loot", weighted, "weight")
+	if pack.is_empty() and DataLoader != null:
+		pack = DataLoader.get_rarities_pack()
+	var by_rarity: Dictionary = {}
+	for e in entries:
+		var er := str((e as Dictionary).get("rarity", "common"))
+		if not by_rarity.has(er):
+			by_rarity[er] = []
+		(by_rarity[er] as Array).append(e)
+	var chosen := pick_rarity(pack, floor_number, rng, "", source_name, by_rarity.keys(), stream)
+	var pool: Array = by_rarity.get(str(chosen.get("id", "")), [])
+	if pool.is_empty():
+		return entries[0]
+	return rng.pick_array(stream, pool)
 
 
-## Computes item gold value from base value, rarity multiplier, and floor multiplier.
-static func compute_item_value(base_value: float, rarity_def: Dictionary, floor_mult: float) -> int:
-	return int(round(base_value * float(rarity_def.get("value_multiplier", 1.0)) * floor_mult))
-
-
-## Effective drop weight for an item entry (respects optional per-item rarity scarcity multiplier).
-static func effective_item_drop_weight(item_def: Dictionary, pack: Dictionary = {}) -> float:
-	var base_w := float(item_def.get("drop_weight", 10.0))
-	var explicit_r := str(item_def.get("rarity_tier", ""))
-	if explicit_r.is_empty():
-		return base_w
-	var rdef := get_rarity(pack, explicit_r)
-	if rdef.is_empty():
-		return base_w
-	return base_w * (float(rdef.get("weight", 54.0)) / 54.0)
-
-
-## Effective spawn weight for an enemy definition (neutral 1.0 when enemy has no explicit rarity tag).
-static func effective_enemy_spawn_weight(enemy_def: Dictionary, pack: Dictionary = {}) -> float:
-	var base_w := float(enemy_def.get("spawn_weight", 0.0))
-	var er := str(enemy_def.get("rarity", ""))
-	if er.is_empty():
-		return base_w
+## Effective spawn weight of a rarity-tagged entry (for tests or weighted inspection).
+static func effective_spawn_weight(entry_def: Dictionary, floor_number: int = 1, pack: Dictionary = {}, source_name: String = "") -> float:
+	if pack.is_empty() and DataLoader != null:
+		pack = DataLoader.get_rarities_pack()
+	var er := str(entry_def.get("rarity", "common"))
 	var rdef := get_rarity(pack, er)
 	if rdef.is_empty():
-		return base_w
-	return base_w * float(rdef.get("enemy_spawn_weight_mult", 1.0))
-
-
-## Reward multiplier for an enemy definition based on its rarity tag (1.0 if untagged / common).
-static func enemy_reward_multiplier(enemy_def: Dictionary, pack: Dictionary = {}) -> float:
-	var er := str(enemy_def.get("rarity", ""))
-	if er.is_empty():
 		return 1.0
+	return rarity_weight_for_floor(rdef, floor_number, source_profile(pack, source_name), pack)
+
+
+## Effective spawn weight for an enemy definition (returns 0 for bosses unless requested).
+static func effective_enemy_spawn_weight(enemy_def: Dictionary, pack: Dictionary = {}, floor_number: int = 1) -> float:
+	if bool(enemy_def.get("is_boss", false)):
+		return 0.0
+	return effective_spawn_weight(enemy_def, floor_number, pack)
+
+
+## Reward multiplier for an enemy definition based on its rarity tag.
+static func enemy_reward_multiplier(enemy_def: Dictionary, pack: Dictionary = {}) -> float:
+	if pack.is_empty() and DataLoader != null:
+		pack = DataLoader.get_rarities_pack()
+	var er := str(enemy_def.get("rarity", "common"))
 	var rdef := get_rarity(pack, er)
 	return float(rdef.get("enemy_reward_mult", 1.0)) if not rdef.is_empty() else 1.0
+
+
+## Mastery level ceiling for an item or rarity id (D-060: lower rarities cap earlier).
+static func mastery_max_level(item_or_rarity: Variant, pack: Dictionary = {}) -> int:
+	if pack.is_empty() and DataLoader != null:
+		pack = DataLoader.get_rarities_pack()
+	var rid := str(item_or_rarity.get("rarity", "common")) if typeof(item_or_rarity) == TYPE_DICTIONARY else str(item_or_rarity)
+	var rdef := get_rarity(pack, rid)
+	if not rdef.is_empty() and rdef.has("mastery_max_level"):
+		return int(rdef["mastery_max_level"])
+	return 10
+
+
+## Maximum mastery ability entries allowed for an item or rarity id.
+static func max_abilities(item_or_rarity: Variant, pack: Dictionary = {}) -> int:
+	if pack.is_empty() and DataLoader != null:
+		pack = DataLoader.get_rarities_pack()
+	var rid := str(item_or_rarity.get("rarity", "common")) if typeof(item_or_rarity) == TYPE_DICTIONARY else str(item_or_rarity)
+	var rdef := get_rarity(pack, rid)
+	if not rdef.is_empty() and rdef.has("max_abilities"):
+		return int(rdef["max_abilities"])
+	return 6
+
+
+## Inherent item gold value (fixed per item definition; no floor_mult).
+static func compute_item_value(item_def: Dictionary) -> int:
+	return maxi(1, int(item_def.get("base_value", item_def.get("value", 25))))

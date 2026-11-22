@@ -12,7 +12,6 @@ REQUIRED_FILES = [
     "world.json",
     "player.json",
     "items.json",
-    "affixes.json",
     "rarities.json",
     "themes.json",
     "abilities.json",
@@ -21,6 +20,7 @@ REQUIRED_FILES = [
     "progression.json",
     "tutorials.json",
     "setpieces.json",
+    "mastery.json",
     "balance.json",
 ]
 
@@ -47,6 +47,9 @@ def main() -> int:
         except Exception as exc:
             errors.append(f"Failed to parse {fname}: {exc}")
 
+    if (DATA_DIR / "affixes.json").exists():
+        errors.append("Legacy affixes.json must remain removed (D-060)")
+
     if errors:
         for e in errors:
             print(f"[ERROR] {e}", file=sys.stderr)
@@ -65,12 +68,29 @@ def main() -> int:
     if len(world.get("floors", [])) < 2:
         errors.append("world.json: must define at least 2 floors (Floor 1 + Floor 2 descent)")
 
-    # 2. Validate items.json & affixes.json cross-references
+    # 2. Validate rarities.json (D-060 single source of truth)
+    rarities_pack = packs["rarities.json"]
+    rarities_by_id: dict[str, dict] = {}
+    for r in rarities_pack.get("rarities", []):
+        rid = r.get("id", "")
+        if not rid or rid in rarities_by_id:
+            errors.append(f"rarities.json: missing or duplicate rarity id '{rid}'")
+        rarities_by_id[rid] = r
+        if r.get("weight", 0) <= 0:
+            errors.append(f"rarities.json: rarity '{rid}' weight must be > 0")
+        if r.get("mastery_max_level", 0) <= 0 or r.get("max_abilities", 0) <= 0:
+            errors.append(f"rarities.json: rarity '{rid}' needs positive mastery_max_level and max_abilities")
+    for req_r in ["common", "uncommon", "rare", "epic", "legendary"]:
+        if req_r not in rarities_by_id:
+            errors.append(f"rarities.json: missing required rarity tier '{req_r}'")
+    rarity_ids = set(rarities_by_id.keys())
+
+    # 3. Validate items.json & mastery ceilings
     items_pack = packs["items.json"]
-    affixes_pack = packs["affixes.json"]
+    mastery_pack = packs["mastery.json"]
+    ability_lib = set(mastery_pack.get("abilities", {}).keys())
     valid_slots = set(items_pack.get("slots", [])) | {"consumable"}
-    legendary_ids = {e["id"] for e in affixes_pack.get("legendary_effects", [])}
-    rarity_ids = {r["id"] for r in affixes_pack.get("rarities", [])}
+    legendary_ids = {e["id"] for e in items_pack.get("legendary_effects", [])}
 
     item_ids: set[str] = set()
     for item in items_pack.get("items", []):
@@ -82,10 +102,26 @@ def main() -> int:
             errors.append(f"items.json: item '{iid}' has invalid slot '{item.get('slot')}'")
         if "legendary_effect" in item and item["legendary_effect"] not in legendary_ids:
             errors.append(f"items.json: item '{iid}' references unknown legendary_effect '{item['legendary_effect']}'")
-        if "forced_rarity" in item and item["forced_rarity"] not in rarity_ids:
-            errors.append(f"items.json: item '{iid}' references unknown forced_rarity '{item['forced_rarity']}'")
+        for legacy_key in ("drop_weight", "forced_rarity", "floor_min"):
+            if legacy_key in item:
+                errors.append(f"items.json: item '{iid}' has legacy field '{legacy_key}' (D-060)")
+        ir = item.get("rarity", "")
+        if ir not in rarity_ids:
+            errors.append(f"items.json: item '{iid}' missing or invalid rarity '{ir}'")
+        elif item.get("category") not in ("consumable", "ingredient"):
+            track = item.get("mastery", [])
+            rdef = rarities_by_id[ir]
+            cap = int(rdef["mastery_max_level"])
+            max_ab = int(rdef["max_abilities"])
+            if len(track) > max_ab:
+                errors.append(f"items.json: '{iid}' ({ir}) has {len(track)} abilities > cap {max_ab}")
+            for entry in track:
+                if int(entry.get("level", 0)) > cap:
+                    errors.append(f"items.json: '{iid}' ({ir}) has mastery unlock at Lv {entry.get('level')} > cap {cap}")
+                if entry.get("ability") not in ability_lib:
+                    errors.append(f"items.json: '{iid}' references unknown mastery ability '{entry.get('ability')}'")
 
-    # 3. Validate player.json starting gear & inventory exist in items.json
+    # 4. Validate player.json starting gear & inventory exist in items.json
     player = packs["player.json"]
     if player["camera"]["default_mode"] != "first_person":
         errors.append("player.json: D-012 requires default_mode == 'first_person'")
@@ -98,7 +134,7 @@ def main() -> int:
         if iid not in item_ids:
             errors.append(f"player.json: starting_inventory '{iid}' not found in items.json")
 
-    # 4. Validate enemies.json and floor boss references
+    # 5. Validate enemies.json and floor boss references
     enemies_pack = packs["enemies.json"]
     enemy_ids: set[str] = set()
     boss_ids: set[str] = set()
@@ -114,6 +150,11 @@ def main() -> int:
             regular_count += 1
         if enemy.get("max_health", 0) <= 0 or enemy.get("damage", 0) <= 0:
             errors.append(f"enemies.json: enemy '{eid}' must have positive max_health and damage")
+        if "spawn_weight" in enemy:
+            errors.append(f"enemies.json: enemy '{eid}' still has legacy 'spawn_weight' (D-060)")
+        er = enemy.get("rarity", "")
+        if er not in rarity_ids:
+            errors.append(f"enemies.json: enemy '{eid}' missing or invalid rarity '{er}'")
         if "guaranteed_rarity" in enemy and enemy["guaranteed_rarity"] not in rarity_ids:
             errors.append(f"enemies.json: enemy '{eid}' references unknown rarity '{enemy['guaranteed_rarity']}'")
 
@@ -127,7 +168,7 @@ def main() -> int:
         if bid not in boss_ids:
             errors.append(f"world.json: floor {floor.get('floor_number')} boss_id '{bid}' not in boss definitions")
 
-    # 5. Validate dungeon_ai.json required events
+    # 6. Validate dungeon_ai.json required events
     ai_events = packs["dungeon_ai.json"].get("events", {})
     for req_event in [
         "floor_enter",
@@ -143,7 +184,7 @@ def main() -> int:
         if not ai_events.get(req_event):
             errors.append(f"dungeon_ai.json: missing non-empty event list '{req_event}'")
 
-    # 6. Validate progression.json
+    # 7. Validate progression.json
     prog = packs["progression.json"]
     skills = prog.get("proficiencies", {}).get("skills", [])
     xp_per_use = prog.get("proficiencies", {}).get("xp_gain_per_use", {})
@@ -151,7 +192,7 @@ def main() -> int:
         if skill not in xp_per_use or xp_per_use[skill] <= 0:
             errors.append(f"progression.json: skill '{skill}' missing positive xp_gain_per_use")
 
-    # 7. Validate tutorials.json (D-030)
+    # 8. Validate tutorials.json (D-030)
     tut_topics = packs["tutorials.json"].get("topics", [])
     if len(tut_topics) < 6:
         errors.append("tutorials.json: D-030 requires at least 6 contextual tutorial topics")
@@ -164,23 +205,27 @@ def main() -> int:
         if not t.get("title") or not t.get("body"):
             errors.append(f"tutorials.json: topic '{tid}' requires title and body")
 
-    # 8. Validate setpieces.json (D-029)
+    # 9. Validate setpieces.json (D-029)
     setpieces = packs["setpieces.json"].get("setpieces", {})
     for req_sp in ["entrance", "safe_room", "boss_arena", "vault", "stairs"]:
         if req_sp not in setpieces or not setpieces[req_sp].get("props"):
             errors.append(f"setpieces.json: D-029 requires handcrafted setpiece props for '{req_sp}'")
 
-    # 9. Validate rarities.json, themes.json, and abilities.json (D-055)
-    rarities_pack = packs["rarities.json"]
-    unified_r_ids = {r.get("id", "") for r in rarities_pack.get("rarities", [])}
-    for req_r in ["common", "uncommon", "rare", "epic", "legendary"]:
-        if req_r not in unified_r_ids:
-            errors.append(f"rarities.json: missing required rarity tier '{req_r}'")
-
+    # 10. Validate themes.json (D-055, D-060: every procedural room/prop/trap/chest/variant has a rarity)
     themes_pack = packs["themes.json"]
     theme_ids = {t.get("id", "") for t in themes_pack.get("themes", [])}
     if not theme_ids:
         errors.append("themes.json: must define at least 1 floor theme")
+    for t in themes_pack.get("themes", []):
+        tid = t.get("id", "")
+        if "extends" not in t:
+            for pool_key in ("room_variants", "chest_tiers", "trap_types", "container_types", "dressing_props", "wall_variants", "floor_variants", "ceiling_variants"):
+                entries = t.get(pool_key, [])
+                if not entries:
+                    errors.append(f"themes.json: base theme '{tid}' missing '{pool_key}'")
+                for ent in entries:
+                    if ent.get("rarity") not in rarity_ids:
+                        errors.append(f"themes.json: '{tid}.{pool_key}.{ent.get('id')}' missing/invalid rarity '{ent.get('rarity')}'")
     for floor in world.get("floors", []):
         tid = floor.get("theme_id", "")
         if tid and tid not in theme_ids:
@@ -196,13 +241,15 @@ def main() -> int:
         if not ab.get("kind"):
             errors.append(f"abilities.json: ability '{aid}' missing 'kind'")
 
-    # 10. FB-022 power-scale knobs (D-057): global knobs, and a power_scale on every enemy, item and floor
+    # 11. FB-022 power-scale knobs (D-057) & vendor config (D-060)
     bal = packs["balance.json"]
     for knob in ["enemy_health", "enemy_damage", "enemy_count", "enemy_xp", "enemy_gold", "boss_health", "boss_damage",
                  "champion_health", "champion_damage", "item_power", "consumable_power", "vendor_prices"]:
         v = bal.get("global", {}).get(knob)
         if not isinstance(v, (int, float)) or v <= 0:
             errors.append(f"balance.json: global knob '{knob}' must be a positive number")
+    if not bal.get("vendor", {}).get("staples"):
+        errors.append("balance.json: missing vendor.staples")
     for enemy in enemies_pack.get("enemies", []):
         if not isinstance(enemy.get("power_scale"), (int, float)) or enemy["power_scale"] <= 0:
             errors.append(f"enemies.json: enemy '{enemy.get('id')}' needs a positive power_scale")
@@ -223,7 +270,7 @@ def main() -> int:
     print(
         f"[validate-data] OK: {len(REQUIRED_FILES)} packs, "
         f"{len(item_ids)} items, {len(enemy_ids)} enemies ({len(boss_ids)} boss), "
-        f"{len(unified_r_ids)} rarities, {len(theme_ids)} themes, {len(ability_ids)} abilities, "
+        f"{len(rarity_ids)} rarities, {len(theme_ids)} themes, {len(ability_ids)} abilities, "
         f"{len(ai_events)} Dungeon AI pools, "
         f"{len(tut_ids)} tutorial topics, {len(setpieces)} handcrafted setpieces."
     )

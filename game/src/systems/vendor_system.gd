@@ -1,22 +1,31 @@
 class_name VendorSystem
 extends RefCounted
-## Tier 2 Pure System: Safe Room Underground Vendor economy (D-021).
+## Tier 2 Pure System: Safe Room Underground Vendor economy (D-021, D-060).
 
 var stock: Array[Dictionary] = []
 var _sell_ratio: float = 0.4
+var _vendor_cfg: Dictionary = {}
 
 
-func _init(affixes_pack: Dictionary) -> void:
-	var v_cfg: Dictionary = affixes_pack.get("vendor", {})
-	_sell_ratio = float(v_cfg.get("sell_price_ratio", 0.4))
+func _init(balance_or_cfg: Dictionary = {}) -> void:
+	_vendor_cfg = balance_or_cfg.get("vendor", balance_or_cfg)
+	_sell_ratio = float(_vendor_cfg.get("sell_price_ratio", 0.4))
 
 
-func refresh_stock(items_pack: Dictionary, affixes_pack: Dictionary, floor_number: int, rng: SeededRng) -> void:
+func refresh_stock(
+	items_pack: Dictionary,
+	rarities_pack: Dictionary,
+	floor_number: int,
+	rng: SeededRng,
+	excluded_ids: Dictionary = {}
+) -> void:
 	stock.clear()
-	var v_cfg: Dictionary = affixes_pack.get("vendor", {})
-	var count := int(v_cfg.get("stock_count", 7))
+	var v_cfg: Dictionary = _vendor_cfg
+	if v_cfg.is_empty() and DataLoader != null:
+		v_cfg = DataLoader.get_balance_pack().get("vendor", {})
+	var count := int(v_cfg.get("stock_count", 11))
 
-	# Always stock the staple consumables (unlimited, bought by the stack) + rolled gear
+	# Always stock the staple consumables/ingredients (unlimited, bought by the stack)
 	for potion_id in v_cfg.get("staples", ["health_potion", "magicka_potion"]):
 		for item in items_pack.get("items", []):
 			if str(item["id"]) == potion_id:
@@ -24,10 +33,16 @@ func refresh_stock(items_pack: Dictionary, affixes_pack: Dictionary, floor_numbe
 				stock.append(inst)
 				break
 
-	while stock.size() < count:
-		var rolled := LootGenerator.roll_loot(items_pack, affixes_pack, floor_number, rng, "", true)
-		if not rolled.is_empty():
-			stock.append(rolled)
+	# D-060: Exclude already-owned gear and avoid stocking duplicate gear in the shop
+	var local_excluded := excluded_ids.duplicate()
+	var safety := 0
+	while stock.size() < count and safety < count * 3:
+		safety += 1
+		var rolled := LootGenerator.roll_loot(items_pack, rarities_pack, floor_number, rng, "", true, "", "vendor", local_excluded)
+		if rolled.is_empty() or InventoryStacks.is_stackable(rolled):
+			break
+		local_excluded[str(rolled["id"])] = true
+		stock.append(rolled)
 
 
 ## Price of ONE (a stack is priced per item). FB-022: balance.json "vendor_prices" knob.
@@ -66,6 +81,7 @@ func buy_item(stock_index: int, player_gold: int, player_inventory: Array, qty: 
 
 
 ## Sells `qty` from the bag entry (a stack, or the single gear piece). Returns {"ok", "gold", "item", "payout", "qty"}.
+## Selling a non-stackable item removes it from player_inventory, immediately returning it to the loot pool (D-060).
 func sell_item(inv_index: int, player_gold: int, player_inventory: Array, qty: int = 1) -> Dictionary:
 	if inv_index < 0 or inv_index >= player_inventory.size():
 		return {"ok": false, "gold": player_gold, "reason": "invalid_index"}

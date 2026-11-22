@@ -1,11 +1,10 @@
 class_name MasterySystem
 extends RefCounted
-## Tier 2 Pure System — Item Mastery (D-049).
+## Tier 2 Pure System — Item Mastery (D-049, D-060).
 ## Every weapon, spell, shield, armor piece and accessory carries its own mastery level and XP on the item
 ## instance ("mastery_level", "mastery_xp"). Using the item earns XP; each level makes its core stats stronger
-## (stat_growth_per_level) and the levels named in the item's own "mastery" track unlock new abilities, so two
-## items of the same kind grow in completely different directions. Abilities are generic mechanics from the
-## ability library in mastery.json; a later entry for the same ability on the same item upgrades it.
+## (stat_growth_per_level) and the levels named in the item's own "mastery" track unlock new abilities.
+## Lower-rarity items have lower mastery level ceilings and fewer abilities (D-060).
 
 const STAT_KEYS := ["damage", "armor", "heal_amount", "bonus_damage", "bonus_health", "bonus_magicka", "bonus_stamina"]
 
@@ -20,13 +19,32 @@ static func max_level(cfg: Dictionary = {}) -> int:
 	return int(cfg.get("max_level", 10))
 
 
-## True for items that can be mastered (gear, not potions).
+## D-060: Rarity-capped mastery ceiling for a specific item instance or definition.
+static func max_level_for(item: Dictionary, cfg: Dictionary = {}) -> int:
+	if cfg.is_empty():
+		cfg = pack()
+	var global_cap := int(cfg.get("max_level", 10))
+	if item.is_empty():
+		return global_cap
+	# Always check the item definition's inherent rarity when available
+	var rarity_id := str(item.get("rarity", ""))
+	if DataLoader != null and not str(item.get("id", "")).is_empty():
+		var def := DataLoader.get_item_def(str(item["id"]))
+		if not def.is_empty() and def.has("rarity"):
+			rarity_id = str(def["rarity"])
+	if rarity_id.is_empty():
+		rarity_id = "common"
+	return mini(global_cap, RarityTable.mastery_max_level(rarity_id))
+
+
+## True for items that can be mastered (gear, not consumables/ingredients).
 static func is_masterable(item: Dictionary) -> bool:
 	return str(item.get("category", "")) in ["weapon", "spell", "shield", "armor", "accessory"]
 
 
 static func level_of(item: Dictionary) -> int:
-	return maxi(1, int(item.get("mastery_level", 1)))
+	var cap := max_level_for(item) if is_masterable(item) else max_level()
+	return clampi(int(item.get("mastery_level", 1)), 1, maxi(1, cap))
 
 
 ## XP needed to go from `level` to `level + 1`.
@@ -80,10 +98,11 @@ static func has_ability(item: Dictionary, ability_id: String) -> bool:
 ## Next level that unlocks something new (-1 when the track is complete).
 static func next_unlock_level(item: Dictionary) -> int:
 	var lvl := level_of(item)
+	var cap := max_level_for(item)
 	var best := -1
 	for e in track(item):
 		var l := int(e.get("level", 0))
-		if l > lvl and (best < 0 or l < best):
+		if l > lvl and l <= cap and (best < 0 or l < best):
 			best = l
 	return best
 
@@ -95,10 +114,11 @@ static func add_xp(item: Dictionary, amount: float, cfg: Dictionary = {}) -> Dic
 		return res
 	if cfg.is_empty():
 		cfg = pack()
-	var cap := max_level(cfg)
+	var cap := max_level_for(item, cfg)
 	var lvl := level_of(item)
 	if lvl >= cap:
 		item["mastery_level"] = cap
+		item["mastery_xp"] = 0.0
 		return res
 	var xp := float(item.get("mastery_xp", 0.0)) + amount
 	while lvl < cap and xp >= float(xp_to_next(lvl, cfg)):
@@ -197,8 +217,7 @@ const XP_EVENT_NOUN := {"hit": "hits", "kill": "kills", "cast": "casts", "block"
 
 
 ## FB-022: plain-English instructions for levelling an item: what to do, how much XP each use gives, and how
-## much is still needed for the next level (e.g. "Land hits (+1 xp) or finish enemies (+5 xp) with it. 12 xp to go:
-## about 12 hits or 3 kills. Tougher (higher-level) enemies give more.").
+## much is still needed for the next level.
 static func how_to_level(item: Dictionary, cfg: Dictionary = {}) -> String:
 	if not is_masterable(item):
 		return ""
@@ -212,8 +231,8 @@ static func how_to_level(item: Dictionary, cfg: Dictionary = {}) -> String:
 	for sx in srcs:
 		parts.append("%s (+%s xp)" % [str(XP_EVENT_TEXT.get(str(sx[0]), str(sx[0]))), _num(float(sx[1]))])
 	var text := "To level up: " + " or ".join(parts) + "."
-	if lvl >= max_level(cfg):
-		return "Fully mastered. " + text.replace("To level up: ", "It grew by: ")
+	if lvl >= max_level_for(item, cfg):
+		return "Fully mastered (Lv %d cap). " % max_level_for(item, cfg) + text.replace("To level up: ", "It grew by: ")
 	var left := maxf(0.0, float(xp_to_next(lvl, cfg)) - float(item.get("mastery_xp", 0.0)))
 	var est: Array = []
 	for sx in srcs:

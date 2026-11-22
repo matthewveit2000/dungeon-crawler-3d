@@ -1,63 +1,114 @@
 {
-  "_doc": "Unified Rarity & Scarcity Table (D-048, D-049, D-055 / IDEA-011). Drives loot rarity rolling, value/price multipliers, drop scarcity, and future enemy rarity scaling from one central data pack.",
-  "loot_rarities_enabled": [
-    "common"
+  "_doc": "Unified Inherent Rarity & Scarcity Table (D-048, D-055, D-060). Single source of truth for all procedurally generated items, enemies, rooms, chests, traps, and props: spawn weights, floor-depth weight scaling, mastery ceilings, ability caps, enemy rewards, and source drop profiles.",
+  "rarity_order": [
+    "common",
+    "uncommon",
+    "rare",
+    "epic",
+    "legendary"
   ],
   "rarities": [
     {
       "id": "common",
+      "rank": 0,
       "label": "Common",
       "color": "#d8dce3",
-      "stat_multiplier": 1.0,
-      "affix_count": 0,
-      "weight": 54.0,
+      "weight": 58.0,
+      "floor_weight_growth": 0.0,
+      "mastery_max_level": 3,
+      "max_abilities": 2,
       "value_multiplier": 1.0,
-      "enemy_spawn_weight_mult": 1.0,
       "enemy_reward_mult": 1.0
     },
     {
       "id": "uncommon",
+      "rank": 1,
       "label": "Uncommon",
       "color": "#5ad67a",
-      "stat_multiplier": 1.2,
-      "affix_count": 1,
-      "weight": 26.0,
+      "weight": 25.0,
+      "floor_weight_growth": 0.25,
+      "mastery_max_level": 5,
+      "max_abilities": 3,
       "value_multiplier": 1.5,
-      "enemy_spawn_weight_mult": 0.65,
       "enemy_reward_mult": 1.25
     },
     {
       "id": "rare",
+      "rank": 2,
       "label": "Rare",
       "color": "#4da3ff",
-      "stat_multiplier": 1.45,
-      "affix_count": 2,
-      "weight": 12.0,
+      "weight": 11.0,
+      "floor_weight_growth": 0.5,
+      "mastery_max_level": 7,
+      "max_abilities": 4,
       "value_multiplier": 2.3,
-      "enemy_spawn_weight_mult": 0.35,
       "enemy_reward_mult": 1.6
     },
     {
       "id": "epic",
+      "rank": 3,
       "label": "Epic",
       "color": "#b46cff",
-      "stat_multiplier": 1.8,
-      "affix_count": 3,
-      "weight": 5.5,
+      "weight": 4.5,
+      "floor_weight_growth": 0.8,
+      "mastery_max_level": 9,
+      "max_abilities": 5,
       "value_multiplier": 3.8,
-      "enemy_spawn_weight_mult": 0.15,
       "enemy_reward_mult": 2.1
     },
     {
       "id": "legendary",
+      "rank": 4,
       "label": "Legendary",
       "color": "#ffae24",
-      "stat_multiplier": 2.35,
-      "affix_count": 3,
-      "weight": 2.5,
+      "weight": 1.5,
+      "floor_weight_growth": 1.2,
+      "mastery_max_level": 10,
+      "max_abilities": 6,
       "value_multiplier": 6.5,
-      "enemy_spawn_weight_mult": 0.05,
       "enemy_reward_mult": 3.0
     }
-  ]
+  ],
+  "source_profiles": {
+    "standard": {
+      "min_rarity": "common",
+      "rarity_boost": 1.0
+    },
+    "uncommon": {
+      "min_rarity": "uncommon",
+      "rarity_boost": 1.2
+    },
+    "rare": {
+      "min_rarity": "rare",
+      "rarity_boost": 1.4
+    },
+    "epic": {
+      "min_rarity": "epic",
+      "rarity_boost": 1.6
+    },
+    "vault_legendary": {
+      "min_rarity": "epic",
+      "rarity_boost": 2.2
+    },
+    "legendary": {
+      "min_rarity": "legendary",
+      "rarity_boost": 1.0
+    },
+    "champion": {
+      "min_rarity": "uncommon",
+      "rarity_boost": 1.35
+    },
+    "boss": {
+      "min_rarity": "rare",
+      "rarity_boost": 1.8
+    },
+    "corpse": {
+      "min_rarity": "common",
+      "rarity_boost": 1.0
+    },
+    "vendor": {
+      "min_rarity": "common",
+      "rarity_boost": 1.15
+    }
+  }
 }

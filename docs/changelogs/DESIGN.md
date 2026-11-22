@@ -100,3 +100,11 @@ Detailed record of gameplay systems, rules, tuning, and DCC flavor implemented f
 - Every gear item has a level-1 ability (starter tier of a later ability or a signature trait); cards explain how to level.
 - Safe-room area maps (40-tile radius) reveal tiles, treasure, champion lairs and landmarks; the quest board became the map board and its +35 g bounty advance was dropped.
 - Re-theme: no TV show / sponsors / Syndicate / achievements; the announcer is the voice of the dungeon; renamed legendary effects, relics and two goblins.
+
+## 2026-11-22 — FB-025: Unified Inherent Rarities, Mastery Ceilings & No-Duplicate Loot Pool (`D-060`)
+- Removed all old rarity remainders: `affixes.json` (random prefixes/suffixes, random rarity rolling, `loot_rarities_enabled` lock), `floor_mult` item stat/value scaling, and ad-hoc `drop_weight` / `spawn_weight`.
+- Assigned inherent RPG rarities (`common`..`legendary`) to every item (46), enemy (11), procedural combat room variant (6: Barrow Chamber, Guard Post, Trapped Crypt, Ancient Armory, Cursed Shrine, Forgotten Treasure Annex), chest tier (5), container, trap, architecture variant, and dressing prop.
+- Rarity weights in `rarities.json` drive all spawn rates and scale upward for higher rarities on deeper floors (`floor_weight_growth`) and stronger loot sources (`source_profiles`).
+- Mastery ceilings & ability counts scale by rarity (`common`: Lv 3 / 1–2 abilities, `uncommon`: Lv 5 / 2–3, `rare`: Lv 7 / 3–4, `epic`: Lv 9 / 4–5, `legendary`: Lv 10 / 5–6; all keep a Lv 1 ability).
+- Owned non-stackable items are pulled from the world and vendor loot pools (including starting gear); selling returns them to the pool; Floor-Entry Snapshots save/restore ownership; exhausted pools step downward then fall back to stackable consumables/ingredients + gold.
+

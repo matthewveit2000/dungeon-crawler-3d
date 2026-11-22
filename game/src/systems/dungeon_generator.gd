@@ -499,16 +499,14 @@ static func _populate_contents(
 ) -> void:
 	var floor_cfg := _get_floor_cfg(world_data, floor_number)
 	var theme := FloorTheme.resolve(floor_cfg)
+	var rar_pack := DataLoader.get_rarities_pack() if DataLoader != null else {}
 	var enemy_budget := int(floor_cfg.get("enemy_budget", 14))
 	var regular_enemies: Array = []
 	for e in enemies_data.get("enemies", []):
-		# D-049 / D-055: eligible by floor level band, FloorTheme tags, and RarityTable spawn weight
-		var eff_w := RarityTable.effective_enemy_spawn_weight(e)
-		if not bool(e.get("is_boss", false)) and eff_w > 0.0 \
+		# D-049 / D-060: eligible by floor level band, FloorTheme tags, and inherent rarity
+		if not bool(e.get("is_boss", false)) \
 				and EnemyLevels.eligible(e, floor_number, enemies_data) and theme.matches_enemy(e):
-			var entry: Dictionary = (e as Dictionary).duplicate()
-			entry["spawn_weight"] = eff_w
-			regular_enemies.append(entry)
+			regular_enemies.append(e)
 
 	var chest_chance := float(lab_cfg.get("chest_room_chance", 0.55))
 	var combat_rooms: Array[Dictionary] = []
@@ -522,22 +520,38 @@ static func _populate_contents(
 			layout.chests.append({"tile": center + Vector2i(1, 0), "tier": "rare", "room_id": r["id"]})
 		elif role == "combat":
 			combat_rooms.append(r)
-			if rng.next_float("gen") < chest_chance:
+			# D-060: every combat room rolls a rarity-driven room variant (Barrow Chamber, Armory, Cursed Shrine, etc.)
+			var rvar := theme.pick_room_variant(floor_number, rng, rar_pack)
+			r["variant"] = str(rvar.get("id", "barrow_chamber"))
+			r["variant_name"] = str(rvar.get("name", "Barrow Chamber"))
+			r["rarity"] = str(rvar.get("rarity", "common"))
+			r["accent_color"] = str(rvar.get("accent_color", ""))
+			r["preferred_props"] = rvar.get("preferred_props", [])
+			r["enemy_count_delta"] = int(rvar.get("enemy_count_delta", 0))
+
+			var v_chest_chance := float(rvar.get("chest_chance", chest_chance))
+			if rng.next_float("gen") < v_chest_chance:
 				var ct := Vector2i(
 					rng.next_int_range("gen", rect.position.x + 1, maxi(rect.position.x + 1, rect.end.x - 2)),
 					rng.next_int_range("gen", rect.position.y + 1, maxi(rect.position.y + 1, rect.end.y - 2))
 				)
-				layout.chests.append({"tile": ct, "tier": "standard", "room_id": r["id"]})
-			# Crates & urns tucked into room corners (denser floors: up to containers_per_room_max)
+				var c_tier := str(rvar.get("chest_tier", "standard"))
+				if c_tier == "standard":
+					var picked_ct := theme.pick_chest_tier(floor_number, rng, rar_pack)
+					c_tier = str(picked_ct.get("id", "standard"))
+				layout.chests.append({"tile": ct, "tier": c_tier, "room_id": r["id"]})
+			# Crates & urns tucked into room corners (rarity-driven kind selection)
 			var corners := [rect.position, Vector2i(rect.end.x - 1, rect.position.y), Vector2i(rect.position.x, rect.end.y - 1),
 				Vector2i(rect.end.x - 1, rect.end.y - 1)]
-			var n_cont := rng.next_int_range("gen", 1, int(lab_cfg.get("containers_per_room_max", 1)))
+			var max_cont := int(rvar.get("containers_max", int(lab_cfg.get("containers_per_room_max", 1))))
+			var n_cont := rng.next_int_range("gen", 1, maxi(1, max_cont))
 			for ci in range(mini(n_cont, corners.size())):
 				layout.containers.append({
 					"tile": corners[ci],
-					"kind": "crate" if rng.next_float("gen") < 0.5 else "urn",
+					"kind": theme.pick_container_kind(floor_number, rng, rar_pack),
 				})
-			if rng.next_float("gen") < float(lab_cfg.get("trap_corridor_chance", 0.12)) * 2.0:
+			var v_trap_chance := float(rvar.get("trap_chance", float(lab_cfg.get("trap_corridor_chance", 0.12)) * 2.0))
+			if rng.next_float("gen") < v_trap_chance:
 				layout.traps.append(center)
 		elif role == "stairs":
 			layout.chests.append({"tile": Vector2i(rect.position.x, rect.position.y), "tier": "rare", "room_id": r["id"]})
@@ -572,8 +586,11 @@ static func _populate_contents(
 			if lair_ids.has(int(room["id"])):
 				continue
 			lair_ids[int(room["id"])] = true
+			room["variant"] = "champion_lair"
+			room["variant_name"] = "Champion Lair"
+			room["rarity"] = "epic"
 			var rect: Rect2i = room["rect"]
-			var picked: Dictionary = rng.pick_weighted("gen", regular_enemies, "spawn_weight")
+			var picked: Dictionary = RarityTable.pick_entry_by_rarity(regular_enemies, floor_number, rng, "gen", rar_pack)
 			layout.pois.append({"kind": "champion", "tile": room["center"], "world_pos": layout.tile_to_world(room["center"]),
 				"label": "Champion Lair", "revealed": false, "done": false, "spawn_index": layout.enemy_spawns.size()})
 			layout.enemy_spawns.append({
@@ -585,7 +602,7 @@ static func _populate_contents(
 				"title": str(titles[rng.next_int_range("gen", 0, titles.size() - 1)]),
 			})
 			for _e in range(int(round(float(ch_cfg.get("escort_count", 3)) * count_k))):
-				var esc: Dictionary = rng.pick_weighted("gen", regular_enemies, "spawn_weight")
+				var esc: Dictionary = RarityTable.pick_entry_by_rarity(regular_enemies, floor_number, rng, "gen", rar_pack)
 				layout.enemy_spawns.append({
 					"enemy_id": str(esc["id"]),
 					"tile": Vector2i(rng.next_int_range("gen", rect.position.x, rect.end.x - 1), rng.next_int_range("gen", rect.position.y, rect.end.y - 1)),
@@ -606,18 +623,32 @@ static func _populate_contents(
 			var rect: Rect2i = room["rect"]
 			var sx := rng.next_int_range("gen", rect.position.x, rect.end.x - 1)
 			var sy := rng.next_int_range("gen", rect.position.y, rect.end.y - 1)
-			var picked: Dictionary = rng.pick_weighted("gen", regular_enemies, "spawn_weight")
+			var picked: Dictionary = RarityTable.pick_entry_by_rarity(regular_enemies, floor_number, rng, "gen", rar_pack)
 			layout.enemy_spawns.append({
 				"enemy_id": str(picked["id"]),
 				"tile": Vector2i(sx, sy),
 				"room_id": int(room["id"]),
 				"is_boss": false,
 			})
+		# Room variant bonus guards (Guard Post, Ancient Armory, Cursed Shrine, Treasure Annex)
+		for room in combat_rooms:
+			var extra := int(room.get("enemy_count_delta", 0))
+			if extra <= 0:
+				continue
+			var rect: Rect2i = room["rect"]
+			for _ex in range(extra):
+				var picked: Dictionary = RarityTable.pick_entry_by_rarity(regular_enemies, floor_number, rng, "gen", rar_pack)
+				layout.enemy_spawns.append({
+					"enemy_id": str(picked["id"]),
+					"tile": Vector2i(rng.next_int_range("gen", rect.position.x, rect.end.x - 1), rng.next_int_range("gen", rect.position.y, rect.end.y - 1)),
+					"room_id": int(room["id"]),
+					"is_boss": false,
+				})
 
 	# FB-022: every chest is a treasure point of interest a safe-room map can reveal
 	for ci in range(layout.chests.size()):
 		var ch: Dictionary = layout.chests[ci]
-		if str(ch.get("tier", "")) == "vault_legendary":
+		if str(ch.get("tier", "")) == "vault_legendary" and int(ch.get("room_id", -1)) == layout.vault_room_id:
 			continue
 		layout.pois.append({"kind": "treasure", "tile": ch["tile"], "world_pos": layout.tile_to_world(ch["tile"]),
 			"label": "Treasure", "revealed": false, "done": false, "chest_index": ci})

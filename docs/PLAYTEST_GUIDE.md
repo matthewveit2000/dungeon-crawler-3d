@@ -16,11 +16,11 @@ Everything mechanical has already been verified by automated tests, so this play
 
 ---
 
-## 1a. Discovery & Mastery (`D-049`)
+## 1a. Discovery, Inherent Rarities & Mastery (`D-049`, `D-060`)
 
-- Every item you find is Common for now, but each one has its own **mastery track**: use it and its level (shown as `· M<level>` next to its name on the HUD) goes up, its stats grow, and at certain levels it unlocks a new ability ("NEW ABILITY" banner). Open the Character menu (Tab) and select the item to see its mastery XP, the abilities you have discovered, and the "???" ones still ahead.
-- Try: Chain Spark until it chains (M2), Firebolt until it explodes (M4), the Longsword's Lunge (M3, hold attack for a power attack) and Cross Guard (M5, a sword in each hand — hold the off-hand attack), the Recurve Bow's Hunter's Focus (M4, hold a full draw).
-- Enemies show their level over their heads; every type has its own level range and trait. Character menu → **Bestiary** fills in as you meet (sighted), kill (stats + abilities) and kill five (weakness) of each creature. It is never lost on a floor reset.
+- Every item, enemy, chest, trap, and room variant has an **inherent RPG rarity** (`common` → `uncommon` → `rare` → `epic` → `legendary`) that drives its spawn rate and becomes more common on deeper floors. Non-stackable gear is unique while owned (no duplicate drops until you sell one). Each gear piece has its own **mastery track** capped by rarity (`3 / 5 / 7 / 9 / 10`): use it and its level (shown as `· M<level>` next to its name on the HUD) goes up, its stats grow, and at certain levels it unlocks a new ability ("NEW ABILITY" banner). Open the Character menu (Tab) and select the item to see its mastery XP, the abilities you have discovered, and the "???" ones still ahead.
+- Try: Chain Spark until it chains (M3), Firebolt until it explodes (M3), the Longsword's Lunge (M3, hold attack for a power attack), the Ash-Hilt Broadsword's Cross Guard (M5, a sword in each hand — hold the off-hand attack), the Hunting Bow's Hunter's Focus (M3, hold a full draw).
+- Enemies show their level over their heads; every type has its own level range, rarity, and trait. Character menu → **Bestiary** fills in as you meet (sighted), kill (stats + abilities) and kill five (weakness) of each creature. It is never lost on a floor reset.
 - Test Mode (F1 → Player) has **+1 / +5 mastery** for equipped gear and **Reveal whole bestiary**.
 
 ## 1b. Test Mode — Spawn Anything (`D-047`)
@@ -30,7 +30,7 @@ Choose **Test Mode** on the title screen. You start on a compact floor with ever
 | Tab | What you can do |
 |---|---|
 | **Enemies** | Spawn any enemy (including the Iron Warden) 1, 3 or 5 at a time in front of you; toggle "spawn as Champion" to get titled mini-bosses (`D-057`); kill nearby / all; remove all; freeze AI. |
-| **Items** | Pick a rarity, then add any item to your bag (or every item at once); +1,000 gold; health potions; open the inventory. |
+| **Items** | Roll random loot by rarity or add any item at its inherent rarity to your bag (or every item at once); +1,000 gold; health potions; open the inventory. |
 | **World** | Place chests (standard / rare / vault), crates, urns, trap levers, spike traps, braziers, lights, a stairwell, a full safe-room kit (vendor, area map, ward) or any handcrafted room setpiece where you are looking. |
 | **Player** | God mode, infinite stamina & magicka, +1 / +5 levels, full heal, first / third person, die (tests the floor reset). |
 | **Floor** | Teleport to every room type (incl. the nearest champion lair on a vast floor), open the boss + vault gates, pause / run the floor clock, advance a day, collapse the floor, rebuild the test floor, jump to a real vast floor, next / previous floor. |

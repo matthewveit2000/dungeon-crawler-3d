@@ -1,5 +1,5 @@
 {
-  "_doc": "First-class Floor Themes (D-055 / IDEA-008). Drives dungeon kit paths, architecture variants, lighting/fog palette, room dressing pools, and future themed enemy/loot tags without hardcoding them in DungeonBuilder.",
+  "_doc": "First-class Floor Themes (D-055, D-060). Drives dungeon kit paths, architecture variants, lighting/fog palette, rarity-driven combat room variants, rarity-driven dressing props & traps, and future themed enemy/loot tags.",
   "default_theme_id": "nordic_catacombs",
   "themes": [
     {
@@ -14,25 +14,118 @@
       "safe_zone_color": "#6ce5c4",
       "boss_color": "#e04838",
       "wall_variants": [
-        ["wall_a", 0.3],
-        ["wall_b", 0.3],
-        ["wall_c", 0.24],
-        ["wall_niche", 0.09],
-        ["wall_damaged", 0.07]
+        {"id": "wall_a", "rarity": "common"},
+        {"id": "wall_b", "rarity": "common"},
+        {"id": "wall_c", "rarity": "common"},
+        {"id": "wall_niche", "rarity": "rare"},
+        {"id": "wall_damaged", "rarity": "uncommon"}
       ],
       "torch_wall_variants": ["wall_a", "wall_b", "wall_c"],
-      "floor_variants": ["floor_a", "floor_b", "floor_c"],
-      "ceiling_primary": "ceiling_a",
-      "ceiling_alt": "ceiling_b",
-      "ceiling_alt_chance": 0.08,
-      "dressing": {
-        "combat": [["barrel", 3.0], ["crate", 2.0], ["urn", 2.0], ["rubble_pile", 2.0], ["bone_pile", 2.0], ["candle_cluster", 1.5], ["sarcophagus", 1.2], ["weapon_rack", 0.8]],
-        "entrance": [["barrel", 2.0], ["crate", 2.0], ["weapon_rack", 1.5], ["candle_cluster", 1.0], ["table", 1.0]],
-        "stairs": [["bone_pile", 2.0], ["rubble_pile", 2.0], ["urn", 2.0], ["candle_cluster", 1.5]],
-        "safe": [["barrel", 2.0], ["crate", 1.5], ["table", 1.5], ["candle_cluster", 1.5], ["weapon_rack", 1.0]],
-        "boss": [["bone_pile", 3.0], ["rubble_pile", 2.0], ["candle_cluster", 1.0]],
-        "vault": [["urn", 3.0], ["candle_cluster", 2.0]]
-      },
+      "floor_variants": [
+        {"id": "floor_a", "rarity": "common"},
+        {"id": "floor_b", "rarity": "common"},
+        {"id": "floor_c", "rarity": "uncommon"}
+      ],
+      "ceiling_variants": [
+        {"id": "ceiling_a", "rarity": "common"},
+        {"id": "ceiling_b", "rarity": "rare"}
+      ],
+      "room_variants": [
+        {
+          "id": "barrow_chamber",
+          "name": "Barrow Chamber",
+          "rarity": "common",
+          "enemy_count_delta": 0,
+          "chest_chance": 0.5,
+          "chest_tier": "standard",
+          "trap_chance": 0.08,
+          "containers_max": 2,
+          "preferred_props": ["barrel", "crate", "rubble_pile", "bone_pile"]
+        },
+        {
+          "id": "guard_post",
+          "name": "Barrow Guard Post",
+          "rarity": "uncommon",
+          "enemy_count_delta": 1,
+          "chest_chance": 0.65,
+          "chest_tier": "uncommon",
+          "trap_chance": 0.2,
+          "containers_max": 2,
+          "preferred_props": ["weapon_rack", "barrel", "table"]
+        },
+        {
+          "id": "trapped_crypt",
+          "name": "Trapped Crypt",
+          "rarity": "uncommon",
+          "enemy_count_delta": 0,
+          "chest_chance": 0.72,
+          "chest_tier": "uncommon",
+          "trap_chance": 0.85,
+          "containers_max": 2,
+          "preferred_props": ["sarcophagus", "bone_pile", "urn"]
+        },
+        {
+          "id": "armory_hall",
+          "name": "Ancient Armory",
+          "rarity": "rare",
+          "enemy_count_delta": 1,
+          "chest_chance": 1.0,
+          "chest_tier": "rare",
+          "trap_chance": 0.25,
+          "containers_max": 3,
+          "preferred_props": ["weapon_rack", "barrel", "crate", "table"],
+          "accent_color": "#5ea2ff"
+        },
+        {
+          "id": "cursed_shrine",
+          "name": "Cursed Shrine",
+          "rarity": "epic",
+          "enemy_count_delta": 2,
+          "chest_chance": 1.0,
+          "chest_tier": "epic",
+          "trap_chance": 0.4,
+          "containers_max": 2,
+          "preferred_props": ["candle_cluster", "sarcophagus", "bone_pile"],
+          "accent_color": "#b46cff"
+        },
+        {
+          "id": "treasure_annex",
+          "name": "Forgotten Treasure Annex",
+          "rarity": "legendary",
+          "enemy_count_delta": 2,
+          "chest_chance": 1.0,
+          "chest_tier": "vault_legendary",
+          "trap_chance": 0.5,
+          "containers_max": 4,
+          "preferred_props": ["urn", "candle_cluster", "sarcophagus"],
+          "accent_color": "#ffae24"
+        }
+      ],
+      "chest_tiers": [
+        {"id": "standard", "rarity": "common", "label": "Iron-Bound Chest"},
+        {"id": "uncommon", "rarity": "uncommon", "label": "Reinforced Barrow Chest"},
+        {"id": "rare", "rarity": "rare", "label": "Runed Silver Chest", "light_color": "#4da3ff"},
+        {"id": "epic", "rarity": "epic", "label": "Arcane Relic Chest", "light_color": "#b46cff"},
+        {"id": "vault_legendary", "rarity": "legendary", "label": "Vault Treasure Chest", "light_color": "#ffd26b"}
+      ],
+      "trap_types": [
+        {"id": "spike_trap", "rarity": "common"}
+      ],
+      "container_types": [
+        {"id": "crate", "rarity": "common"},
+        {"id": "urn", "rarity": "uncommon"}
+      ],
+      "dressing_props": [
+        {"id": "barrel", "rarity": "common", "roles": ["combat", "entrance", "safe"]},
+        {"id": "crate", "rarity": "common", "roles": ["combat", "entrance", "safe"]},
+        {"id": "rubble_pile", "rarity": "common", "roles": ["combat", "stairs", "boss"]},
+        {"id": "bone_pile", "rarity": "common", "roles": ["combat", "stairs", "boss"]},
+        {"id": "urn", "rarity": "uncommon", "roles": ["combat", "stairs", "vault"]},
+        {"id": "candle_cluster", "rarity": "uncommon", "roles": ["combat", "entrance", "stairs", "safe", "boss", "vault"]},
+        {"id": "table", "rarity": "uncommon", "roles": ["combat", "entrance", "safe"]},
+        {"id": "sarcophagus", "rarity": "rare", "roles": ["combat"]},
+        {"id": "weapon_rack", "rarity": "rare", "roles": ["combat", "entrance", "safe"]}
+      ],
       "dressing_depth": {
         "barrel": 0.8,
         "crate": 0.9,

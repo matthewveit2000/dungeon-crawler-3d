@@ -4,10 +4,10 @@ extends GutTest
 
 func test_vendor_buy_and_sell_transactions() -> void:
 	var items_pack := DataLoader.get_items_pack()
-	var affixes_pack := DataLoader.get_affixes_pack()
+	var rarities_pack := DataLoader.get_rarities_pack()
 	var rng := SeededRng.new(303)
-	var vendor := VendorSystem.new(affixes_pack)
-	vendor.refresh_stock(items_pack, affixes_pack, 1, rng)
+	var vendor := VendorSystem.new(DataLoader.get_balance_pack())
+	vendor.refresh_stock(items_pack, rarities_pack, 1, rng)
 	assert_gte(vendor.stock.size(), 5)
 
 	var inv: Array = []

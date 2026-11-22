@@ -107,14 +107,17 @@ func _build_ui() -> void:
 	var gi := _grid("Items", 5)
 	for r in RarityTable.rarities_from(DataLoader.get_rarities_pack()):
 		var rid := str(r["id"])
-		_btn(gi, "Rarity: %s" % str(r.get("label", rid)), func() -> void: _rarity = rid)
-	_section(gi, "Add to your bag (selected rarity)")
+		_btn(gi, "Roll %s" % str(r.get("label", rid)), func() -> void:
+			_rarity = rid
+			_game.run_console_command("spawn_loot " + rid))
+	_section(gi, "Add specific item (inherent rarity)")
 	for it in DataLoader.get_items_pack().get("items", []):
 		var iid := str(it["id"])
-		_btn(_next(gi), str(it.get("name", iid)), func() -> void: _game.test_give_item(iid, _rarity))
+		var rlabel := UiTheme.rarity_name(str(it.get("rarity", "common"))).substr(0, 1)
+		_btn(_next(gi), "[%s] %s" % [rlabel, str(it.get("name", iid))], func() -> void: _game.test_give_item(iid))
 	_section(gi, "Bulk")
 	var gb := _next(gi)
-	_btn(gb, "Every item", func() -> void: _game.test_give_all_items(_rarity))
+	_btn(gb, "Every item", func() -> void: _game.test_give_all_items())
 	_btn(gb, "+1,000 gold", func() -> void:
 		_game.player.gold += 1000
 		_game.player.emit_stats())

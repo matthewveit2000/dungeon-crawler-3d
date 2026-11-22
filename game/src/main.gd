@@ -95,7 +95,7 @@ func initialize_game(p_seed: int = 20261118, try_load_save: bool = true) -> void
 	bestiary.from_dict({})
 	floor_timer = FloorTimer.new(DataLoader.get_world()["floor_timer"])
 	snapshot_mgr = SnapshotManager.new()
-	vendor_sys = VendorSystem.new(DataLoader.get_affixes_pack())
+	vendor_sys = VendorSystem.new(DataLoader.get_balance_pack())
 	ai_director = DungeonAiDirector.new(DataLoader.get_dungeon_ai_pack())
 	tutorial_sys = TutorialSystem.new(DataLoader.get_tutorials_pack())
 	combat_resolver = CombatResolver.new(self)
@@ -248,9 +248,9 @@ func enter_floor(target_floor: int, capture_snapshot: bool = true) -> void:
 	var build_rng := SeededRng.new(int(("%d:build:%d" % [run_seed, floor_number]).hash()))
 	dungeon_builder.build_floor(current_layout, floor_cfg, _on_interactable_triggered, build_rng)
 
-	# Refresh Safe Room Vendor stock deterministically for this floor
+	# Refresh Safe Room Vendor stock deterministically for this floor (excluding already-owned non-stackables)
 	var vendor_rng := SeededRng.new(int(("%d:vendor:%d" % [run_seed, floor_number]).hash()))
-	vendor_sys.refresh_stock(DataLoader.get_items_pack(), DataLoader.get_affixes_pack(), floor_number, vendor_rng)
+	vendor_sys.refresh_stock(DataLoader.get_items_pack(), DataLoader.get_rarities_pack(), floor_number, vendor_rng, _owned_non_stackable_ids())
 
 	# Place player at Entrance room center
 	var ent_center: Vector2i = current_layout.rooms[current_layout.entrance_room_id]["center"]
@@ -820,15 +820,19 @@ func _on_enemy_died(enemy: EnemyActor) -> void:
 		if EventBus != null:
 			EventBus.level_up_occurred.emit(l)
 
-	# Spawn interactive Skyrim lootable corpse
+	# Spawn interactive Skyrim lootable corpse (D-060: inherent rarity + no-duplicate pool)
 	var corpse := InteractableObject.new()
 	var forced_r := enemy.guaranteed_rarity
 	var has_item := not forced_r.is_empty() or loot_rng.next_float("loot") <= enemy.loot_drop_chance
-	var loot_item := LootGenerator.roll_loot(DataLoader.get_items_pack(), DataLoader.get_affixes_pack(), floor_number, loot_rng,
-		LootGenerator.world_rarity(DataLoader.get_affixes_pack(), forced_r)) if has_item else {}
-	corpse.setup("corpse_%s" % enemy.enemy_id, "corpse", "Search %s" % enemy.display_name, {
+	var source_prof := "boss" if enemy.is_boss else ("champion" if enemy.is_champion else "corpse")
+	var loot_item := LootGenerator.roll_loot(DataLoader.get_items_pack(), DataLoader.get_rarities_pack(), floor_number, loot_rng,
+		forced_r, false, "", source_prof, _owned_and_corpse_non_stackable_ids()) if has_item else {}
+	var corpse_id := "corpse_%s_%d" % [enemy.enemy_id, corpses_root.get_child_count()]
+	corpse.setup(corpse_id, "corpse", "Search %s" % enemy.display_name, {
 		"gold": gold_roll,
 		"item": loot_item,
+		"source_prof": source_prof,
+		"forced_r": forced_r,
 	}, _on_interactable_triggered, Vector3(1.2, 0.8, 1.2))
 	corpse.position = enemy.global_position
 	corpse.rotation.y = enemy.rotation.y
@@ -866,17 +870,36 @@ func _on_enemy_died(enemy: EnemyActor) -> void:
 	player.emit_stats()
 
 
+func _owned_non_stackable_ids() -> Dictionary:
+	if player == null:
+		return {}
+	return LootGenerator.collect_owned_non_stackable_ids(player.equipment, player.inventory)
+
+
+func _owned_and_corpse_non_stackable_ids() -> Dictionary:
+	var owned := _owned_non_stackable_ids()
+	if corpses_root != null:
+		for c in corpses_root.get_children():
+			var inter := c as InteractableObject
+			if inter != null and not inter.consumed:
+				var it: Variant = inter.payload.get("item", {})
+				if typeof(it) == TYPE_DICTIONARY and not (it as Dictionary).is_empty() and not InventoryStacks.is_stackable(it):
+					owned[str((it as Dictionary).get("id", ""))] = true
+	return owned
+
+
 func _on_interactable_triggered(inter: InteractableObject, _actor: Node3D) -> bool:
 	match inter.kind:
 		"chest":
 			if inter.interact_id.begins_with("chest_"):
 				_mark_poi_done("chest_index", int(inter.interact_id.trim_prefix("chest_")))
 			var tier := str(inter.payload.get("tier", "standard"))
-			var forced := "legendary" if tier == "vault_legendary" else ("rare" if tier == "rare" else "")
 			var chest_rng := _loot_rng_for(inter.interact_id)
-			var rolled := LootGenerator.roll_loot(DataLoader.get_items_pack(), DataLoader.get_affixes_pack(), floor_number, chest_rng,
-				LootGenerator.world_rarity(DataLoader.get_affixes_pack(), forced), true)
+			var rolled := LootGenerator.roll_loot(DataLoader.get_items_pack(), DataLoader.get_rarities_pack(), floor_number, chest_rng,
+				"", true, "", tier, _owned_non_stackable_ids())
 			var gold_gain := chest_rng.next_int_range("loot", 25, 65) * floor_number
+			if not rolled.is_empty() and InventoryStacks.is_stackable(rolled):
+				gold_gain += chest_rng.next_int_range("loot", 30, 60) * floor_number
 			_grant_loot(rolled, gold_gain)
 			_complete_tutorial("looting")
 			_trigger_tutorial("inventory_pause")
@@ -887,18 +910,22 @@ func _on_interactable_triggered(inter: InteractableObject, _actor: Node3D) -> bo
 			var gold_gain := cont_rng.next_int_range("loot", 6, 20)
 			var potion: Dictionary = {}
 			if cont_rng.next_float("loot") < 0.35:
-				potion = LootGenerator.make_base_item_instance(DataLoader.get_item_def("health_potion"), "pot_%d" % cont_rng.next_int_range("loot", 1000, 99999))
+				var cons: Array = []
+				for d in DataLoader.get_items_pack().get("items", []):
+					if str(d.get("category", "")) == "consumable":
+						cons.append(d)
+				if not cons.is_empty():
+					var p_pick: Dictionary = RarityTable.pick_entry_by_rarity(cons, floor_number, cont_rng, "loot")
+					potion = LootGenerator.make_base_item_instance(DataLoader.get_item_def(str(p_pick["id"])), "pot_%d" % cont_rng.next_int_range("loot", 1000, 99999))
 			_grant_loot(potion, gold_gain)
-			# FB-022: crates and urns hold ingredients, often a few of a kind (they stack in the bag)
+			# FB-022 / D-060: crates and urns hold ingredients picked by rarity
 			if cont_rng.next_float("loot") < 0.5:
 				var ingr: Array = []
 				for d in DataLoader.get_items_pack().get("items", []):
 					if str(d.get("category", "")) == "ingredient":
-						var dd: Dictionary = d.duplicate()
-						dd["_w"] = float(d.get("drop_weight", 5.0))
-						ingr.append(dd)
+						ingr.append(d)
 				if not ingr.is_empty():
-					var pick: Dictionary = cont_rng.pick_weighted("loot", ingr, "_w")
+					var pick: Dictionary = RarityTable.pick_entry_by_rarity(ingr, floor_number, cont_rng, "loot")
 					var found := LootGenerator.make_base_item_instance(DataLoader.get_item_def(str(pick["id"])), "ingr_%d" % cont_rng.next_int_range("loot", 1000, 99999))
 					found["count"] = cont_rng.next_int_range("loot", 1, 3)
 					_grant_loot(found, 0)
@@ -906,7 +933,16 @@ func _on_interactable_triggered(inter: InteractableObject, _actor: Node3D) -> bo
 			if EventBus != null: EventBus.sfx_requested.emit("chest_open")
 			return true
 		"corpse":
-			_grant_loot(inter.payload.get("item", {}), int(inter.payload.get("gold", 0)))
+			var c_item: Dictionary = inter.payload.get("item", {})
+			var c_gold := int(inter.payload.get("gold", 0))
+			if not c_item.is_empty() and not InventoryStacks.is_stackable(c_item):
+				var owned := _owned_non_stackable_ids()
+				if owned.has(str(c_item.get("id", ""))):
+					# Re-roll cleanly if player acquired this item between the kill and searching the corpse
+					var reroll_rng := _loot_rng_for(inter.interact_id + "_reroll")
+					c_item = LootGenerator.roll_loot(DataLoader.get_items_pack(), DataLoader.get_rarities_pack(), floor_number,
+						reroll_rng, str(inter.payload.get("forced_r", "")), false, "", str(inter.payload.get("source_prof", "corpse")), owned)
+			_grant_loot(c_item, c_gold)
 			_complete_tutorial("looting")
 			_trigger_tutorial("inventory_pause")
 			if EventBus != null: EventBus.sfx_requested.emit("chest_open")
@@ -1363,8 +1399,8 @@ func _cmd_advance_days(args: Array[String]) -> String:
 
 
 func _cmd_spawn_loot(args: Array[String]) -> String:
-	var rarity := args[0].to_lower() if not args.is_empty() else "legendary"
-	var rolled := LootGenerator.roll_loot(DataLoader.get_items_pack(), DataLoader.get_affixes_pack(), floor_number, rng, rarity, true)
+	var rarity := args[0].to_lower() if not args.is_empty() else ""
+	var rolled := LootGenerator.roll_loot(DataLoader.get_items_pack(), DataLoader.get_rarities_pack(), floor_number, rng, rarity, true, "", "", _owned_non_stackable_ids())
 	if rolled.is_empty():
 		return "Failed to roll loot."
 	_grant_loot(rolled, 0)
@@ -1424,16 +1460,11 @@ func test_clear_enemies() -> void:
 	boss_actor = null
 
 
-func test_give_item(item_id: String, rarity: String = "common") -> Dictionary:
+func test_give_item(item_id: String, _ignored_rarity: String = "") -> Dictionary:
 	var def := DataLoader.get_item_def(item_id)
 	if def.is_empty():
 		return {}
-	var item: Dictionary
-	if InventoryStacks.is_stackable(def):
-		item = LootGenerator.make_base_item_instance(def, "test_%s_%d" % [item_id, player.inventory.size()])
-	else:
-		item = LootGenerator.roll_loot(DataLoader.get_items_pack(), DataLoader.get_affixes_pack(), floor_number,
-			SeededRng.new(player.inventory.size() + 1), rarity, false, item_id)
+	var item := LootGenerator.make_base_item_instance(def, "test_%s_%d" % [item_id, player.inventory.size()])
 	if item.is_empty():
 		return {}
 	item = player.add_to_inventory(item)
@@ -1441,9 +1472,9 @@ func test_give_item(item_id: String, rarity: String = "common") -> Dictionary:
 	return item
 
 
-func test_give_all_items(rarity: String = "rare") -> void:
+func test_give_all_items(_ignored_rarity: String = "") -> void:
 	for it in DataLoader.get_items_pack().get("items", []):
-		test_give_item(str(it["id"]), rarity)
+		test_give_item(str(it["id"]))
 
 
 func test_spawn_object(kind: String) -> Node3D:

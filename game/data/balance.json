@@ -44,5 +44,17 @@
       "Who Was Promised a Promotion",
       "the Pointlessly Spiky"
     ]
+  },
+  "vendor": {
+    "sell_price_ratio": 0.4,
+    "stock_count": 11,
+    "staples": [
+      "health_potion",
+      "magicka_potion",
+      "stamina_potion",
+      "swiftness_draught",
+      "ironbark_tonic",
+      "glowcap_mushroom"
+    ]
   }
 }

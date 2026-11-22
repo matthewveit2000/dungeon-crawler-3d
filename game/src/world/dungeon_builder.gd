@@ -249,8 +249,7 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 	var wall_h := float(DataLoader.get_world()["grid"]["wall_height_meters"])
 	var kit_dir := active_theme.kit_dir
 	var props_dir := active_theme.props_dir
-	var floor_vars: Array = active_theme.floor_variants
-	var wall_vars: Array = active_theme.wall_variants
+	var rar_pack := DataLoader.get_rarities_pack() if DataLoader != null else {}
 	var torch_wall_vars: Array = active_theme.torch_wall_variants
 	# One infinite floor plane and one ceiling plane replace per-tile slabs: walls enclose every walkable tile,
 	# so nothing can reach the void around the labyrinth (vast floors would otherwise need ~30k slab colliders)
@@ -299,8 +298,9 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 			var pos := layout.tile_to_world(t)
 			var spin := float(rng.next_int_range("gen", 0, 3)) * PI * 0.5
 			if not stairs_centers.has(t):
-				_batch(kit_dir + str(floor_vars[rng.next_int_range("gen", 0, floor_vars.size() - 1)]) + ".glb", t, Transform3D(Basis(Vector3.UP, spin), pos))
-			var ceil_name := active_theme.ceiling_alt if rng.next_float("gen") < active_theme.ceiling_alt_chance else active_theme.ceiling_primary
+				var floor_name := active_theme.pick_floor_variant(layout.floor_number, rng, rar_pack)
+				_batch(kit_dir + floor_name + ".glb", t, Transform3D(Basis(Vector3.UP, spin), pos))
+			var ceil_name := active_theme.pick_ceiling_variant(layout.floor_number, rng, rar_pack)
 			_batch(kit_dir + ceil_name + ".glb", t, Transform3D(Basis(Vector3.UP, spin), pos))
 
 			for wd in wall_dirs:
@@ -330,7 +330,7 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 
 	_build_wall_colliders(ts, wall_h)
 
-	# Choose wall variants: torch slots stay plain; a few niches & damaged walls add storytelling
+	# Choose wall variants: torch slots stay plain; rarer niches & damaged walls add storytelling
 	var torch_slots: Array[Dictionary] = []
 	for i in range(wall_slots.size()):
 		var s: Dictionary = wall_slots[i]
@@ -347,7 +347,7 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 			torch_slots.append(s)
 			torch_count += 1
 		else:
-			s["variant"] = _pick_weighted(wall_vars, rng)
+			s["variant"] = active_theme.pick_wall_variant(layout.floor_number, rng, rar_pack)
 		var tf := Transform3D(Basis(Vector3.UP, float(s["rot_y"])), s["pos"])
 		_batch(kit_dir + str(s["variant"]) + ".glb", t, tf)
 
@@ -429,7 +429,8 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 		var c: Dictionary = layout.chests[idx]
 		var wpos := layout.tile_to_world(c["tile"])
 		var tier := str(c.get("tier", "standard"))
-		var label := "Open Vault Treasure Chest" if tier == "vault_legendary" else "Open Iron-Bound Chest"
+		var ct_def := active_theme.chest_tier_def(tier) if active_theme != null else {}
+		var label := "Open %s" % str(ct_def.get("label", "Vault Treasure Chest" if tier == "vault_legendary" else "Iron-Bound Chest"))
 		var inter := InteractableObject.new()
 		inter.setup("chest_%d" % idx, "chest", label, c, interact_cb, Vector3(1.2, 1.0, 0.85))
 		inter.position = wpos
@@ -437,8 +438,9 @@ func build_floor(p_layout: DungeonGenerator.FloorLayout, floor_cfg: Dictionary, 
 		var model := ModelLoader.instantiate_model(PROPS + "chest.glb", Vector3(1.1, 0.8, 0.7))
 		inter.add_child(model)
 		inter.visual_root = model
-		if tier == "vault_legendary":
-			_add_light(inter, Vector3(0.0, 1.3, 0.6), Color(1.0, 0.8, 0.38), 1.6, 6.0, false)
+		var l_col := str(ct_def.get("light_color", "#ffd26b" if tier == "vault_legendary" else ""))
+		if not l_col.is_empty():
+			_add_light(inter, Vector3(0.0, 1.3, 0.6), Color.html(l_col), 1.4 if tier == "vault_legendary" else 0.9, 6.0, false)
 		_world_root.add_child(inter)
 
 	for idx in range(layout.containers.size()):
@@ -697,7 +699,11 @@ func _light_room(room: Dictionary, torch_color: Color, rng: SeededRng) -> void:
 	var center_w := layout.tile_to_world(room["center"])
 	var area := rect.size.x * rect.size.y
 	var fill_e := 0.9 if area >= 25 else 0.7
-	_stream_add(center_w, _spawn_room_fill.bind(center_w + Vector3(0.0, 3.7, 0.0), torch_color.lerp(Color(1.0, 0.9, 0.78), 0.5), fill_e,
+	var fill_col := torch_color.lerp(Color(1.0, 0.9, 0.78), 0.5)
+	var accent := str(room.get("accent_color", ""))
+	if not accent.is_empty():
+		fill_col = fill_col.lerp(Color.html(accent), 0.42)
+	_stream_add(center_w, _spawn_room_fill.bind(center_w + Vector3(0.0, 3.7, 0.0), fill_col, fill_e,
 		maxf(10.0, float(maxi(rect.size.x, rect.size.y)) * 2.6)))
 	if role in ["safe", "boss", "vault", "entrance", "stairs"]:
 		return  # these rooms have handcrafted setpieces with their own braziers
@@ -838,7 +844,9 @@ const DRESSING_COLLIDE := {"barrel": Vector3(0.8, 1.0, 0.8), "crate": Vector3(0.
 
 func _dress_room(room: Dictionary, wall_slots: Array[Dictionary], rng: SeededRng) -> void:
 	var role := str(room["role"])
-	var options: Array = active_theme.dressing_for_role(role, DRESSING) if active_theme != null else DRESSING.get(role, DRESSING["combat"])
+	var preferred: Array = room.get("preferred_props", [])
+	var rar_pack := DataLoader.get_rarities_pack() if DataLoader != null else {}
+	var options: Array = active_theme.dressing_for_role(role, DRESSING, layout.floor_number) if active_theme != null else DRESSING.get(role, DRESSING["combat"])
 	var props_dir := active_theme.props_dir if active_theme != null else PROPS
 	var rect: Rect2i = room["rect"]
 	var density := float(DataLoader.get_world().get("labyrinth", {}).get("ambient_prop_density", 0.42))
@@ -853,7 +861,7 @@ func _dress_room(room: Dictionary, wall_slots: Array[Dictionary], rng: SeededRng
 			continue
 		if rng.next_float("gen") > chance:
 			continue
-		var kind := _pick_weighted(options, rng)
+		var kind := active_theme.pick_dressing_prop(role, layout.floor_number, rng, preferred, rar_pack) if (active_theme != null and not active_theme.dressing_props.is_empty()) else _pick_weighted(options, rng)
 		var inward: Vector3 = s["inward"]
 		var along := Basis(Vector3.UP, float(s["rot_y"])).x
 		var depth := active_theme.prop_depth(kind, float(DRESSING_DEPTH.get(kind, 0.8))) if active_theme != null else float(DRESSING_DEPTH.get(kind, 0.8))

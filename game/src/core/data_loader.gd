@@ -8,7 +8,6 @@ const DATA_FILES := {
 	"world": "res://data/world.json",
 	"player": "res://data/player.json",
 	"items": "res://data/items.json",
-	"affixes": "res://data/affixes.json",
 	"rarities": "res://data/rarities.json",
 	"themes": "res://data/themes.json",
 	"abilities": "res://data/abilities.json",
@@ -66,29 +65,17 @@ func reload_all() -> void:
 		var cfg: Dictionary = MODULAR_DIRS[key]
 		_merge_modular_dir(str(cfg["dir"]), _packs.get(key, {}), str(cfg["array_key"]))
 
-	# Keep affixes pack in sync with rarities.json as single source of truth when affixes omits them
-	var rar_pack: Dictionary = _packs.get("rarities", {})
-	var aff_pack: Dictionary = _packs.get("affixes", {})
-	if not rar_pack.is_empty():
-		if not aff_pack.has("rarities"):
-			aff_pack["rarities"] = rar_pack.get("rarities", [])
-		if not aff_pack.has("loot_rarities_enabled"):
-			aff_pack["loot_rarities_enabled"] = rar_pack.get("loot_rarities_enabled", [])
-
 	for item in _packs.get("items", {}).get("items", []):
 		_items_by_id[str(item["id"])] = item
+
+	for eff in _packs.get("items", {}).get("legendary_effects", []):
+		_legendary_by_id[str(eff["id"])] = eff
 
 	for enemy in _packs.get("enemies", {}).get("enemies", []):
 		_enemies_by_id[str(enemy["id"])] = enemy
 
-	var rarity_list: Array = rar_pack.get("rarities", [])
-	if rarity_list.is_empty():
-		rarity_list = aff_pack.get("rarities", [])
-	for rarity in rarity_list:
+	for rarity in _packs.get("rarities", {}).get("rarities", []):
 		_rarities_by_id[str(rarity["id"])] = rarity
-
-	for eff in aff_pack.get("legendary_effects", []):
-		_legendary_by_id[str(eff["id"])] = eff
 
 	for theme in _packs.get("themes", {}).get("themes", []):
 		_themes_by_id[str(theme["id"])] = theme
@@ -116,12 +103,12 @@ func get_items_pack() -> Dictionary:
 	return get_pack("items")
 
 
-func get_affixes_pack() -> Dictionary:
-	return get_pack("affixes")
-
-
 func get_rarities_pack() -> Dictionary:
 	return get_pack("rarities")
+
+
+func get_balance_pack() -> Dictionary:
+	return get_pack("balance")
 
 
 func get_themes_pack() -> Dictionary:

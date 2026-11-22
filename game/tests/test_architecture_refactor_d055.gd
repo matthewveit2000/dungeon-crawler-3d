@@ -255,8 +255,8 @@ func test_rarity_table_floor_theme_and_modular_data_loader() -> void:
 
 	# RarityTable scarcity & multipliers
 	var rar_pack := DataLoader.get_rarities_pack()
-	var common_w := RarityTable.effective_enemy_spawn_weight({"spawn_weight": 100.0, "rarity": "common"}, rar_pack)
-	var rare_w := RarityTable.effective_enemy_spawn_weight({"spawn_weight": 100.0, "rarity": "rare"}, rar_pack)
+	var common_w := RarityTable.effective_enemy_spawn_weight({"rarity": "common"}, rar_pack)
+	var rare_w := RarityTable.effective_enemy_spawn_weight({"rarity": "rare"}, rar_pack)
 	assert_lt(rare_w, common_w, "rarer enemies have lower spawn weight")
 	assert_gt(RarityTable.enemy_reward_multiplier({"rarity": "epic"}, rar_pack), 1.5, "rarer enemies yield higher rewards")
 
@@ -277,7 +277,7 @@ func test_zero_gameplay_drift_determinism_and_module_wiring() -> void:
 	# Deterministic loot & floor replay sanity
 	var r_a := SeededRng.new(777)
 	var r_b := SeededRng.new(777)
-	var l_a := LootGenerator.roll_loot(DataLoader.get_items_pack(), DataLoader.get_affixes_pack(), 1, r_a, "", true)
-	var l_b := LootGenerator.roll_loot(DataLoader.get_items_pack(), DataLoader.get_affixes_pack(), 1, r_b, "", true)
+	var l_a := LootGenerator.roll_loot(DataLoader.get_items_pack(), DataLoader.get_rarities_pack(), 1, r_a, "", true)
+	var l_b := LootGenerator.roll_loot(DataLoader.get_items_pack(), DataLoader.get_rarities_pack(), 1, r_b, "", true)
 	assert_eq(str(l_a["id"]), str(l_b["id"]), "identical seed produces identical item id")
 	assert_eq(int(l_a["value"]), int(l_b["value"]), "identical seed produces identical item value")

@@ -1,5 +1,5 @@
 {
-  "_doc": "D-049: every enemy type has its own level range (level_min..level_max). Each floor covers a level band (floor_level_band); a type only spawns where its range overlaps the band, so deeper floors keep introducing new enemies. Stats scale with level (level_scaling). traits give each type its own mechanic. lore/weakness feed the Bestiary.",
+  "_doc": "D-049, D-060: every enemy type has its own rarity (driving spawn rates and floor-depth scaling) and level range (level_min..level_max). Stats scale with level (level_scaling). traits give each type its own mechanic. lore/weakness feed the Bestiary.",
   "level_scaling": {
     "health_per_level": 0.12,
     "damage_per_level": 0.07,
@@ -36,7 +36,6 @@
       "gold_min": 4,
       "gold_max": 8,
       "loot_drop_chance": 0.45,
-      "spawn_weight": 50.0,
       "model": "res://assets/models/characters/draugr.glb",
       "radius": 0.5,
       "height": 1.9,
@@ -50,7 +49,8 @@
       "level_max": 6,
       "traits": [],
       "lore": "The restless dead of the barrows, still dressed for a war that ended centuries ago. Slow to anger, slower to stop.",
-      "weakness": "Its axe swings are telegraphed: block or step back, then punish."
+      "weakness": "Its axe swings are telegraphed: block or step back, then punish.",
+      "rarity": "common"
     },
     {
       "id": "bone_archer",
@@ -71,7 +71,6 @@
       "gold_min": 4,
       "gold_max": 10,
       "loot_drop_chance": 0.5,
-      "spawn_weight": 30.0,
       "model": "res://assets/models/characters/bone_archer.glb",
       "radius": 0.45,
       "height": 1.85,
@@ -85,7 +84,8 @@
       "level_max": 6,
       "traits": [],
       "lore": "Skeletal sentries that never learned they were dismissed. They keep their distance and their aim.",
-      "weakness": "Close the gap — they are fragile up close and slow to back away."
+      "weakness": "Close the gap \u2014 they are fragile up close and slow to back away.",
+      "rarity": "common"
     },
     {
       "id": "goblin_gloryhound",
@@ -104,7 +104,6 @@
       "gold_min": 8,
       "gold_max": 16,
       "loot_drop_chance": 0.72,
-      "spawn_weight": 20.0,
       "model": "res://assets/models/characters/goblin.glb",
       "radius": 0.42,
       "height": 1.35,
@@ -125,7 +124,8 @@
         }
       ],
       "lore": "A goblin that hauls a hoop of stolen candles on its back so everyone can see how brave it is. Charges in for glory; gets frantic when it's losing.",
-      "weakness": "Its charge leaves it open. Below 40% health it goes berserk — finish it fast."
+      "weakness": "Its charge leaves it open. Below 40% health it goes berserk \u2014 finish it fast.",
+      "rarity": "uncommon"
     },
     {
       "id": "draugr_shieldwarden",
@@ -144,7 +144,6 @@
       "gold_min": 5,
       "gold_max": 11,
       "loot_drop_chance": 0.5,
-      "spawn_weight": 18.0,
       "level_min": 3,
       "level_max": 9,
       "model": "res://assets/models/characters/draugr.glb",
@@ -166,7 +165,8 @@
         "tint_strength": 0.18
       },
       "lore": "A barrow guard buried with its shield still raised. Hits from the front glance off the boards.",
-      "weakness": "Its shield blocks 70% of frontal hits. Power attacks break through; flank it or hit it from behind."
+      "weakness": "Its shield blocks 70% of frontal hits. Power attacks break through; flank it or hit it from behind.",
+      "rarity": "uncommon"
     },
     {
       "id": "frostbound_draugr",
@@ -185,7 +185,6 @@
       "gold_min": 6,
       "gold_max": 12,
       "loot_drop_chance": 0.5,
-      "spawn_weight": 15.0,
       "level_min": 4,
       "level_max": 10,
       "model": "res://assets/models/characters/draugr.glb",
@@ -207,7 +206,8 @@
         "tint_strength": 0.35
       },
       "lore": "Draugr that slept in the ice-veins under the crypt. Rime still crawls along their axes.",
-      "weakness": "Each hit slows you for a few seconds — keep your distance or fight it with a shield up."
+      "weakness": "Each hit slows you for a few seconds \u2014 keep your distance or fight it with a shield up.",
+      "rarity": "rare"
     },
     {
       "id": "bone_hexer",
@@ -230,7 +230,6 @@
       "gold_min": 5,
       "gold_max": 12,
       "loot_drop_chance": 0.55,
-      "spawn_weight": 16.0,
       "level_min": 2,
       "level_max": 8,
       "model": "res://assets/models/characters/bone_archer.glb",
@@ -253,7 +252,8 @@
         "tint_strength": 0.25
       },
       "lore": "A skeleton that remembers one spell and has had a very long time to practise it.",
-      "weakness": "Its hex bolts are slow — sidestep them. It has almost no armor."
+      "weakness": "Its hex bolts are slow \u2014 sidestep them. It has almost no armor.",
+      "rarity": "uncommon"
     },
     {
       "id": "goblin_bomber",
@@ -276,7 +276,6 @@
       "gold_min": 9,
       "gold_max": 18,
       "loot_drop_chance": 0.65,
-      "spawn_weight": 14.0,
       "level_min": 3,
       "level_max": 9,
       "model": "res://assets/models/characters/goblin.glb",
@@ -297,7 +296,8 @@
         "tint_strength": 0.2
       },
       "lore": "A goblin who discovered that explosions get more views than swords. Throws lit pots in a lazy arc.",
-      "weakness": "Bombs land where you were — keep moving. Up close it panics."
+      "weakness": "Bombs land where you were \u2014 keep moving. Up close it panics.",
+      "rarity": "rare"
     },
     {
       "id": "barrow_wight",
@@ -316,7 +316,6 @@
       "gold_min": 7,
       "gold_max": 14,
       "loot_drop_chance": 0.55,
-      "spawn_weight": 12.0,
       "level_min": 5,
       "level_max": 12,
       "model": "res://assets/models/characters/draugr.glb",
@@ -342,7 +341,8 @@
         "scale": 0.95
       },
       "lore": "Something wearing a draugr like a coat. Fast, hungry, and it heals on what it takes from you.",
-      "weakness": "It regenerates out of combat and drains life on every hit — commit to the kill."
+      "weakness": "It regenerates out of combat and drains life on every hit \u2014 commit to the kill.",
+      "rarity": "epic"
     },
     {
       "id": "draugr_deathlord",
@@ -361,7 +361,6 @@
       "gold_min": 18,
       "gold_max": 36,
       "loot_drop_chance": 0.9,
-      "spawn_weight": 6.0,
       "level_min": 6,
       "level_max": 14,
       "model": "res://assets/models/characters/draugr.glb",
@@ -384,7 +383,8 @@
         "scale": 1.22
       },
       "lore": "A war-chief of the barrows, crowned in rust. Every third blow cracks the floor around it.",
-      "weakness": "Count its swings: the third is a ground slam — be out of reach when it lands."
+      "weakness": "Count its swings: the third is a ground slam \u2014 be out of reach when it lands.",
+      "rarity": "epic"
     },
     {
       "id": "goblin_hollerer",
@@ -403,7 +403,6 @@
       "gold_min": 11,
       "gold_max": 20,
       "loot_drop_chance": 0.7,
-      "spawn_weight": 9.0,
       "level_min": 4,
       "level_max": 10,
       "model": "res://assets/models/characters/goblin.glb",
@@ -428,7 +427,8 @@
         "tint_strength": 0.3
       },
       "lore": "This one shrieks until every monster nearby fights faster and harder. Nobody has ever asked it to stop. Everybody has wanted to.",
-      "weakness": "Kill it first: its war cry speeds up and strengthens every enemy around it."
+      "weakness": "Kill it first: its war cry speeds up and strengthens every enemy around it.",
+      "rarity": "rare"
     },
     {
       "id": "iron_warden_boss",
@@ -451,7 +451,6 @@
       "gold_max": 180,
       "loot_drop_chance": 1.0,
       "guaranteed_rarity": "legendary",
-      "spawn_weight": 0.0,
       "model": "res://assets/models/characters/iron_warden.glb",
       "radius": 0.85,
       "height": 2.9,
@@ -465,7 +464,8 @@
       "level_max": 10,
       "traits": [],
       "lore": "The furnace-hearted guardian of Floor One's boss arena. Enrages at half health.",
-      "weakness": "Below half health it enrages: faster, harder hits. Save your stamina for blocks."
+      "weakness": "Below half health it enrages: faster, harder hits. Save your stamina for blocks.",
+      "rarity": "legendary"
     }
   ]
 }

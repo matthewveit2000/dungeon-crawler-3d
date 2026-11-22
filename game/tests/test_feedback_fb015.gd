@@ -58,19 +58,22 @@ func _setup_arena() -> void:
 	game.test_toggle("god")
 
 
-# --- Loot variety, all Common ---------------------------------------------------------------------------------
-func test_world_loot_is_all_common_and_varied() -> void:
+# --- Loot variety & inherent rarities ---------------------------------------------------------------------------------
+func test_world_loot_uses_inherent_rarities_and_variety() -> void:
 	DataLoader.ensure_loaded()
 	var ids := {}
+	var rarities_seen := {}
 	for i in range(400):
-		var forced: String = ["", "rare", "legendary", "epic"][i % 4]
-		var it := LootGenerator.roll_loot(DataLoader.get_items_pack(), DataLoader.get_affixes_pack(), 1, SeededRng.new(1000 + i),
-			LootGenerator.world_rarity(DataLoader.get_affixes_pack(), forced), true)
-		assert_eq(str(it.get("rarity", "")), "common", "every world drop is Common for now (%s)" % str(it.get("id")))
-		assert_true((it.get("affixes", []) as Array).is_empty(), "no generic affix rolls")
-		assert_ne(str(it.get("forced_rarity", "")), "legendary", "legendary relics stay out of the pool")
+		var forced: String = ["", "uncommon", "rare", "epic", "legendary"][i % 5]
+		var it := LootGenerator.roll_loot(DataLoader.get_items_pack(), DataLoader.get_rarities_pack(), 3, SeededRng.new(1000 + i),
+			forced, true)
+		var def := DataLoader.get_item_def(str(it.get("id", "")))
+		assert_eq(str(it.get("rarity", "")), str(def.get("rarity", "")), "item keeps its inherent rarity (%s)" % str(it.get("id")))
+		assert_false(it.has("affixes"), "no generic affix rolls")
 		ids[str(it["id"])] = true
+		rarities_seen[str(it["rarity"])] = true
 	assert_gte(ids.size(), 28, "a large variety of different items drops (%d kinds)" % ids.size())
+	assert_eq(rarities_seen.size(), 5, "all 5 rarity tiers appear in world loot")
 
 
 func test_every_gear_item_has_its_own_mastery_track() -> void:
@@ -79,11 +82,11 @@ func test_every_gear_item_has_its_own_mastery_track() -> void:
 	var signatures := {}
 	var count := 0
 	for it in DataLoader.get_items_pack().get("items", []):
-		if not MasterySystem.is_masterable(it) or str(it.get("forced_rarity", "")) == "legendary":
+		if not MasterySystem.is_masterable(it):
 			continue
 		count += 1
 		var t: Array = it.get("mastery", [])
-		assert_gte(t.size(), 3, "%s grows into at least 3 abilities" % str(it["id"]))
+		assert_gte(t.size(), 2, "%s has at least 2 mastery unlocks" % str(it["id"]))
 		var sig := []
 		for e in t:
 			assert_true(lib.has(str(e["ability"])), "%s: ability %s exists" % [str(it["id"]), str(e["ability"])])
@@ -99,20 +102,27 @@ func test_mastery_grows_stats_and_unlocks_abilities_with_use() -> void:
 	DataLoader.ensure_loaded()
 	var sword := LootGenerator.make_base_item_instance(DataLoader.get_item_def("iron_longsword"), "m1")
 	assert_eq(MasterySystem.level_of(sword), 1, "new items start at mastery 1")
-	# FB-022: every item now starts with one level-1 ability; the track's later abilities are still locked
+	# FB-022: every item starts with one level-1 ability; the track's later abilities are still locked
 	assert_eq(MasterySystem.abilities(sword).keys(), ["keen_edge"], "with only its level-1 ability")
 	var base := MasterySystem.stat(sword, "damage")
 	var res := MasterySystem.add_xp(sword, float(MasterySystem.xp_to_next(1)) + float(MasterySystem.xp_to_next(2)) + 0.5)
 	assert_eq(res["levels"], [2, 3], "XP raises the level step by step")
-	assert_eq(res["unlocked"].size(), 2, "and unlocks the abilities on those levels")
+	assert_eq(res["unlocked"].size(), 1, "and unlocks Lunge at mastery 3")
 	assert_true(MasterySystem.has_ability(sword, "keen_edge") and MasterySystem.has_ability(sword, "dash_strike"), "Keen Edge + Lunge")
 	assert_gt(MasterySystem.stat(sword, "damage"), base * 1.1, "and the weapon hits harder")
-	_master(sword, 10)
-	assert_eq(MasterySystem.level_of(sword), 10, "caps at the max level")
-	assert_almost_eq(float(MasterySystem.abilities(sword)["dash_strike"]["distance"]), 5.5, 0.01, "later levels upgrade an ability")
-	assert_eq(MasterySystem.next_unlock_level(sword), -1, "track complete")
+	# D-060: Common items cap at level 3
+	assert_eq(MasterySystem.level_of(sword), 3, "Common item caps at level 3")
+	assert_eq(MasterySystem.next_unlock_level(sword), -1, "Common track complete at level 3")
 	MasterySystem.add_xp(sword, 9999.0)
-	assert_eq(MasterySystem.level_of(sword), 10, "no level past the cap")
+	assert_eq(MasterySystem.level_of(sword), 3, "no level past the Common cap")
+
+	# D-060: Legendary items reach level 10
+	var relic := LootGenerator.make_base_item_instance(DataLoader.get_item_def("gravefeast_cleaver"), "m_leg")
+	_master(relic, 10)
+	assert_eq(MasterySystem.level_of(relic), 10, "Legendary item reaches max level 10")
+	assert_eq(MasterySystem.next_unlock_level(relic), -1, "Legendary track complete")
+	MasterySystem.add_xp(relic, 9999.0)
+	assert_eq(MasterySystem.level_of(relic), 10, "no level past the Legendary cap")
 
 
 func test_items_earn_mastery_from_hits_and_kills_in_game() -> void:
@@ -140,7 +150,7 @@ func test_items_earn_mastery_from_hits_and_kills_in_game() -> void:
 func test_shock_learns_to_chain_to_multiple_enemies() -> void:
 	await _setup_arena()
 	var spark := _equip("spell_chain_spark", "left_hand")
-	_master(spark, 4)
+	_master(spark, 3)
 	var a := _enemy_ahead(5.0)
 	var b := _enemy_ahead(7.0, 1.5)
 	var c := _enemy_ahead(9.0, -1.5)
@@ -151,7 +161,7 @@ func test_shock_learns_to_chain_to_multiple_enemies() -> void:
 		await get_tree().physics_frame
 	assert_lt(a.current_health, a.max_health, "the bolt hits the first enemy")
 	assert_lt(b.current_health, b.max_health, "chains to a second")
-	assert_lt(c.current_health, c.max_health, "and a third (Arc Chain, 2 jumps at mastery 4)")
+	assert_lt(c.current_health, c.max_health, "and a third (Arc Chain, 2 jumps at mastery 3)")
 
 
 func test_fire_learns_to_explode() -> void:
@@ -165,7 +175,7 @@ func test_fire_learns_to_explode() -> void:
 	for _i in range(40):
 		await get_tree().physics_frame
 	assert_almost_eq(b.current_health, b.max_health, 0.01, "a fresh firebolt only scorches its target")
-	_master(fire, 4)
+	_master(fire, 3)
 	game.player._left_cooldown = 0.0
 	game.player.magicka = game.player.max_magicka
 	game.player.handle_hand_press("left_hand")
@@ -191,8 +201,8 @@ func test_one_handed_lunge_and_dual_wield_cross_guard() -> void:
 		pl.step_simulation(DT, false, {})
 		await get_tree().physics_frame
 	assert_gt(Vector2(pl.global_position.x - start.x, pl.global_position.z - start.z).length(), 2.0, "power attack lunges forward (Lunge)")
-	# Cross Guard: dual blades, off-hand mastered to 5
-	var left := _equip("iron_longsword", "left_hand")
+	# Cross Guard: dual blades, off-hand Ash-Hilt Broadsword mastered to 5
+	var left := _equip("ashhilt_broadsword", "left_hand")
 	_master(left, 5)
 	pl.handle_hand_press("left_hand")
 	for _i in range(20):
@@ -222,7 +232,7 @@ func test_bow_learns_to_slow_time_on_full_draw() -> void:
 		game.step_simulation(DT, {"right_held": true})
 	assert_eq(game.world_time_scale, 1.0, "a fresh bow does not slow time")
 	pl.handle_hand_release("right_hand")
-	_master(bow, 4)
+	_master(bow, 3)
 	pl._right_cooldown = 0.0
 	pl.handle_hand_press("right_hand")
 	for _i in range(90):
@@ -263,7 +273,7 @@ func test_enemy_types_have_level_ranges_and_floors_introduce_new_ones() -> void:
 	var f1 := []
 	var f2 := []
 	for e in all:
-		if bool(e.get("is_boss", false)) or float(e.get("spawn_weight", 0.0)) <= 0.0:
+		if bool(e.get("is_boss", false)):
 			continue
 		if EnemyLevels.eligible(e, 1, pack):
 			f1.append(str(e["id"]))
@@ -384,7 +394,7 @@ func test_item_card_shows_mastery_and_hides_undiscovered_abilities() -> void:
 			if c is Label:
 				texts.append((c as Label).text)
 	var joined := " | ".join(texts)
-	assert_true(joined.contains("MASTERY 2 / 10"), "shows the mastery level")
+	assert_true(joined.contains("MASTERY 2 / 3"), "shows the mastery level and Common cap")
 	assert_true(joined.contains("Quick Draw"), "names discovered abilities")
 	assert_true(joined.contains("???"), "keeps later abilities a mystery")
-	assert_false(joined.contains("Hunter's Focus"), "does not spoil Hunter's Focus before mastery 4")
+	assert_false(joined.contains("Hunter's Focus"), "does not spoil Hunter's Focus before mastery 3")

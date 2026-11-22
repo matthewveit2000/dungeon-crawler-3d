@@ -81,25 +81,27 @@ Skyrim-inspired **left-hand / right-hand equipping** supporting four classic pla
 - **Hybrid Progression:**
   - **XP & Levels:** Combat, quests, and landmark discovery award XP that levels up the character, granting **Attribute Points** (Health / Magicka / Stamina) and **Perk / Skill Tree Points**.
   - **Skyrim Use-to-Improve:** Swinging melee weapons, casting spells, blocking, and firing bows steadily improve those skill proficiencies through use.
-- **Skyrim Equipment Slots + Chaotic Affixes:**
+- **Skyrim Equipment Slots & Inherent Rarities (`D-060`):**
   - Familiar slots: Left Hand, Right Hand, Head, Chest, Hands, Feet, Ring(s), Amulet.
-  - Rarity tiers are **Common → Uncommon → Rare → Epic → Legendary** (`D-048`). **For now every drop is Common** (`D-049`): items are made interesting by *what they are* and *what they grow into*, not by a tier. Higher rarities will return later as genuinely different items with more powerful, unique powers — never as "the same item with bigger numbers".
+  - Rarity tiers are **Common → Uncommon → Rare → Epic → Legendary** (`D-048`, `D-060`). Every item has a **fixed inherent rarity** (no random prefixes/suffixes or floor-scaled copies of the same item): stronger, more unique items carry higher rarities, higher rarities become more common on deeper floors, and lower rarities have lower mastery ceilings and fewer abilities.
+  - **No-Duplicate Non-Stackable Pool (`D-060`):** Once any weapon, spell, shield, armor piece, or accessory is received (including starting loadout), it is pulled from the world and vendor loot pools while owned. Selling an item returns it to the pool; death/collapse restores ownership with the Floor-Entry Snapshot. If a rarity's pool empties, drops step downward (never upward) and fall back to stackable consumables/ingredients + gold.
 - **Economy & Quests:** Sell excess loot and buy supplies/gear at Safe Room Vendors; study each safe room's area map to mark nearby treasure and champion lairs on your own map.
 
-### 6.1 Discovery & Item Mastery (`D-049`)
+### 6.1 Discovery, Inherent Rarities & Item Mastery (`D-049`, `D-060`)
 
 The game should feel like you are **constantly discovering** something new: a weapon you have never held, a spell that
-does something you have not seen, an enemy you have never fought.
+does something you have not seen, an enemy you have never fought, a rarer room variant.
 
-- **A large variety of distinct loot.** Every item is its own thing with its own identity: Nordic longsword, bearded hand
-  axe, flanged mace, barrow seax, ash-hilt broadsword, battleaxe, war hammer, Dane axe, recurve / yew long / bone short
-  bows, firebolt, chain spark, frost shard, venom spit, void lance, blood siphon, mend wounds, round / kite shields and a
-  buckler, and armor and jewellery for every slot. Each item has a **drop weight**, so some are everyday finds and some
-  are rare discoveries. New items should keep being added.
-- **Item mastery.** Every weapon, spell, shield, armor piece and accessory has its own **mastery level (1–10)** stored
-  on the item. Using it earns mastery XP (hits, kills, blocks, hits taken while worn, casts). Each level makes the item's
-  core stats stronger, and **specific levels unlock new abilities that belong to that item's own mastery track**, so two
-  items of the same kind grow in different directions. Examples:
+- **A large variety of distinct loot.** Every item is its own thing with its own identity and inherent rarity (`common`–`legendary`):
+  Nordic longsword, bearded hand axe, flanged mace, barrow seax, ash-hilt broadsword, battleaxe, war hammer, Dane axe,
+  recurve / yew long / bone short bows, firebolt, chain spark, frost shard, venom spit, void lance, blood siphon, mend
+  wounds, round / kite shields and a buckler, armor and jewellery for every slot, plus legendary relics. **Rarity drives
+  spawn rates** across items, enemies, rooms, chests, traps, and props, with deeper floors boosting higher-rarity odds.
+- **Rarity-capped Item Mastery (`D-060`).** Every weapon, spell, shield, armor piece and accessory has its own **mastery
+  level** stored on the item, capped by rarity (`common`: Lv 3 / 1–2 abilities, `uncommon`: Lv 5 / 2–3, `rare`: Lv 7 / 3–4,
+  `epic`: Lv 9 / 4–5, `legendary`: Lv 10 / 5–6; all start with a Level 1 ability). Using it earns mastery XP (hits, kills,
+  blocks, hits taken while worn, casts). Each level makes the item's core stats stronger, and **specific levels unlock new
+  abilities that belong to that item's own mastery track**, so two items of the same kind grow in different directions. Examples:
   - Chain Spark learns **Arc Chain** at 2 and keeps jumping to more enemies (2, 3, 5, 8 targets).
   - Firebolt learns **Ignite**, then **Detonation** (explodes), then **Splinter** (casts three).
   - One-handed swords learn **Lunge** (power-attack dash) and **Cross Guard** (dual-wield block).

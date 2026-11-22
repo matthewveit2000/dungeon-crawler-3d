@@ -87,7 +87,7 @@
 
 | ID | Idea | Summary & Notes | Source | Status |
 |---|---|---|---|---|
-| **IDEA-011** | **Unified Rarity & Scarcity System (Items, Enemies, etc.)** | Organize **all items, enemies, etc.** into a unified rarity framework (`Common` → `Uncommon` → `Rare` → `Epic` → `Legendary`, `D-048`) where rarity directly drives **spawn/drop rates** and **vendor prices**. Unique/special items (like the Glock or exotic tomes) MUST have **low drop rates and high prices** so finding or affording one stays thrilling instead of boring or overwhelming. | `FB-019` | `Fleshed Out` |
+| **IDEA-011** | **Unified Rarity & Scarcity System (Items, Enemies, etc.)** | Organize **all items, enemies, rooms, etc.** into a unified rarity framework (`Common` → `Uncommon` → `Rare` → `Epic` → `Legendary`, `D-048`, `D-060`) where inherent rarity directly drives **spawn/drop rates**, **floor-depth odds**, **mastery ceilings**, and **vendor prices**, and owned non-stackables are pulled from the pool (`FB-025`). | `FB-019`, `FB-025` | `Implemented` |
 
 ---
 

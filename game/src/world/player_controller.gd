@@ -319,20 +319,32 @@ func equip_from_inventory(inv_index: int, preferred_hand: String = "") -> bool:
 	return true
 
 
-## Repairs older saves: a ring stored under the old "ring" key (D-046 bug) moves to a real ring slot, the retired
-## rarity id becomes "legendary" (FB-014), and items / effects renamed by FB-022 take their new ids and names.
+## Repairs older saves: a ring stored under the old "ring" key moves to a real ring slot, legacy ids/rarities
+## migrate cleanly, and every item inherits its current inherent rarity and mastery cap (D-060).
 func normalize_equipment() -> void:
 	for it in equipment.values() + inventory:
 		var d := it as Dictionary
 		if str(d.get("rarity", "")) == "sponsored":  # FB-014 retired rarity id (old saves only)
 			d["rarity"] = "legendary"
 		var nid := DataLoader.current_id(str(d.get("id", "")))
+		var def := DataLoader.get_item_def(nid)
 		if nid != str(d.get("id", "")):
-			var def := DataLoader.get_item_def(nid)
 			d["id"] = nid
-			for k in ["name", "description", "model", "icon"]:
+			for k in ["name", "description", "model", "icon", "rarity"]:
 				if def.has(k):
 					d[k] = def[k]
+		if not def.is_empty():
+			var inh_r := str(def.get("rarity", "common"))
+			var r_def := RarityTable.get_rarity({}, inh_r)
+			d["rarity"] = inh_r
+			d["rarity_label"] = str(r_def.get("label", inh_r.capitalize()))
+			d["rarity_color"] = str(r_def.get("color", "#d8dce3"))
+		if MasterySystem.is_masterable(d):
+			var cap := MasterySystem.max_level_for(d)
+			if int(d.get("mastery_level", 1)) > cap:
+				d["mastery_level"] = cap
+				d["mastery_xp"] = 0.0
+		d.erase("affixes")
 		for old_k in ["sponsored_effect", "sponsored_label"]:  # FB-022 old field names (old saves only)
 			if d.has(old_k):
 				var new_k: String = str(old_k).replace("sponsored", "legendary")

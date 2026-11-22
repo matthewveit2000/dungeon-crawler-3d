@@ -199,7 +199,7 @@ func test_test_mode_can_spawn_anything_and_never_touches_the_real_save() -> void
 	for e in DataLoader.get_enemies_pack().get("enemies", []):
 		assert_eq(game.test_spawn_enemy(str(e["id"]), 2).size(), 2, "spawns %s" % str(e["id"]))
 	assert_gt(game.test_kill_enemies(), 0, "kills spawned enemies")
-	for r in DataLoader.get_affixes_pack().get("rarities", []):
+	for r in DataLoader.get_rarities_pack().get("rarities", []):
 		for it in DataLoader.get_items_pack().get("items", []):
 			assert_false(game.test_give_item(str(it["id"]), str(r["id"])).is_empty(), "gives %s (%s)" % [str(it["id"]), str(r["id"])])
 	for kind in DungeonBuilder.TEST_OBJECTS:

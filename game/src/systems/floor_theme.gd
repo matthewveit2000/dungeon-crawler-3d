@@ -1,14 +1,28 @@
 class_name FloorTheme
 extends RefCounted
-## Tier 2 Pure System: First-class Floor Theme resolver (D-055 / IDEA-008).
+## Tier 2 Pure System: First-class Floor Theme resolver (D-055, D-060).
 ## Merges theme defaults from themes.json (with optional `extends` inheritance) and per-floor overrides
-## from world.json so DungeonBuilder, DungeonGenerator, and LootGenerator can be driven cleanly by themes.
+## from world.json so DungeonBuilder and DungeonGenerator are cleanly driven by themes and rarities.
 
 const DEFAULT_KIT_DIR := "res://assets/models/kit/"
 const DEFAULT_PROPS_DIR := "res://assets/models/props/"
-const DEFAULT_WALL_VARIANTS := [["wall_a", 0.3], ["wall_b", 0.3], ["wall_c", 0.24], ["wall_niche", 0.09], ["wall_damaged", 0.07]]
+const DEFAULT_WALL_VARIANTS := [
+	{"id": "wall_a", "rarity": "common"},
+	{"id": "wall_b", "rarity": "common"},
+	{"id": "wall_c", "rarity": "common"},
+	{"id": "wall_niche", "rarity": "rare"},
+	{"id": "wall_damaged", "rarity": "uncommon"},
+]
 const DEFAULT_TORCH_WALL_VARIANTS := ["wall_a", "wall_b", "wall_c"]
-const DEFAULT_FLOOR_VARIANTS := ["floor_a", "floor_b", "floor_c"]
+const DEFAULT_FLOOR_VARIANTS := [
+	{"id": "floor_a", "rarity": "common"},
+	{"id": "floor_b", "rarity": "common"},
+	{"id": "floor_c", "rarity": "uncommon"},
+]
+const DEFAULT_CEILING_VARIANTS := [
+	{"id": "ceiling_a", "rarity": "common"},
+	{"id": "ceiling_b", "rarity": "rare"},
+]
 
 var id: String = "nordic_catacombs"
 var theme_name: String = "Nordic Catacombs"
@@ -23,9 +37,12 @@ var boss_color: String = "#e04838"
 var wall_variants: Array = DEFAULT_WALL_VARIANTS
 var torch_wall_variants: Array = DEFAULT_TORCH_WALL_VARIANTS
 var floor_variants: Array = DEFAULT_FLOOR_VARIANTS
-var ceiling_primary: String = "ceiling_a"
-var ceiling_alt: String = "ceiling_b"
-var ceiling_alt_chance: float = 0.08
+var ceiling_variants: Array = DEFAULT_CEILING_VARIANTS
+var room_variants: Array = []
+var chest_tiers: Array = []
+var trap_types: Array = []
+var container_types: Array = []
+var dressing_props: Array = []
 var dressing: Dictionary = {}
 var dressing_depth: Dictionary = {}
 var dressing_collide: Dictionary = {}
@@ -34,7 +51,6 @@ var loot_tags: Array = []
 var raw: Dictionary = {}
 
 
-## Resolves a FloorTheme from a floor config dictionary and themes pack (merges `extends` + floor overrides).
 static func resolve(floor_cfg: Dictionary, themes_pack: Dictionary = {}) -> FloorTheme:
 	var pack := themes_pack
 	if pack.is_empty() and DataLoader != null:
@@ -48,7 +64,6 @@ static func resolve(floor_cfg: Dictionary, themes_pack: Dictionary = {}) -> Floo
 	var target_id := str(floor_cfg.get("theme_id", default_id))
 	var merged: Dictionary = _merge_inheritance(by_id, target_id, default_id)
 
-	# Per-floor overrides in world.json take precedence over theme defaults
 	for key in ["ambient_color", "fog_color", "fog_density", "torch_color", "safe_zone_color", "boss_color",
 			"kit_dir", "props_dir", "enemy_tags", "loot_tags"]:
 		if floor_cfg.has(key):
@@ -71,9 +86,13 @@ static func resolve(floor_cfg: Dictionary, themes_pack: Dictionary = {}) -> Floo
 		theme.torch_wall_variants = merged["torch_wall_variants"]
 	if not (merged.get("floor_variants", []) as Array).is_empty():
 		theme.floor_variants = merged["floor_variants"]
-	theme.ceiling_primary = str(merged.get("ceiling_primary", "ceiling_a"))
-	theme.ceiling_alt = str(merged.get("ceiling_alt", "ceiling_b"))
-	theme.ceiling_alt_chance = float(merged.get("ceiling_alt_chance", 0.08))
+	if not (merged.get("ceiling_variants", []) as Array).is_empty():
+		theme.ceiling_variants = merged["ceiling_variants"]
+	theme.room_variants = merged.get("room_variants", [])
+	theme.chest_tiers = merged.get("chest_tiers", [])
+	theme.trap_types = merged.get("trap_types", [])
+	theme.container_types = merged.get("container_types", [])
+	theme.dressing_props = merged.get("dressing_props", [])
 	theme.dressing = merged.get("dressing", {})
 	theme.dressing_depth = merged.get("dressing_depth", {})
 	var raw_col: Dictionary = merged.get("dressing_collide", {})
@@ -109,7 +128,86 @@ static func _merge_inheritance(by_id: Dictionary, target_id: String, fallback_id
 	return out
 
 
-func dressing_for_role(role: String, fallback: Dictionary = {}) -> Array:
+func pick_room_variant(floor_number: int, rng: SeededRng, rar_pack: Dictionary = {}) -> Dictionary:
+	if room_variants.is_empty():
+		return {"id": "barrow_chamber", "name": "Barrow Chamber", "rarity": "common", "chest_chance": 0.5, "chest_tier": "standard", "trap_chance": 0.1, "containers_max": 2, "enemy_count_delta": 0}
+	return RarityTable.pick_entry_by_rarity(room_variants, floor_number, rng, "gen", rar_pack)
+
+
+func pick_chest_tier(floor_number: int, rng: SeededRng, rar_pack: Dictionary = {}) -> Dictionary:
+	if chest_tiers.is_empty():
+		return {"id": "standard", "rarity": "common", "label": "Iron-Bound Chest"}
+	return RarityTable.pick_entry_by_rarity(chest_tiers, floor_number, rng, "gen", rar_pack)
+
+
+func chest_tier_def(tier_id: String) -> Dictionary:
+	for c in chest_tiers:
+		if str((c as Dictionary).get("id", "")) == tier_id:
+			return c
+	return {}
+
+
+func pick_wall_variant(floor_number: int, rng: SeededRng, rar_pack: Dictionary = {}) -> String:
+	var picked := RarityTable.pick_entry_by_rarity(wall_variants, floor_number, rng, "gen", rar_pack)
+	return str(picked.get("id", "wall_a"))
+
+
+func pick_floor_variant(floor_number: int, rng: SeededRng, rar_pack: Dictionary = {}) -> String:
+	var picked := RarityTable.pick_entry_by_rarity(floor_variants, floor_number, rng, "gen", rar_pack)
+	return str(picked.get("id", "floor_a"))
+
+
+func pick_ceiling_variant(floor_number: int, rng: SeededRng, rar_pack: Dictionary = {}) -> String:
+	var picked := RarityTable.pick_entry_by_rarity(ceiling_variants, floor_number, rng, "gen", rar_pack)
+	return str(picked.get("id", "ceiling_a"))
+
+
+func pick_container_kind(floor_number: int, rng: SeededRng, rar_pack: Dictionary = {}) -> String:
+	if container_types.is_empty():
+		return "crate" if rng.next_float("gen") < 0.5 else "urn"
+	var picked := RarityTable.pick_entry_by_rarity(container_types, floor_number, rng, "gen", rar_pack)
+	return str(picked.get("id", "crate"))
+
+
+func pick_trap_kind(floor_number: int, rng: SeededRng, rar_pack: Dictionary = {}) -> String:
+	if trap_types.is_empty():
+		return "spike_trap"
+	var picked := RarityTable.pick_entry_by_rarity(trap_types, floor_number, rng, "gen", rar_pack)
+	return str(picked.get("id", "spike_trap"))
+
+
+func pick_dressing_prop(role: String, floor_number: int, rng: SeededRng, preferred_props: Array = [], rar_pack: Dictionary = {}) -> String:
+	var cands: Array = []
+	for p in dressing_props:
+		var pd: Dictionary = p
+		var roles: Array = pd.get("roles", [])
+		if roles.is_empty() or roles.has(role):
+			cands.append(pd)
+	if cands.is_empty() and not dressing_props.is_empty():
+		cands = dressing_props
+	if cands.is_empty():
+		return "barrel"
+	if not preferred_props.is_empty():
+		var pref_cands: Array = []
+		for p in cands:
+			if preferred_props.has(str((p as Dictionary).get("id", ""))):
+				pref_cands.append(p)
+		if not pref_cands.is_empty() and rng.next_float("gen") < 0.72:
+			cands = pref_cands
+	var picked := RarityTable.pick_entry_by_rarity(cands, floor_number, rng, "gen", rar_pack)
+	return str(picked.get("id", "barrel"))
+
+
+func dressing_for_role(role: String, fallback: Dictionary = {}, floor_number: int = 1) -> Array:
+	if not dressing_props.is_empty():
+		var out: Array = []
+		for p in dressing_props:
+			var pd: Dictionary = p
+			var roles: Array = pd.get("roles", [])
+			if roles.is_empty() or roles.has(role):
+				out.append([str(pd["id"]), RarityTable.effective_spawn_weight(pd, floor_number)])
+		if not out.is_empty():
+			return out
 	if dressing.has(role):
 		return dressing[role]
 	if dressing.has("combat"):
@@ -131,7 +229,6 @@ func prop_collider(kind: String) -> Vector3:
 	return dressing_collide.get(kind, Vector3.ZERO)
 
 
-## Returns a dictionary compatible with DungeonBuilder.build_environment().
 func to_env_config() -> Dictionary:
 	return {
 		"ambient_color": ambient_color,
@@ -143,7 +240,6 @@ func to_env_config() -> Dictionary:
 	}
 
 
-## Optional theme tag filter for future themed enemy pools (empty tags = allow all, zero change to current floors).
 func matches_enemy(enemy_def: Dictionary) -> bool:
 	if enemy_tags.is_empty():
 		return true
@@ -156,7 +252,6 @@ func matches_enemy(enemy_def: Dictionary) -> bool:
 	return false
 
 
-## Optional theme tag filter for future themed loot pools (empty tags = allow all).
 func matches_item(item_def: Dictionary) -> bool:
 	if loot_tags.is_empty():
 		return true

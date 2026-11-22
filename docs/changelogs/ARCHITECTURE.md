@@ -91,3 +91,9 @@ See [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) and [`docs/DECISION_LOG.md`](..
 
 ## 2026-11-21 — FB-022 Systems (`D-057`)
 - New `PowerScale` + `data/balance.json`, `InventoryStacks`; player hotbar & timed effects; on-demand enemy creation (`_pending_spawns`); champion promotion; `FloorLayout.pois`, `blocked_corners`, `has_tile_los`; shader health bar; `UiTheme.map_mark()` replaces four copies of the landmark icon table; `DataLoader.LEGACY_IDS` save migration. See `docs/ARCHITECTURE.md` "FB-022 Systems".
+
+## 2026-11-22 — FB-025 Unified Inherent Rarity & No-Duplicate Loot Pool (`D-060`)
+- Removed `game/data/affixes.json`; moved `legendary_effects` to `items.json` and `vendor` config to `balance.json`; removed `get_affixes_pack()` from `DataLoader` and added `get_balance_pack()`.
+- Extended `RarityTable` with `rarity_weight_for_floor`, `source_profiles`, `pick_entry_by_rarity`, `mastery_max_level`, and `max_abilities`.
+- Updated `MasterySystem` (`max_level_for`), `LootGenerator` (`collect_owned_non_stackable_ids`, downward fallback, fixed stats), `VendorSystem`, `FloorTheme` (rarity-driven room variants, chest tiers, traps, containers, dressing, architecture), `DungeonGenerator`, `DungeonBuilder`, `GameMain` (corpse reroll guard, owned pool exclusion), `PlayerController.normalize_equipment`, `ItemInfo`, and `TestModePanel`.
+

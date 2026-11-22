@@ -72,7 +72,7 @@ static func build_mastery(item: Dictionary) -> VBoxContainer:
 	if not MasterySystem.is_masterable(item):
 		return v
 	var lvl := MasterySystem.level_of(item)
-	var cap := MasterySystem.max_level()
+	var cap := MasterySystem.max_level_for(item)
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 10)
 	head.add_child(UiTheme.label("MASTERY %d / %d" % [lvl, cap], 17, UiTheme.COL_GOLD_BRIGHT, UiTheme.font_ui_bold()))

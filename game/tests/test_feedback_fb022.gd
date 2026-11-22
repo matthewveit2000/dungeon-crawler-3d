@@ -132,7 +132,7 @@ func _scan(v: Variant, where: String, hits: Array) -> void:
 
 func test_no_tv_show_or_sponsor_theme_left_in_the_game() -> void:
 	var hits: Array = []
-	for f in ["items", "enemies", "affixes", "dungeon_ai", "setpieces", "tutorials", "progression", "world", "player", "mastery"]:
+	for f in ["items", "enemies", "rarities", "balance", "themes", "dungeon_ai", "setpieces", "tutorials", "progression", "world", "player", "mastery"]:
 		_scan(DataLoader.get_pack(f), f, hits)
 	# player-facing UI text
 	for path in ["res://src/ui/hud.gd", "res://src/ui/pause_menu.gd", "res://src/ui/death_screen.gd", "res://src/ui/title_screen.gd",

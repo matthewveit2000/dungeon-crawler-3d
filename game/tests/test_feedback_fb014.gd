@@ -132,14 +132,14 @@ func test_enemy_faces_where_it_walks_while_chasing() -> void:
 func test_rarities_are_the_normal_rpg_tiers() -> void:
 	DataLoader.ensure_loaded()
 	var ids: Array[String] = []
-	for r in DataLoader.get_affixes_pack().get("rarities", []):
+	for r in DataLoader.get_rarities_pack().get("rarities", []):
 		ids.append(str(r["id"]))
 	assert_eq(ids, ["common", "uncommon", "rare", "epic", "legendary"] as Array[String], "Common → Legendary")
 	for id in ids:
 		assert_true(UiTheme.RARITY_NAMES.has(id), "%s has a display name" % id)
 	assert_false(UiTheme.RARITY_NAMES.has("sponsored"), "no Sponsored tier")
 	for it in DataLoader.get_items_pack().get("items", []):
-		assert_ne(str(it.get("forced_rarity", "")), "sponsored", "%s forced rarity is a normal tier" % str(it["id"]))
+		assert_ne(str(it.get("rarity", "")), "sponsored", "%s rarity is a normal tier" % str(it["id"]))
 	for e in DataLoader.get_enemies_pack().get("enemies", []):
 		assert_false(JSON.stringify(e).contains("\"sponsored\""), "%s drops use normal tiers" % str(e["id"]))
 
@@ -147,7 +147,7 @@ func test_rarities_are_the_normal_rpg_tiers() -> void:
 func test_old_saves_with_sponsored_items_become_legendary() -> void:
 	game = _make_game()
 	var p := game.player
-	var it := game.test_give_item("iron_longsword", "epic")
+	var it := game.test_give_item("gravefeast_cleaver")
 	p.inventory[-1]["rarity"] = "sponsored"
 	p.equipment["right_hand"] = it.duplicate(true)
 	p.equipment["right_hand"]["rarity"] = "sponsored"

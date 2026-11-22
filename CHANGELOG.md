@@ -9,7 +9,14 @@ For detailed domain-specific logs (design, art, architecture, testing), see [`do
 
 ## [Unreleased]
 
-### Added
+### Added / Changed
+- **2026-11-22 — FB-025: Unified Inherent Rarities, Floor-Depth Odds, Mastery Ceilings & No-Duplicate Loot Pool (`D-060`):**
+  - **Removed all old rarity remainders:** deleted `game/data/affixes.json` (random rarity rolling, random prefixes/suffixes, `loot_rarities_enabled` lock), removed `floor_mult` item stat/value scaling, and removed legacy per-item `drop_weight` / `forced_rarity` / `floor_min` and per-enemy `spawn_weight`. Moved `legendary_effects` to `items.json` and `vendor` config to `balance.json`.
+  - **Assigned inherent rarities everywhere:** every item (`46`), enemy (`11`), procedural combat room variant (`6`: Barrow Chamber, Guard Post, Trapped Crypt, Ancient Armory, Cursed Shrine, Forgotten Treasure Annex), chest tier (`5`), container, trap, architecture variant, and dressing prop now has an assigned RPG rarity (`common`, `uncommon`, `rare`, `epic`, `legendary`).
+  - **Rarity-driven spawn rates & deeper-floor scaling:** `RarityTable` drives all spawn/drop weights from `game/data/rarities.json`, shifting odds toward Rare/Epic/Legendary on deeper floors (`floor_weight_growth`) and applying `source_profiles` for Rare/Epic/Vault chests, Champions, Bosses, and Vendors.
+  - **Rarity-capped mastery:** `MasterySystem.max_level_for()` enforces per-rarity mastery ceilings (`common`: Lv 3 / 1–2 abilities, `uncommon`: Lv 5 / 2–3, `rare`: Lv 7 / 3–4, `epic`: Lv 9 / 4–5, `legendary`: Lv 10 / 5–6; all keep a Level 1 ability).
+  - **No-duplicate non-stackable pool:** owned gear (including starting loadout) is excluded from world drops, corpses, and vendor stock; selling an item returns it to the pool; Floor-Entry Snapshots save/restore ownership; exhausted pools step downward (never upward) and fall back to stackable consumables/ingredients + bonus gold.
+  - **Tests & Docs:** added `game/tests/test_feedback_fb025.gd`; updated `scripts/validate-data.py`, `DataLoader`, `LootGenerator`, `VendorSystem`, `FloorTheme`, `DungeonGenerator`, `DungeonBuilder`, `TestModePanel`, and living docs.
 - **2026-11-21 — Communication: Commands in One Paste-Ready Block (`D-059`, `FB-024`):** command sequences for the User come in a single code block, one per line.
 - **2026-11-21 — Workflow: Always Merge to `main` Automatically (`D-058`, `FB-023`):** reaffirms `D-050` — branch-started sessions merge finished, tested work into `main` without asking; branches only on request. FB-022 work merged into `main`.
 - **2026-11-21 — FB-022: Own Identity, Swarms & Champions, Power-Scale Knobs, Hotbar, Stacks, Area Maps, Visible DoT (`D-057`):**
