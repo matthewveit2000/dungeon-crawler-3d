@@ -123,3 +123,9 @@ See [`docs/TESTING_STRATEGY.md`](../TESTING_STRATEGY.md) and [`docs/DECISION_LOG
   - `test_owned_non_stackables_are_pulled_from_loot_and_vendor_pools`: verifies starting gear exclusion, duplicate-free loot/vendor stock, downward-only tier fallback to consumables/ingredients, return-to-pool on vendor sell, and Floor-Entry Snapshot restoration on death/collapse.
 - Updated `test_data_loader.gd`, `test_loot_generator.gd`, `test_vendor_compass_ai_console.gd`, `test_feedback_fb013.gd`, `test_feedback_fb014.gd`, `test_feedback_fb015.gd`, `test_feedback_fb022.gd`, `test_architecture_refactor_d055.gd`, `test_boss_fight_flow.gd`, and `test_headless_gameplay_integration.gd` (preferring unshielded regular melee target in `test_melee_combat_kills_enemy_grants_xp_skyrim_skill_use_and_corpse_loot` and isolating `test_d039_container_loot_does_not_depend_on_open_order` from 100+ chest pool exhaustion).
 - Verified all 22 GUT test scripts (`136/136` tests, `465,287` assertions), `validate-data.py`, `check-repo-hygiene.py`, `validate-assets.py`, headless boot smoke, and live Visual QA (`09_corridor.png`, `12_inventory.png`–`18_death_screen.png`).
+
+## 2026-11-22 — FB-026 Google Sheet Sync & Request Preservation Guards (`D-061`)
+- Added `scripts/test-sync-game-sheet.py` (`3/3` unit tests, wired into Layer 2 of `scripts/run-tests.sh`):
+  - `test_builds_all_13_tabs_with_complete_game_coverage`: verifies all 13 tabs in exact order, all 46 items across item tabs, all 11 enemies, and `Change Request` columns on every data tab.
+  - `test_preserves_unread_change_requests_and_completed_log_across_sync`: verifies unread `Change Request` cells (per-row & `Overview & Requests` `GEN-*`) and `Completed Log` rows survive `--push` rebuilds.
+  - `test_formatting_requests_cover_all_tabs`: verifies Google Sheets formatting batch generation and column-letter math.

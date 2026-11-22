@@ -25,6 +25,9 @@ python3 "${REPO_ROOT}/scripts/validate-data.py"
 
 echo "=== [2/5] Running Repo & Architecture Hygiene Checks ==="
 python3 "${REPO_ROOT}/scripts/check-repo-hygiene.py"
+if [[ -f "${REPO_ROOT}/scripts/test-sync-game-sheet.py" ]]; then
+  python3 "${REPO_ROOT}/scripts/test-sync-game-sheet.py"
+fi
 
 if [[ -f "${REPO_ROOT}/scripts/validate-assets.py" && -f "${REPO_ROOT}/art/manifest.json" ]]; then
   echo "=== [3/5] Validating Blender .glb Assets & Previews ==="

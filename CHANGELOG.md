@@ -10,6 +10,10 @@ For detailed domain-specific logs (design, art, architecture, testing), see [`do
 ## [Unreleased]
 
 ### Added / Changed
+- **2026-11-22 — FB-026: Live 13-Tab Google Sheet Game Reference & Change-Request Workflow (`D-061`):**
+  - Created the live Google Sheet (`docs/GAME_SHEET.json`) with 13 formatted tabs covering all items, spells, mastery tracks, enemies/bosses, rooms/chests/traps/props/setpieces, rarities/odds, player/progression, balance knobs, world/floors, an `Overview & Requests` dashboard with `GEN-01..GEN-20` General Requests, and an append-only `Completed Log`.
+  - Added `scripts/sync-game-sheet.py` (`--dry-run`, `--create`, `--push`, `--pull-requests`, `--complete`) that preserves all unread `Change Request` cells by stable Row ID and logs 1-line receipts when clearing implemented requests.
+  - Added automated unit tests (`scripts/test-sync-game-sheet.py`, wired into `scripts/run-tests.sh`) and standing sync rule in `AGENTS.md` §4.
 - **2026-11-22 — FB-025: Unified Inherent Rarities, Floor-Depth Odds, Mastery Ceilings & No-Duplicate Loot Pool (`D-060`):**
   - **Removed all old rarity remainders:** deleted `game/data/affixes.json` (random rarity rolling, random prefixes/suffixes, `loot_rarities_enabled` lock), removed `floor_mult` item stat/value scaling, and removed legacy per-item `drop_weight` / `forced_rarity` / `floor_min` and per-enemy `spawn_weight`. Moved `legendary_effects` to `items.json` and `vendor` config to `balance.json`.
   - **Assigned inherent rarities everywhere:** every item (`46`), enemy (`11`), procedural combat room variant (`6`: Barrow Chamber, Guard Post, Trapped Crypt, Ancient Armory, Cursed Shrine, Forgotten Treasure Annex), chest tier (`5`), container, trap, architecture variant, and dressing prop now has an assigned RPG rarity (`common`, `uncommon`, `rare`, `epic`, `legendary`).
